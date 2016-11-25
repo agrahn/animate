@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2009/05/07}
+\def\@anim@version{2009/06/08}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -1984,7 +1984,7 @@
           \ifx\@anim@nfps\@empty%
             \edef\@anim@nfps{\@anim@pfps}%
           \else%
-            \ifnum\@anim@nfps=\@anim@pfps\else%
+            \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
               \ifnum\@anim@curframe@zb=\z@%
                 \xdef\@anim@fps{#1}%
               \fi%
@@ -2025,7 +2025,7 @@
           \ifx\@anim@nfps\@empty%
             \xdef\@anim@nfps{\@anim@pfps}%
           \else%
-            \ifnum\@anim@nfps=\@anim@pfps\else%
+            \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
               \ifnum\@anim@curframe@zb=\z@%
                 \xdef\@anim@fps{#1}%
               \fi%
@@ -2383,7 +2383,7 @@
     \ifx\@anim@nfps\@empty% no change of frame rate
       \xdef\@anim@nfps{\@anim@pfps}%
     \else%
-      \ifnum\@anim@nfps=\@anim@pfps\else%
+      \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
         \ifnum\@anim@curframe@zb=\z@%
           \xdef\@anim@fps{#2}%
         \fi%

@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/05/31]
+\ProvidesPackage{animate}[2007/07/04]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -78,9 +78,6 @@
   }%
 }
 
-\newcount\@anim@resnum % counter for content resources
-\global\@anim@resnum=0
-
 %add OCProperties dict to Catalog
 \ifpdf
   \newcount\@anim@@ocgs
@@ -93,7 +90,7 @@
     /OCProperties <<
         /OCGs \the\@anim@@ocgs\space 0 R
         /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
-		/Order \the\@anim@@ocgs\space 0 R>>
+        /Order \the\@anim@@ocgs\space 0 R>>
     >>
   }
   \def\@anim@ocgs{}
@@ -107,8 +104,6 @@
     }%
   }%
 \else
-  \newcount\@anim@occnt % counter for optional content groups
-  \global\@anim@occnt=0
   \special{ps:
     % array which takes all ocgs (one per animation frame)
     mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
@@ -157,24 +152,12 @@
   }
 \fi
 
-%creates Form XObject from box contents and associates it with a newly created
-%OCG
+\newboolean{@anim@timeline} %true if `timeline' option was set
+
+%creates Form XObject from box contents and associates it with a newly
+%created OCG
 \ifpdf
   \def\@anim@xinline#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:box number
-    %new ocg
-    \immediate\pdfobj{<</Type/OCG /Name (#1.#2)>>}%
-    \xdef\@anim@curocg{\the\pdflastobj\space 0 R}%
-    %append to ocg array
-    \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
-    %store ref to ocg if it's a poster
-    \ifnum#2=0%
-      \def\@anim@posterframe{first}%
-    \else%
-      \def\@anim@posterframe{last}%
-    \fi%
-    \ifx\@anim@poster\@anim@posterframe%
-      \xdef\@anim@posterocg{\@anim@curocg}%
-    \fi%
     \ifnum#2=0% measuring the size of the box (first frame only)
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
@@ -182,47 +165,23 @@
       \setlength{\@anim@tmpdima}{\ht#3}%
       \addtolength{\@anim@tmpdima}{\dp#3}%
       \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-      \gdef\@anim@properties{}%
-      \gdef\@anim@xobject{}%
-      \gdef\@anim@content{}%
     \fi%
     %put graphics into XObject
     \immediate\pdfxform #3%
-    %compose resources for use in container XObject
-    \xdef\@anim@properties{%
-      \@anim@properties\space/oc\the\@anim@resnum\space\@anim@curocg
-    }%
+    %XObject resource entry of container XObject
     \xdef\@anim@xobject{%
-      \@anim@xobject\space/im\the\@anim@resnum\space\the\pdflastxform\space 0 R%
+      \@anim@xobject\space/im#2\space\the\pdflastxform\space 0 R%
     }%
-    %compose content stream of container XObject
-    \xdef\@anim@content{%
-      \@anim@content\space
-      /OC/oc\the\@anim@resnum\space
-      BDC q /im\the\@anim@resnum\space Do Q EMC%
-    }%
-    \global\advance\@anim@resnum by 1% increment resource number
-  }
+    \if@anim@timeline\else%
+      \@anim@newocg{#1}{#2}%new ocg
+      %compose content stream of container XObject
+      \xdef\@anim@content{%
+        \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
+      }%
+    \fi%
+   }
 \else
   \def\@anim@xinline#1#2#3{%
-    \special{ps:
-      %new ocg
-      mark /_objdef {@anim@ocg@\the\@anim@occnt} /type/dict /OBJ pdfmark
-      mark {@anim@ocg@\the\@anim@occnt} <<
-        /Type/OCG /Name (#1.#2)
-      >> /PUT pdfmark
-      %append to ocg array
-      mark {@anim@ocgs} {@anim@ocg@\the\@anim@occnt} /APPEND pdfmark
-    }%
-    %store ref to ocg if it is a poster
-    \ifnum#2=0%
-      \def\@anim@posterframe{first}%
-    \else%
-      \def\@anim@posterframe{last}%
-    \fi%
-    \ifx\@anim@poster\@anim@posterframe%
-      \xdef\@anim@posterocg{@anim@ocg@\the\@anim@occnt}%
-    \fi%
     \ifnum#2=0%
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
@@ -230,9 +189,6 @@
       \setlength{\@anim@tmpdima}{\ht#3}%
       \addtolength{\@anim@tmpdima}{\dp#3}%
       \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-      \gdef\@anim@properties{}%
-      \gdef\@anim@xobject{}%
-      \gdef\@anim@content{}%
     \fi%
     \edef\@anim@oldunitlength{\the\unitlength}% make backup
     \setlength{\unitlength}{1pt}%
@@ -254,7 +210,7 @@
     \special{ps:
       gsave
       mark
-        /_objdef {@anim@frm@\the\@anim@occnt}
+        /_objdef {@anim@frm@#1@#2}
         /BBox [frame@llx frame@lly frame@urx frame@ury]
       /BP pdfmark
       %flip around horizontal axis
@@ -267,48 +223,89 @@
       mark /EP pdfmark
       grestore
     }%
-    %compose resources for use in container XObject
-    \xdef\@anim@properties{%
-      \@anim@properties\space/oc\the\@anim@resnum\space
-      {@anim@ocg@\the\@anim@occnt}%
-    }%
+    %XObject resource entry of container XObject
     \xdef\@anim@xobject{%
-      \@anim@xobject\space/im\the\@anim@resnum\space
-      {@anim@frm@\the\@anim@occnt}%
+      \@anim@xobject\space/im#2\space
+      {@anim@frm@#1@#2}%
     }%
-    %compose content stream of container XObject
-    \xdef\@anim@content{%
-      \@anim@content\space
-      /OC/oc\the\@anim@resnum\space
-      BDC q /im\the\@anim@resnum\space Do Q EMC%
+    \if@anim@timeline\else%
+      \@anim@newocg{#1}{#2}% new ocg
+      %compose content stream of container XObject
+      \xdef\@anim@content{%
+        \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
+      }%
+    \fi%
+  }
+\fi
+
+%creates OCG and builds Properties entry for use in container XObject
+\ifpdf
+  \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
+    \immediate\pdfobj{<</Type/OCG /Name (#1.#2)>>}% new ocg
+    \xdef\@anim@curocg{\the\pdflastobj\space 0 R}%
+    %append to ocg array
+    \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
+    %store ref to ocg if it's a poster
+    \ifnum#2=0%
+      \def\@anim@posterframe{first}%
+    \else%
+      \def\@anim@posterframe{last}%
+    \fi%
+    \ifx\@anim@poster\@anim@posterframe%
+      \xdef\@anim@posterocg{\@anim@curocg}%
+    \fi%
+    %compose Properties entry for use in container XObject
+    \xdef\@anim@properties{%
+      \@anim@properties\space/oc#2\space\@anim@curocg%
     }%
-    \global\advance\@anim@occnt by 1% increment ocg counter
-    \global\advance\@anim@resnum by 1% increment resource number
+  }
+\else
+  \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
+    \special{ps:
+      mark /_objdef {@anim@ocg@#1@#2} /type/dict /OBJ pdfmark %new ocg
+      mark {@anim@ocg@#1@#2} <<
+        /Type/OCG /Name (#1.#2)
+      >> /PUT pdfmark
+      %append to ocg array
+      mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
+    }%
+    %store ref to ocg if it is a poster
+    \ifnum#2=0%
+      \def\@anim@posterframe{first}%
+    \else%
+      \def\@anim@posterframe{last}%
+    \fi%
+    \ifx\@anim@poster\@anim@posterframe%
+      \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+    \fi%
+    %compose Properties entry for use in container XObject
+    \xdef\@anim@properties{%
+      \@anim@properties\space/oc#2\space {@anim@ocg@#1@#2}%
+    }%
   }
 \fi
 
 %create XObject which contains all frames of the sequence
 \ifpdf
-  \def\@anim@makecontainer#1{%
+  \def\@anim@makecontainer#1{% #1:@anim@num
     \edef\@anim@oldunitlength{\the\unitlength}% make backup
     \setlength{\unitlength}{1pt}%
     \global\setbox\@anim@box=\hbox{%
-	  \pdfliteral{q}%
+      \pdfliteral{q}%
       \begin{picture}(%
         \@anim@animwidth,\@anim@animtotalheight%
       )(%
         0,-\@anim@animdepth%
       )%
       \end{picture}%
-	  \pdfliteral{Q\@anim@content}%
+      \pdfliteral{Q\@anim@content}%
     }%
     \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlen
     \immediate\pdfxform resources {%
         /Properties <<\@anim@properties>>
         /XObject <<\@anim@xobject>>
-	}\@anim@box%
+    }\@anim@box%
     \xdef\@anim@container{\the\pdflastxform\space 0 R}%
-    \global\@anim@resnum=0% reset resource number
   }
 \else
   \def\@anim@makecontainer#1{%
@@ -324,7 +321,6 @@
         >>
       >> /PUT pdfmark
     }%
-    \global\@anim@resnum=0% reset resource number
   }
 \fi
 
@@ -839,14 +835,14 @@
       \@anim@makebuttons%
       \setboolean{@anim@buttonsmade}{true}%
     \fi%
-	\if@anim@step\else%
+    \if@anim@step\else%
       %combine Pause & Play button faces into one XObject
       \@anim@makeppcontainer{\the\@anim@num}{Right}%
       \@anim@makeppcontainer{\the\@anim@num}{Left}%
-	\fi%  
+    \fi%
   \fi%
   \xdef\@anim@fps{#2}% current frame rate
-  \xdef\@anim@nfps{#2}% not used, actually, with `animategraphics'
+  \xdef\@anim@nfps{#2}%
   \xdef\@anim@pauseat{}%
   \xdef\@anim@nfpsat{}%
   \xdef\@anim@pfpsat{}%
@@ -865,43 +861,48 @@
     }%
     \advance\@anim@curframe by 1%
     \advance\@anim@curframe@zb by 1%
-    \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
   \repeat%
+  \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+  %build timeline from optional timeline file
+  \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
   \@anim@makecontainer{\the\@anim@num}% create container XObject
   %insert animation widget & controls
+  \@anim@insertwidgets{\the\@anim@num}%
+  \global\advance\@anim@num by 1%
+}%
+
+%insert the animation and control button widgets
+\def\@anim@insertwidgets#1{%#1:@anim@num
   \vtop{%
     \offinterlineskip%
-    \hbox{\@anim@animwidget{\the\@anim@num}}%
+    \hbox{\@anim@animwidget{#1}}%
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \setlength{\@anim@tmpdima}{0.1\@anim@tmpdima}%
       \vskip \@anim@tmpdima%
       \hbox to \@anim@animwidth\@anim@pt {%
         \hss%
-        \@anim@buttonwidget{\the\@anim@num}{EndLeft}{EndLeft}%
-        \@anim@buttonwidget{\the\@anim@num}{StepLeft}{StepLeft}%
+        \@anim@buttonwidget{#1}{EndLeft}{EndLeft}%
+        \@anim@buttonwidget{#1}{StepLeft}{StepLeft}%
         \if@anim@step\else%
-          \@anim@buttonwidget{\the\@anim@num}{PlayPauseLeft}{%
-            \the\@anim@num.PlayPauseLeft}%
-          \@anim@buttonwidget{\the\@anim@num}{PlayPauseRight}{%
-            \the\@anim@num.PlayPauseRight}%
+          \@anim@buttonwidget{#1}{PlayPauseLeft}{#1.PlayPauseLeft}%
+          \@anim@buttonwidget{#1}{PlayPauseRight}{#1.PlayPauseRight}%
         \fi%
-        \@anim@buttonwidget{\the\@anim@num}{StepRight}{StepRight}%
-        \@anim@buttonwidget{\the\@anim@num}{EndRight}{EndRight}%
+        \@anim@buttonwidget{#1}{StepRight}{StepRight}%
+        \@anim@buttonwidget{#1}{EndRight}{EndRight}%
         \if@anim@step\else%
           \setlength{\@anim@tmpdima}{\@anim@btnsize}%
           \setlength{\@anim@tmpdima}{0.3\@anim@tmpdima}%
           \hskip \@anim@tmpdima%
-          \@anim@buttonwidget{\the\@anim@num}{Minus}{Minus}%
-          \@anim@buttonwidget{\the\@anim@num}{Reset}{Reset}%
-          \@anim@buttonwidget{\the\@anim@num}{Plus}{Plus}%
+          \@anim@buttonwidget{#1}{Minus}{Minus}%
+          \@anim@buttonwidget{#1}{Reset}{Reset}%
+          \@anim@buttonwidget{#1}{Plus}{Plus}%
         \fi%
         \hss%
       }%
     \fi%
   }%
-  \global\advance\@anim@num by 1%
-}%
+}
 
 %calculates widget dimensions from natural ones, taking resizing options
 %into account
@@ -975,7 +976,7 @@
     \def\@anim@posterframe{none}%
     \ifx\@anim@poster\@anim@posterframe\else%
       \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
-    \fi
+    \fi%
     \pdfannot
       width \@anim@animwidth\@anim@pt
       height \@anim@animheight\@anim@pt
@@ -1152,11 +1153,11 @@
       \@anim@makebuttons%
       \setboolean{@anim@buttonsmade}{true}%
     \fi%
-	\if@anim@step\else%
+    \if@anim@step\else%
       %combine Pause & Play button faces into one XObject
       \@anim@makeppcontainer{\the\@anim@num}{Right}%
       \@anim@makeppcontainer{\the\@anim@num}{Left}%
-	\fi%  
+    \fi%
   \fi%
   \xdef\@anim@fps{#2}%
   \xdef\@anim@nfps{#2}% current frame rate (for use in \newframe)
@@ -1168,39 +1169,11 @@
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
   \global\advance\@anim@curframe@zb by 1%
   \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+  %build timeline from optional timeline file
+  \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
   \@anim@makecontainer{\the\@anim@num}% create container XObject
   %insert animation widget & controls
-  \vtop{%
-    \offinterlineskip%
-    \hbox{\@anim@animwidget{\the\@anim@num}}%
-    \if@anim@controls%
-      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-      \setlength{\@anim@tmpdima}{0.1\@anim@tmpdima}%
-      \vskip \@anim@tmpdima%
-      \hbox to \@anim@animwidth\@anim@pt {%
-        \hss%
-        \@anim@buttonwidget{\the\@anim@num}{EndLeft}{EndLeft}%
-        \@anim@buttonwidget{\the\@anim@num}{StepLeft}{StepLeft}%
-        \if@anim@step\else%
-          \@anim@buttonwidget{\the\@anim@num}{PlayPauseLeft}{%
-            \the\@anim@num.PlayPauseLeft}%
-          \@anim@buttonwidget{\the\@anim@num}{PlayPauseRight}{%
-            \the\@anim@num.PlayPauseRight}%
-        \fi%
-        \@anim@buttonwidget{\the\@anim@num}{StepRight}{StepRight}%
-        \@anim@buttonwidget{\the\@anim@num}{EndRight}{EndRight}%
-        \if@anim@step\else%
-          \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-          \setlength{\@anim@tmpdima}{0.3\@anim@tmpdima}%
-          \hskip \@anim@tmpdima%
-          \@anim@buttonwidget{\the\@anim@num}{Minus}{Minus}%
-          \@anim@buttonwidget{\the\@anim@num}{Reset}{Reset}%
-          \@anim@buttonwidget{\the\@anim@num}{Plus}{Plus}%
-        \fi%
-        \hss%
-      }%
-    \fi%
-  }%
+  \@anim@insertwidgets{\the\@anim@num}%
   \global\advance\@anim@num by 1%
   \setboolean{@anim@inside}{false}%
 }
@@ -1220,27 +1193,32 @@
 }
 \newcommand{\@anim@newframestar}[1][]{% starred variant to pause animation
   \if@anim@step\else%                 % #1: new frame rate
-    %build JavaScript commands to fill the `pauseAt' array
-    \xdef\@anim@pauseat{%
-      \@anim@pauseat%
-      a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
-    }%
-    \setboolean{@anim@pauseframes}{true}%
-    \xdef\@anim@pfps{\@anim@nfps}%
-    \xdef\@anim@nfps{#1}%
-    \ifx\@anim@nfps\@empty%
-      \xdef\@anim@nfps{\@anim@pfps}%
-    \else%
-      %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-      \xdef\@anim@nfpsat{%
-        \@anim@nfpsat%
-        a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+    \if@anim@timeline\else%
+      %build JavaScript commands to fill the `pauseAt' array
+      \xdef\@anim@pauseat{%
+        \@anim@pauseat%
+        a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
       }%
-      \xdef\@anim@pfpsat{%
-        \@anim@pfpsat%
-        a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-      }%
-      \setboolean{@anim@chfps}{true}% change fps
+      \setboolean{@anim@pauseframes}{true}%
+      \xdef\@anim@pfps{\@anim@nfps}%
+      \xdef\@anim@nfps{#1}%
+      \ifx\@anim@nfps\@empty%
+        \xdef\@anim@nfps{\@anim@pfps}%
+      \else%
+        \ifnum\@anim@curframe@zb=0%
+          \xdef\@anim@fps{#1}%
+        \fi%
+        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+        \xdef\@anim@nfpsat{%
+          \@anim@nfpsat%
+          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+        }%
+        \xdef\@anim@pfpsat{%
+          \@anim@pfpsat%
+          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+        }%
+        \setboolean{@anim@chfps}{true}% change fps
+      \fi%
     \fi%
   \fi%
   \global\advance\@anim@curframe@zb by 1%
@@ -1249,21 +1227,26 @@
 }
 \newcommand{\@anim@newframe}[1][]{% #1: new frame rate
   \if@anim@step\else%
-    \edef\@anim@pfps{\@anim@nfps}%
-    \edef\@anim@nfps{#1}%
-    \ifx\@anim@nfps\@empty%
-      \edef\@anim@nfps{\@anim@pfps}%
-    \else%
-      %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-      \xdef\@anim@nfpsat{%
-        \@anim@nfpsat%
-        a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-      }%
-      \xdef\@anim@pfpsat{%
-        \@anim@pfpsat%
-        a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-      }%
-      \setboolean{@anim@chfps}{true}% change fps
+    \if@anim@timeline\else%
+      \edef\@anim@pfps{\@anim@nfps}%
+      \edef\@anim@nfps{#1}%
+      \ifx\@anim@nfps\@empty%
+        \edef\@anim@nfps{\@anim@pfps}%
+      \else%
+        \ifnum\@anim@curframe@zb=0%
+          \xdef\@anim@fps{#1}%
+        \fi%
+        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+        \xdef\@anim@nfpsat{%
+          \@anim@nfpsat%
+          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+        }%
+        \xdef\@anim@pfpsat{%
+          \@anim@pfpsat%
+          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+        }%
+        \setboolean{@anim@chfps}{true}% change fps
+      \fi%
     \fi%
   \fi%
   \global\advance\@anim@curframe@zb by 1%
@@ -1274,10 +1257,12 @@
 %starts a new frame
 \def\@anim@beginframe{%
   \begin{lrbox}{\@anim@box}% store the graphics in a box
+  \the\@anim@begin%
 }
 
 %terminates current frame
 \def\@anim@endframe#1#2{%
+  \the\@anim@end%
   \end{lrbox}%
   \message{< a#1, fr#2}%
   %determine size of graphics
@@ -1332,6 +1317,152 @@
     \fi%
   \fi%
 }%
+
+%building timeline from timeline file
+\newread\@anim@@tmlnfile
+\newboolean{@anim@eof}
+\def\@anim@buildtmln#1{% #1:@anim@num
+  \edef\@anim@endlinechar{\the\endlinechar}%
+  \endlinechar=-1% suppress trailing space at input line end
+  \global\@anim@curframe@zb=0%
+  %read timeline file a first time to get number lines (= number of frames)
+  \openin\@anim@@tmlnfile=\@anim@tmlnfile%
+  \read\@anim@@tmlnfile to \@anim@inputline%
+  \edef\@anim@inputline{\@anim@inputline\space}%
+  %remove all spaces from input line
+  \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
+  \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
+    \setboolean{@anim@eof}{false}\fi%
+  \whiledo{\NOT\boolean{@anim@eof}}{%
+    \ifthenelse{\equal{\@anim@inputline}{}}{}{%
+      %initialise contents of each frame (to be filled with refs to XObjects
+      \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%  to be drawn)
+      \global\advance\@anim@curframe@zb by 1%
+    }%
+    \read\@anim@@tmlnfile to \@anim@inputline%
+    \edef\@anim@inputline{\@anim@inputline\space}%
+    \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
+    \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
+      \setboolean{@anim@eof}{false}\fi%
+  }%
+  \closein\@anim@@tmlnfile%
+  \xdef\@anim@images{\@anim@frames}% total number of images
+  \xdef\@anim@frames{\the\@anim@curframe@zb}% total number of anim positions
+  \global\@anim@curframe@zb=0%
+  %reopen timeline file and build timeline
+  \openin\@anim@@tmlnfile=\@anim@tmlnfile%
+  \read\@anim@@tmlnfile to \@anim@inputline%
+  \edef\@anim@inputline{\@anim@inputline\space}%
+  \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
+  \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
+    \setboolean{@anim@eof}{false}\fi%
+  \whiledo{\NOT\boolean{@anim@eof}}{%
+    \ifthenelse{\equal{\@anim@inputline}{}}{}{%
+      \expandafter\@anim@parseline\@anim@inputline;%
+      %create OCG and compose Properties entry
+      \@anim@newocg{#1}{\the\@anim@curframe@zb}%
+      %compose content stream of container XObject
+      \xdef\@anim@content{%
+        \@anim@content\space%
+        /OC/oc\the\@anim@curframe@zb\space%
+        BDC\@anim@getkeyval{@anim@content@\the\@anim@curframe@zb} EMC%
+      }%
+      \global\advance\@anim@curframe@zb by 1%
+    }%
+    \read\@anim@@tmlnfile to \@anim@inputline%
+    \edef\@anim@inputline{\@anim@inputline\space}%
+    \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
+    \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
+      \setboolean{@anim@eof}{false}\fi%
+  }%
+  \closein\@anim@@tmlnfile%
+  \endlinechar=\@anim@endlinechar% reset endlinechar
+}
+
+%reads one line of timeline file and splits into its colon separated parts
+\def\@anim@parseline#1:#2:#3;{%
+  \if@anim@step\else%
+    \ifx #1*% first column is a star (pause frame)
+      \xdef\@anim@pauseat{%
+        \@anim@pauseat%
+        a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
+      }%
+      \setboolean{@anim@pauseframes}{true}%
+    \fi%
+    \xdef\@anim@pfps{\@anim@nfps}%
+    \xdef\@anim@nfps{#2}%
+    \ifx\@anim@nfps\@empty% second column contains a number (new frame rate)
+      \xdef\@anim@nfps{\@anim@pfps}%
+    \else%
+      \ifnum\@anim@curframe@zb=0%
+        \xdef\@anim@fps{#2}%
+      \fi%
+      %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+      \xdef\@anim@nfpsat{%
+        \@anim@nfpsat%
+        a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#2);%
+      }%
+      \xdef\@anim@pfpsat{%
+        \@anim@pfpsat%
+        a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+      }%
+      \setboolean{@anim@chfps}{true}% change fps
+    \fi%
+  \fi%
+  %parse the third column
+  \@anim@parsethird#3,:;%
+}
+
+%parses 3rd column of timeline file (comma separated list of image specs)
+\def\@anim@parsethird#1,#2;{%
+  \def\@anim@firstarg{#1}%
+  \ifx\@anim@firstarg\@empty\else%
+    \@anim@process#1x:;% process one image spec
+  \fi%
+  \ifx #2:\else%
+    \@anim@parsethird#2;%
+  \fi%
+}
+
+\newcount\@anim@tmpcnt %scratch counter for different uses
+%process image spec, such as 123 or 456x78 or 9x0
+\def\@anim@process#1x#2;{%
+  %determine number of repetitions of current image
+  \ifx #2:%
+    \gdef\@anim@repeats{1}%
+  \else%
+    \@anim@processsecond#2;%
+  \fi%
+  \ifnum\@anim@repeats=0% 0= means: repeat until end of timeline
+    \edef\@anim@repeatuntil{\@anim@frames}%
+  \else%
+    \@anim@tmpcnt=\@anim@curframe@zb%
+    \advance\@anim@tmpcnt by \@anim@repeats%
+    \ifnum\@anim@frames<\@anim@tmpcnt%
+      \edef\@anim@repeatuntil{\@anim@frames}%
+    \else%
+      \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
+    \fi%
+  \fi%
+  %build contents of animation frames according to image specifications
+  \ifnum\@anim@images<#1\else% ignore image specifications which do not exist
+    \ifnum\@anim@images=#1\else%
+      \@anim@tmpcnt=\@anim@curframe@zb%
+      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
+        \@anim@newkey{@anim@content@\the\@anim@tmpcnt}{%
+          \@anim@getkeyval{@anim@content@\the\@anim@tmpcnt}
+          q /im#1\space Do Q%
+        }%
+        \advance\@anim@tmpcnt by 1%
+      \repeat%
+    \fi%
+  \fi%
+}
+
+%get number of repetitions of frame
+\def\@anim@processsecond#1x:;{%
+  \gdef\@anim@repeats{#1}%
+}
 
 %command options
 %setting the widget size
@@ -1410,6 +1541,25 @@
 \define@key{anim@user}{step}[true]{%
   \setboolean{@anim@step}{#1}%
 }
+\define@key{anim@user}{timeline}{%
+  \IfFileExists{#1}{%
+    \gdef\@anim@tmlnfile{#1}%
+    \setboolean{@anim@timeline}{true}%
+  }{%
+    \PackageError{animate}{timeline file `#1' cannot be opened for reading%
+    }{%
+      Make sure file `#1' exists and is readable!%
+    }%
+  }%
+}
+\newtoks\@anim@begin
+\define@key{anim@user}{begin}{%
+  \@anim@begin{#1}%
+}
+\newtoks\@anim@end
+\define@key{anim@user}{end}{%
+  \@anim@end{#1}%
+}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -1429,11 +1579,18 @@
   \let\if@anim@palindrome=\if@anim@@palindrome%
   \let\if@anim@step=\if@anim@@step%
   \gdef\@anim@posterocg{}%
+  \gdef\@anim@properties{}%
+  \gdef\@anim@xobject{}%
+  \gdef\@anim@content{}%
   \setboolean{@anim@pauseframes}{false}%
   \gdef\@anim@pauseat{}%
   \setboolean{@anim@chfps}{false}%
   \gdef\@anim@nfpsat{}%
   \gdef\@anim@pfpsat{}%
+  \gdef\@anim@tmlnfile{}%
+  \setboolean{@anim@timeline}{false}%
+  \@anim@begin={}%
+  \@anim@end={}%
 }
 
 %package options

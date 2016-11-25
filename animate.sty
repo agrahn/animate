@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2009/06/08}
+\def\@anim@version{2009/07/20}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2305,8 +2305,22 @@
           \@anim@getkeyval{%
             layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}%
         }%
+        \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{%
+          \@anim@getkeyval{frmxobject@\the\@anim@curframe@zb}%
+          \@anim@getkeyval{%
+            layerxobject@\the\@anim@curframe@zb.\the\@anim@curlayer}%
+		}%
+        \@anim@newkey{trlst@\the\@anim@curframe@zb}{%
+          \@anim@getkeyval{trlst@\the\@anim@curframe@zb}%
+          \@anim@getkeyval{%
+		    layertrlst@\the\@anim@curframe@zb.\the\@anim@curlayer}%
+		}%
         \@anim@newkey{%
           layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
+        \@anim@newkey{%
+          layerxobject@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
+        \@anim@newkey{%
+          layertrlst@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
         \global\advance\@anim@curlayer by \@ne%
       \repeat%
       %detect multiple inclusion of the same transp. in the current frame
@@ -2425,7 +2439,8 @@
   \ifthenelse{\equal{#2}{}}{}{\@anim@parselayer#2\@nil}%
 }
 
-%process transparency spec, such as 123 or 456x78 or 9x0
+%process transparency spec, such as `123' or `456x78' or `9x0' or `c' (clear
+%transparency stack)
 \def\@anim@process#1x#2\@nil{%
   %determine number of repetitions of current transparency
   \ifthenelse{\equal{#2}{}}{%
@@ -2444,36 +2459,53 @@
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
     \fi%
   \fi%
-  %build contents of animation layer and update frame xobject resource list
-  %according to transparency specifications
-  \ifnum\@anim@transp<#1\else%   ignore non-existing
-    \ifnum\@anim@transp=#1\else% transparencies
-      \@anim@newkey{u@tr#1}{}% mark current transp. as used within the animation
-      \global\@anim@tmpcnt=\@anim@curframe@zb%
-      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
-        %ressource list
-        \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
-          \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
-          /im#1\space\@anim@getkeyval{img@#1}%
-        }%
-        %layer content
-        \edef\@anim@tmplayercont{\@anim@getkeyval{%
-          layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
-        \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
-          \@anim@tmplayercont\space q /im#1\space Do Q%
-        }%
-        %append transparency to list of transparencies used in the current frame
-        \@anim@newkey{trlst@\the\@anim@tmpcnt}{%
-          \@anim@getkeyval{trlst@\the\@anim@tmpcnt}#1,}%
-        \global\advance\@anim@tmpcnt by \@ne%
-      \repeat%
+  %test whether transparency stack of the current layer is to be cleared
+  \ifthenelse{\equal{#1}{c}\OR\equal{#1}{C}}{%
+    \global\@anim@tmpcnt=\@anim@curframe@zb%
+    \loop\ifnum\@anim@frames>\@anim@tmpcnt%
+      %clear ressource list
+      \@anim@newkey{layerxobject@\the\@anim@tmpcnt.\the\@anim@curlayer}{}%
+      %clear layer content
+      \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{}%
+      %clear list of transparencies used in the current layer
+      \@anim@newkey{layertrlst@\the\@anim@tmpcnt.\the\@anim@curlayer}{}%
+      \global\advance\@anim@tmpcnt by \@ne%
+    \repeat%
+  }{%
+    %build contents of animation layer and update layer xobject resource
+    %list according to transparency specifications
+    \ifnum\@anim@transp<#1\else%   ignore non-existing
+      \ifnum\@anim@transp=#1\else% transparencies
+        \global\@anim@tmpcnt=\@anim@curframe@zb%
+        \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
+          %ressource list
+          \edef\@anim@tmpvar{\@anim@getkeyval{%
+            layerxobject@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
+          \@anim@newkey{layerxobject@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
+            \@anim@tmpvar\space/im#1\space\@anim@getkeyval{img@#1}%
+          }%
+          %layer content
+          \edef\@anim@tmpvar{\@anim@getkeyval{%
+            layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
+          \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
+            \@anim@tmpvar\space q /im#1\space Do Q%
+          }%
+          %append transp. to list of transparencies used in the current layer
+          \edef\@anim@tmpvar{\@anim@getkeyval{%
+            layertrlst@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
+          \@anim@newkey{layertrlst@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
+            \@anim@tmpvar#1,}%
+          \global\advance\@anim@tmpcnt by \@ne%
+        \repeat%
+      \fi%
     \fi%
-  \fi%
+  }%	
 }
 
 %detects multiple inclusion of the same transparency
 \def\@anim@findmult#1.#2,#3\@nil{%
   \ifthenelse{\equal{#2}{}}{}{%
+    \@anim@newkey{u@tr#2}{}% mark current transp. as `used'
     \ifcsname m@tr#2\endcsname%
       \PackageWarning{animate}{%
         Transparency #2 multiply included in frame #1.%

@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/08/20}
+\def\@anim@version{2008/10/06}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -248,10 +248,6 @@
 \newbox\@anim@box %stores animation frames
 \newdimen\@anim@tmpdima %length registers for occasional use
 \newdimen\@anim@tmpdimb
-\newdimen\@anim@tmpdimc
-\newdimen\@anim@tmpdimd
-\newdimen\@anim@tmpdime
-\newdimen\@anim@tmpdimf
 
 %tests whether file is already known (and embedded), if so it returns identifier
 %of xobj, otherwise returns `!'
@@ -305,7 +301,7 @@
       \@anim@filebox{#3}{#4}% store file in a box
       \@anim@getsize{\@anim@box}%
       \ifnum#2=\z@%
-        \@anim@scale% scale animation widget
+        \@anim@scale{\@anim@box}% scale animation widget
       \fi%
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
       \ifx\@anim@gropts\@empty\if@anim@multipage\message{<#4>}\fi\fi%
@@ -314,7 +310,7 @@
       \ifnum#2=\z@%
         \@anim@filebox{#3}{#4}% for size determination of first frame
         \@anim@getsize{\@anim@box}%
-        \@anim@scale%
+        \@anim@scale{\@anim@box}%
       \fi%
       \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
     }%
@@ -326,7 +322,7 @@
         \@anim@filebox{#3}{}%
         \@anim@getsize{\@anim@box}%
         \ifnum#2=\z@%
-          \@anim@scale%
+          \@anim@scale{\@anim@box}%
         \fi%
         \@anim@xinline{#1}{#2}{\@anim@box}{!}%
         \@anim@makefileknown{#3}{1}{\@anim@lastxform}%
@@ -334,7 +330,7 @@
         \ifnum#2=\z@%
           \@anim@filebox{#3}{}%
           \@anim@getsize{\@anim@box}%
-          \@anim@scale%
+          \@anim@scale{\@anim@box}%
         \fi%
         \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{1}}%
       }%
@@ -345,7 +341,7 @@
         \@anim@filebox{#3}{}%                           animation
         \@anim@getsize{\@anim@box}%
         \ifnum#2=\z@%
-          \@anim@scale%
+          \@anim@scale{\@anim@box}%
         \fi%
         \@anim@xinline{#1}{#2}{\@anim@box}{!}%
         \@anim@makefileknown{#3}{#1}{\@anim@lastxform}%
@@ -353,7 +349,7 @@
         \ifnum#2=\z@%
           \@anim@filebox{#3}{}%
           \@anim@getsize{\@anim@box}%
-          \@anim@scale%
+          \@anim@scale{\@anim@box}%
         \fi%
         \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
       }%
@@ -443,12 +439,13 @@
         \special{ps:
           gsave
           %translate graphics to lower left page corner
-          {%
-            frame@llx neg frame@lly neg translate
-            one@inch@x DVImag div neg one@inch@y DVImag div neg translate
-            0 paper@height DVImag div \if@anim@powerdot DVImag div\space\fi
-            translate
-          }?pdfmark
+          \if@anim@powerdot\else%
+            {%
+              frame@llx neg frame@lly neg translate
+              one@inch@x DVImag div neg one@inch@y DVImag div neg translate
+              0 paper@height DVImag div translate
+            }?pdfmark
+          \fi%
           %distill graphics into XObject
           mark
             /_objdef {@anim@frm@#1@#2}
@@ -1488,7 +1485,7 @@
       \@anim@filebox{\@anim@base\@anim@first\@anim@ext}{1}%
     \fi%
     \@anim@getsize{\@anim@box}%
-    \@anim@scale%
+    \@anim@scale{\@anim@box}%
     %draw draftbox according to dimensions of the first frame
     \@anim@draftbox{\@anim@box}%
   \else%
@@ -1562,6 +1559,7 @@
       \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth\p@ {%
         \hss%
+        \def\@anim@tooltip{}%
         \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
         \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
         \if@anim@step\else%
@@ -1572,8 +1570,11 @@
         \@anim@buttonwidget{#1}{EndRight}{EndRight:#2}%
         \if@anim@step\else%
           \hskip 0.3\@anim@tmpdima%
+          \def\@anim@tooltip{/TU (slower)}%
           \@anim@buttonwidget{#1}{Minus}{Minus:#2}%
+          \def\@anim@tooltip{/TU (default speed)}%
           \@anim@buttonwidget{#1}{Reset}{Reset:#2}%
+          \def\@anim@tooltip{/TU (faster)}%
           \@anim@buttonwidget{#1}{Plus}{Plus:#2}%
         \fi%
         \hss%
@@ -1594,91 +1595,60 @@
 
 %calculates widget dimensions from natural ones, taking resizing options
 %into account
-\def\@anim@scale{%
+\newcount\@anim@resize% resizing flags according to options given
+\def\@anim@scale#1{%
   %natural dimensions \width, \height, \depth, \totalheight
-  \setlength{\@anim@tmpdimc}{\@anim@framewidth\p@}%
-  \let\width\@anim@tmpdimc%
-  \setlength{\@anim@tmpdimd}{\@anim@frameheight\p@}%
-  \let\height\@anim@tmpdimd%
-  \setlength{\@anim@tmpdime}{\@anim@framedepth\p@}%
-  \let\depth\@anim@tmpdime%
-  \setlength{\@anim@tmpdimf}{\@anim@frametotalheight\p@}%
-  \let\totalheight\@anim@tmpdimf%
-  \xdef\@anim@animwidth{\strip@pt\width}%
-  \xdef\@anim@animheight{\strip@pt\height}%
-  \xdef\@anim@animdepth{\strip@pt\depth}%
-  \xdef\@anim@animtotalheight{\strip@pt\totalheight}%
-  %rescale height & depth
-  \ifthenelse{%
-    \boolean{@anim@heightarg}\AND\boolean{@anim@deptharg}%
-  }{%
-    \@anim@tmpdima=\@anim@heightarg%
-    \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
-    \@anim@tmpdima=\@anim@deptharg%
-    \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
-  }{%
-    \ifthenelse{\boolean{@anim@heightarg}}{%
-      \@anim@tmpdima=\@anim@heightarg%
+  \def\width{\wd#1}%
+  \def\height{\ht#1}%
+  \def\depth{\dp#1}%
+  \let\totalheight\@anim@tmpdimb%
+  \setlength{\totalheight}{\height}%
+  \addtolength{\totalheight}{\depth}%
+  %evaluate resizing options
+  \setlength{\@anim@tmpdima}{\@anim@widtharg}%
+  \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@heightarg}%
+  \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@deptharg}%
+  \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@heightarg}%
+  \addtolength{\@anim@tmpdima}{\@anim@deptharg}%
+  \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
+  %resize unspecified dimensions to keep aspect ratio
+  \ifcase\@anim@resize% bit 2^2=width, 2^1=height, 2^0=depth option given
+  \or% 1
+    \setlength{\@anim@tmpdima}{%
+      \width*\ratio{\@anim@animtotalheight\p@}{\height+\depth}%
+    }\xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
+  \or% 2
+    \setlength{\@anim@tmpdima}{%
+      \width*\ratio{\@anim@animtotalheight\p@}{\height+\depth}%
+    }\xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
+  \or% 3
+    \setlength{\@anim@tmpdima}{%
+      \width*\ratio{\@anim@animtotalheight\p@}{\height+\depth}%
+    }\xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
+  \or% 4
+    \setlength{\@anim@tmpdima}{%
+      \height*\ratio{\@anim@animwidth\p@}{\width}%
+    }\xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
+    \setlength{\@anim@tmpdima}{%
+      \depth*\ratio{\@anim@animwidth\p@}{\width}%
+    }\xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
+  \or% 5
+    \ifdim\height=\z@\else% resize height only if original height .ne. zero
+      \setlength{\@anim@tmpdima}{%
+        \totalheight*\ratio{\@anim@animwidth\p@}{\width}-\@anim@animdepth\p@}%
       \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
-    }{%
-      \ifthenelse{\boolean{@anim@deptharg}}{%
-        \@anim@tmpdima=\@anim@deptharg%
-        \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
-      }{%if neither height nor depth are given but width is, rescale
-        %ht & dp to keep aspect ratio
-        \ifthenelse{\boolean{@anim@widtharg}}{%
-          \setlength{\@anim@tmpdima}{%
-            \@anim@animheight\p@%
-            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
-          }\xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
-          \setlength{\@anim@tmpdima}{%
-            \@anim@animdepth\p@%
-            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
-          }\xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
-        }{}%
-      }%
-    }%
-  }%
-  \ifthenelse{\boolean{@anim@widtharg}}{%rescale width
-    \ifthenelse{% if no depth option given, rescale depth only of <> 0
-      \boolean{@anim@heightarg}\AND\NOT\boolean{@anim@deptharg}%
-	  \AND\NOT\lengthtest{\@anim@animdepth\p@=\z@}%
-    }{%
+    \fi%
+  \or% 6
+    \ifdim\depth=\z@\else% resize depth only if original depth .ne. zero
       \setlength{\@anim@tmpdima}{%
-        \@anim@animtotalheight\p@%
-          *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
-      }%
-      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@heightarg}%
-      \xdef\@anim@animdepth{\strip@pt\@anim@tmpdimb}%
-    }{%
-      \ifthenelse{% height missing
-        \NOT\boolean{@anim@heightarg}\AND\boolean{@anim@deptharg}%
-      }{%
-        \setlength{\@anim@tmpdima}{%
-          \@anim@animtotalheight\p@%
-            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
-        }%
-        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@deptharg}%
-        \xdef\@anim@animheight{\strip@pt\@anim@tmpdimb}%
-      }{}%
-    }%
-    \@anim@tmpdima=\@anim@widtharg%
-    \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
-  }{%
-    %if width is not given, but either height or depth are, scale
-    %width to keep aspect ratio
-    \ifthenelse{%
-      \boolean{@anim@heightarg}\OR\boolean{@anim@deptharg}%
-    }{%
-      \setlength{\@anim@tmpdima}{%
-        \@anim@animwidth\p@%
-          *\ratio{\@anim@animheight\p@+\@anim@animdepth\p@}{%
-            \@anim@animtotalheight\p@}%
-      }%
-      \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
-    }{}%
-  }%
-  %apply scaling factor
+        \totalheight*\ratio{\@anim@animwidth\p@}{\width}-\@anim@animheight\p@}%
+      \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
+    \fi%
+  \fi%
+  %apply scaling factor, totalheight
   \setlength{\@anim@tmpdima}{\@anim@animwidth\p@}%
   \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
   \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
@@ -1837,6 +1807,7 @@
         /H/I%
         /AP <</N \@anim@getkeyval{btn#3}>>%
         /T (btn@#1@#2)%
+        \@anim@tooltip%
         /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
       }%
       \xdef\@anim@fields{\@anim@fields\space\the\pdflastannot\space 0 R}%
@@ -1859,6 +1830,7 @@
             /H/I%
             /AP <</N @btn#3>>%
             /T (btn@#1@#2)%
+            \@anim@tooltip%
             /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
           >>%
         }%
@@ -1897,6 +1869,7 @@
           /H/I
           /AP <</N {btn#3}>>%
           /T (btn@#1@#2)%
+          \@anim@tooltip%
           /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
         /ANN pdfmark
         mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
@@ -2106,7 +2079,7 @@
           }{}%
         \fi%
       \fi%
-      \@anim@scale%
+      \@anim@scale{\@anim@box}%
       %draw draftbox according to dimensions of the first frame
       \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
     \fi%
@@ -2555,23 +2528,17 @@
 
 %command options
 %setting the widget size
-\newboolean{@anim@widtharg}
-\setboolean{@anim@widtharg}{false}
 \define@key{anim@user}{width}{%
   \gdef\@anim@widtharg{#1}%
-  \setboolean{@anim@widtharg}{true}%
+  \global\advance\@anim@resize by 4%
 }
-\newboolean{@anim@heightarg}
-\setboolean{@anim@heightarg}{false}
 \define@key{anim@user}{height}{%
   \gdef\@anim@heightarg{#1}%
-  \setboolean{@anim@heightarg}{true}%
+  \global\advance\@anim@resize by 2%
 }
-\newboolean{@anim@deptharg}
-\setboolean{@anim@deptharg}{false}
 \define@key{anim@user}{depth}{%
   \gdef\@anim@deptharg{#1}%
-  \setboolean{@anim@deptharg}{true}
+  \global\advance\@anim@resize by \@ne%
 }
 \define@key{anim@user}{scale}{%
   \gdef\@anim@boxscale{#1}%
@@ -2669,17 +2636,14 @@
   \fi%
 }
 \newboolean{@anim@controls}
-\setboolean{@anim@controls}{false}
 \define@key{anim@user}{controls}[true]{%
   \setboolean{@anim@controls}{#1}%
 }
 \newboolean{@anim@loop}
-\setboolean{@anim@loop}{false}
 \define@key{anim@user}{loop}[true]{%
   \setboolean{@anim@loop}{#1}%
 }
 \newboolean{@anim@autoplay}
-\setboolean{@anim@autoplay}{false}
 \define@key{anim@user}{autoplay}[true]{%
   \setboolean{@anim@autoplay}{#1}%
   \if@anim@autoplay%
@@ -2687,7 +2651,6 @@
   \fi%
 }
 \newboolean{@anim@autoresume}
-\setboolean{@anim@autoresume}{false}
 \define@key{anim@user}{autoresume}[true]{%
   \setboolean{@anim@autoresume}{#1}%
   \if@anim@autoresume%
@@ -2695,12 +2658,10 @@
   \fi%
 }
 \newboolean{@anim@autopause}
-\setboolean{@anim@autopause}{false}
 \define@key{anim@user}{autopause}[true]{%
   \setboolean{@anim@autopause}{#1}%
 }
 \newboolean{@anim@palindrome}
-\setboolean{@anim@palindrome}{false}
 \define@key{anim@user}{palindrome}[true]{%
   \setboolean{@anim@palindrome}{#1}%
 }
@@ -2714,12 +2675,10 @@
   }%
 }
 \newboolean{@anim@step}
-\setboolean{@anim@step}{false}
 \define@key{anim@user}{step}[true]{%
   \setboolean{@anim@step}{#1}%
 }
 \newboolean{@anim@draft}
-\setboolean{@anim@draft}{false}
 \define@key{anim@user}{draft}[true]{%
   \setboolean{@anim@draft}{#1}%
 }
@@ -2749,7 +2708,7 @@
 \define@key{anim@user}{end}{%
   \@anim@end{#1}%
 }
-\define@key{anim@user}{every}{% embed every #1 frames
+\define@key{anim@user}{every}{% embed every #1th frame
   \ifnum#1<\@ne\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
 }
 \define@key{anim@user}{bb}{%
@@ -2775,12 +2734,10 @@
 %macro to reset macros and booleans
 \def\@anim@reset{%
   \gdef\@anim@boxscale{1.0}%
-%  \gdef\@anim@boxdepth{}%
-%  \gdef\@anim@boxheight{}%
-%  \gdef\@anim@boxwidth{}%
-  \setboolean{@anim@widtharg}{false}
-  \setboolean{@anim@heightarg}{false}
-  \setboolean{@anim@deptharg}{false}
+  \global\@anim@resize\z@%
+  \gdef\@anim@widtharg{\width}%
+  \gdef\@anim@heightarg{\height}%
+  \gdef\@anim@deptharg{\depth}%
   \xdef\@anim@bg{\@anim@@bg}%
   \xdef\@anim@fg{\@anim@@fg}%
   \if@anim@@dvips\else\xdef\@anim@@@fg{\@anim@@@@fg}\fi%

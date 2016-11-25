@@ -13,7 +13,18 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/03/05]
+\ProvidesPackage{animate}[2008/03/19]
+
+%test for eTeX
+\ifx\eTeXversion\@undefined%
+  \PackageError{animate}{%
+    Missing support for e-TeX; abandoning...%
+  }{%
+    Use a TeX compiler that supports e-TeX and enable e-TeX %
+    in the format.%
+  }%
+\fi%
+
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -24,6 +35,14 @@
 %(package options will be processed near end of this file)
 
 \ifpdf
+  %testing for correct pdfTeX version
+  \ifnum\pdftexversion<120
+    \PackageError{animate}{%
+      pdfTeX, version >= 1.20, required%
+    }{%
+      Install a newer version!%
+    }%
+  \fi
   %load MP to PDF converter
   \ifx\convertMPtoPDF\@undefined%
     \InputIfFileExists{supp-pdf}{}{}%
@@ -55,17 +74,6 @@
   }
 \fi%
 
-%testing for correct pdfTeX version
-\ifpdf
-  \ifnum\pdftexversion<120
-    \PackageError{animate}{%
-      pdfTeX, version >= 1.20, required%
-    }{%
-      Install a newer version!%
-    }%
-  \fi
-\fi
-
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
@@ -75,7 +83,7 @@
 
 %creating and using global definitions
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
-\def\@anim@getkeyval#1{\expandafter\ifx\csname#1\endcsname\relax\else\csname#1\endcsname\fi}
+\def\@anim@getkeyval#1{\ifcsname#1\endcsname\csname#1\endcsname\fi}
 
 %missing package error message
 \def\@anim@missing#1{%
@@ -163,8 +171,8 @@
 %of xobj, otherwise returns `!'
 \def\@anim@fileknown#1#2{% #1 file name, #2 page No.
   %identify file by md5sum
-  \expandafter\ifx\csname file:\pdfmdfivesum file {#1}.#2\endcsname\relax!%
-  \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}.#2}\fi%
+  \ifcsname file:\pdfmdfivesum file {#1}.#2\endcsname%
+    \@anim@getkeyval{file:\pdfmdfivesum file {#1}.#2}\else!\fi%
 }
 \def\@anim@makefileknown#1#2#3{% #1 file name, #2 page No, #3 Form XObj ID
   \@anim@newkey{file:\pdfmdfivesum file {#1}.#2}{#3}%
@@ -1089,8 +1097,8 @@
   \else%
     \if@anim@controls%
       %create button faces only once in the current colour combination
-      \expandafter\ifx\csname
-        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\relax%
+      \ifcsname
+        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\else%
         \@anim@makebuttons{\the\@anim@num}%
         \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
       \fi%
@@ -1420,8 +1428,8 @@
   \if@anim@draft\else%
     %create button faces if necessary
     \if@anim@controls%
-      \expandafter\ifx\csname
-        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\relax%
+      \ifcsname
+        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\else%
         \@anim@makebuttons{\the\@anim@num}%
         \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
       \fi%
@@ -1633,7 +1641,8 @@
     \setboolean{@anim@eof}{false}\fi%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
-      %initialise contents and resource list of each frame
+      %initialise contents, resource & transparency lists for each frame
+      \@anim@newkey{trlst@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
@@ -1656,6 +1665,7 @@
   \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
   \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
     \setboolean{@anim@eof}{false}\fi%
+  \message{<building timeline a#1:}%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
       %process input line
@@ -1672,11 +1682,15 @@
           layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
         \advance\@anim@curlayer by \@ne%
       \repeat%
+      %detect multiple inclusion of the same transp. in the current frame
+      \edef\@anim@trlst{%
+        \the\@anim@curframe@zb.\@anim@getkeyval{trlst@\the\@anim@curframe@zb}}%
+      \expandafter\@anim@findmult\@anim@trlst,:\@nil%
       %build frame xobject
       \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
       %clean-up
-%      \edef\@anim@usedlist{\@anim@getkeyval{usedin@\the\@anim@curframe@zb}}%
-%      \expandafter\@anim@resetusedlist\@anim@usedlist,:\@nil%
+      \expandafter\@anim@resetmult\@anim@trlst,:\@nil%
+      \@anim@newkey{trlst@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
@@ -1686,8 +1700,44 @@
     \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
     \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
       \setboolean{@anim@eof}{false}\fi%
+    \message{.}%
   }%
   \closein\@anim@@tmlnfile%
+  %check for unused transparencies
+  \@anim@tmpcnt=0%
+  \loop\ifnum\@anim@transp>\@anim@tmpcnt
+    \ifcsname u@tr\the\@anim@tmpcnt\endcsname%
+      {\expandafter\global\expandafter\let\csname
+         u@tr\the\@anim@tmpcnt\endcsname\@undefined}%
+    \else%
+      \PackageWarning{animate}{%
+        Transparency \the\@anim@tmpcnt\space has never been used\MessageBreak%
+        in the current animation.\MessageBreak%
+        File \jobname.tex%
+      }%
+      \ifx\@anim@nusewarned\@undefined%
+        \AtEndDocument{%
+          \PackageWarningNoLine{animate}{%
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
+            @ There were unused animation transparencies.\space See\space\space%
+            \space @\MessageBreak%
+            @ the transcript file\space\space\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space\space\space\space%
+            \space\space @\MessageBreak%
+            @ ``\jobname.log''\MessageBreak%
+            @ for additional information!\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space @\MessageBreak%
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+          }%
+        }%
+        \gdef\@anim@nusewarned{}%
+      \fi%
+    \fi%
+    \advance\@anim@tmpcnt by \@ne%
+  \repeat%
+  \message{>}%
 }
 
 %reads one line of timeline file and splits into its colon separated parts
@@ -1769,70 +1819,76 @@
   %according to transparency specifications
   \ifnum\@anim@transp<#1\else%   ignore non-existing
     \ifnum\@anim@transp=#1\else% transparencies
+      \@anim@newkey{u@tr#1}{}% mark current transp. as used within the animation
       \@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
-        %detect multiple inclusion of the same transparency in the
-        %current frame
-%        \expandafter\ifx\csname used@#1@\the\@anim@tmpcnt\endcsname\relax%
-        \ifcsname used@#1@\the\@anim@tmpcnt\endcsname%
-          \PackageWarning{animate}{%
-            Transparency #1 multiply included in frame \the\@anim@tmpcnt.%
-            \MessageBreak%
-            File \jobname.tex%
-          }%
-          \ifx\@anim@warned\@undefined%
-            \AtEndDocument{%
-              \PackageWarningNoLine{animate}{%
-                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
-                \MessageBreak%
-                @ In certain animation frames, transparencies were%
-                \space\space @\MessageBreak%
-                @ multiply included. This may considerably slow\space%
-                \space\space\space\space @\MessageBreak%
-                @ down animation speed. Revise the timeline file of\space @%
-                \MessageBreak%
-                @ the corresponding animations! See the transcript\space%
-                \space  @\MessageBreak%
-                @ file \jobname.log\MessageBreak%
-                @ for additional information!\space\space\space\space\space%
-                \space\space\space\space\space\space\space\space\space\space%
-                \space\space\space\space\space\space\space\space @\MessageBreak%
-                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
-              }%
-            }%
-            \gdef\@anim@warned{}%
-          \fi%
-        \else%
-          %append transparency to ressource list
-          \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
-            \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
-            /im#1\space\@anim@getkeyval{img@#1}%
-          }%
-          %mark current transparency as used within the current frame
-          \@anim@newkey{used@#1@\the\@anim@tmpcnt}{}%
-          %append it to the list of transparencies used in current frame
-          \@anim@newkey{usedin@\the\@anim@tmpcnt}{%
-            \@anim@getkeyval{usedin@\the\@anim@tmpcnt}#1,}%
-        \fi%
-        \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
-          \@anim@getkeyval{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}
-            q /im#1\space Do Q%
+        %ressource list
+        \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
+          \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
+          /im#1\space\@anim@getkeyval{img@#1}%
         }%
+        %layer content
+        \edef\@anim@tmplayercont{\@anim@getkeyval{%
+          layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
+        \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
+          \@anim@tmplayercont\space q /im#1\space Do Q%
+        }%
+        %append transparency to list of transparencies used in the current frame
+        \@anim@newkey{trlst@\the\@anim@tmpcnt}{%
+          \@anim@getkeyval{trlst@\the\@anim@tmpcnt}#1,}%
         \advance\@anim@tmpcnt by \@ne%
       \repeat%
     \fi%
   \fi%
 }
 
-%reset embedded transparency list
-\def\@anim@resetusedlist#1,#2\@nil{%
-  \ifthenelse{\equal{#1}{}}{}{%
-    {\expandafter\global\expandafter\let\csname
-      used@#1@\the\@anim@curframe@zb\endcsname\@undefined}%
+%detects multiple inclusion of the same transparency
+\def\@anim@findmult#1.#2,#3\@nil{%
+  \ifthenelse{\equal{#2}{}}{}{%
+    \ifcsname m@tr#2\endcsname%
+      \PackageWarning{animate}{%
+        Transparency #2 multiply included in frame #1.%
+        \MessageBreak%
+        File \jobname.tex%
+      }%
+      \ifx\@anim@multwarned\@undefined%
+        \AtEndDocument{%
+          \PackageWarningNoLine{animate}{%
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+            \MessageBreak%
+            @ In certain animation frames, transparencies were%
+            \space\space @\MessageBreak%
+            @ multiply included. This may considerably slow\space%
+            \space\space\space\space @\MessageBreak%
+            @ down animation speed. Revise the timeline file of\space @%
+            \MessageBreak%
+            @ the corresponding animation! See the transcript\space\space%
+            \space @\MessageBreak%
+            @ file ``\jobname.log''\MessageBreak%
+            @ for additional information!\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space\space\space%
+            \space\space\space\space\space\space\space\space @\MessageBreak%
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+          }%
+        }%
+        \gdef\@anim@multwarned{}%
+      \fi%
+    \else%
+      {\expandafter\xdef\csname m@tr#2\endcsname{}}%
+    \fi%
   }%
-  \ifthenelse{\equal{#2}{:}}{%
-    \@anim@newkey{usedin@\the\@anim@curframe@zb}{}%
-  }{\@anim@resetusedlist#2\@nil}%
+  \ifthenelse{\equal{#3}{:}}{}{%
+    \@anim@findmult#1.#3\@nil%
+  }%
+}
+%reset transparency list
+\def\@anim@resetmult#1.#2,#3\@nil{%
+  \ifthenelse{\equal{#2}{}}{}{%
+    {\expandafter\global\expandafter\let\csname m@tr#2\endcsname\@undefined}%
+  }%
+  \ifthenelse{\equal{#3}{:}}{}{%
+    \@anim@resetmult#1.#3\@nil%
+  }%
 }
 
 %get number of repetitions of frame

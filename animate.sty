@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/04/01]
+\ProvidesPackage{animate}[2008/05/09]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -123,7 +123,7 @@
       /OCGs \the\@anim@@ocgs\space 0 R
       /D <<
         /BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
-        /Order \the\@anim@@ocgs\space 0 R
+%        /Order \the\@anim@@ocgs\space 0 R
       >>
     >>
   }
@@ -157,7 +157,10 @@
       >>
       /OCProperties <<
         /OCGs {@anim@ocgs}
-        /D <</BaseState/OFF /ON {@anim@posterocgs} /Order {@anim@ocgs}>>
+        /D <<
+          /BaseState/OFF /ON {@anim@posterocgs}
+%          /Order {@anim@ocgs}
+        >>
       >>
     >> /PUT pdfmark
   }
@@ -212,16 +215,20 @@
     %#4: page number of multipage pdf
     \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
       \@anim@filebox{#3}{#4}% store file in a box
+      \@anim@getsize{\@anim@box}%
+      \ifnum#2=0
+        \@anim@scale% scale animation widget
+      \fi%
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
       \ifx\@anim@gropts\@empty\if@anim@multipdf\message{<#4>}\fi\fi%
       \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
     }{% file known, re-use existing form xobject
       \ifnum#2=0
         \@anim@filebox{#3}{#4}% for size determination of first frame
-        \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#4}}%
-      \else%
-        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
+        \@anim@getsize{\@anim@box}%
+        \@anim@scale%
       \fi%
+      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
     }%
   }
 }{
@@ -229,15 +236,19 @@
     %#4: not used
     \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
       \@anim@filebox{#3}{}% store file in a box                       animation
+      \@anim@getsize{\@anim@box}%
+      \ifnum#2=0
+        \@anim@scale%
+      \fi%
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
       \@anim@makefileknown{#3}{#1}{\@anim@lastxform}% keep form xobject ref
     }{%file already used in the current animation, re-use existing form xobject
       \ifnum#2=0
         \@anim@filebox{#3}{}% for size determination of first frame
-        \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#1}}%
-      \else%
-        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
+        \@anim@getsize{\@anim@box}%
+        \@anim@scale%
       \fi%
+      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
     }%
   }
 }
@@ -249,18 +260,10 @@
   %#1: @anim@num, #2:@anim@curframe@zb, #3: empty (`') or box number,
   %#4: `!' or form xobj identifier
   \def\@anim@xinline#1#2#3#4{%
-    \ifnum#2=0 %measuring the size of the box (first frame only)
-      \xdef\@anim@animwidth{\strip@pt\wd#3}%
-      \xdef\@anim@animheight{\strip@pt\ht#3}%
-      \xdef\@anim@animdepth{\strip@pt\dp#3}%
-      \setlength{\@anim@tmpdima}{\ht#3}%
-      \addtolength{\@anim@tmpdima}{\dp#3}%
-      \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-    \fi%
     \ifthenelse{\equal{#4}{!}}{%
       %put graphics into XObject
       \global\setbox\@anim@box=\hbox{%
-        \raisebox{-\dp#3}[\@anim@animheight\p@][\@anim@animdepth\p@]{\box#3}%
+        \raisebox{-\dp#3}[\@anim@frameheight\p@][\@anim@framedepth\p@]{\box#3}%
       }%
       \immediate\pdfxform\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
@@ -277,25 +280,17 @@
   }
 \else
   \def\@anim@xinline#1#2#3#4{%
-    \ifnum#2=0
-      \xdef\@anim@animwidth{\strip@pt\wd#3}%
-      \xdef\@anim@animheight{\strip@pt\ht#3}%
-      \xdef\@anim@animdepth{\strip@pt\dp#3}%
-      \setlength{\@anim@tmpdima}{\ht#3}%
-      \addtolength{\@anim@tmpdima}{\dp#3}%
-      \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-    \fi%
     \ifthenelse{\equal{#4}{!}}{%
       \begingroup%
         \setlength{\unitlength}{1pt}%
         %mark BBox of the graphics
         \begin{picture}(0,0)%
-        \put(0,-\@anim@animdepth){%
+        \put(0,-\@anim@framedepth){%
           \special{ps:
             currentpoint /frame@lly exch def /frame@llx exch def
           }%
         }%
-        \put(\@anim@animwidth,\@anim@animheight){%
+        \put(\@anim@framewidth,\@anim@frameheight){%
           \special{ps:
             currentpoint /frame@ury exch def /frame@urx exch def
           }%
@@ -387,54 +382,39 @@
   }
 \fi
 
-%create XObject which contains all frames of the sequence
-\ifpdf
-  \def\@anim@makecontainer#1{% #1:@anim@num
-    \setlength{\unitlength}{1pt}%
-    \global\setbox\@anim@box=\hbox{%
-      \pdfliteral{q}%
-      \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
-      \end{picture}%
-      \pdfliteral{Q\@anim@content}%
-    }%
-    \immediate\pdfxform resources {/XObject <<\@anim@xobject>>}\@anim@box%
-    \xdef\@anim@container{\the\pdflastxform\space 0 R}%
-  }
-\else
-  \def\@anim@makecontainer#1{%
-    \special{ps:
-      mark  /_objdef {@anim@xobj#1} /type/stream /OBJ pdfmark
-      mark {@anim@xobj#1} (\@anim@content) /PUT pdfmark
-      mark {@anim@xobj#1} <<
-        /Type/XObject/Subtype/Form/FormType 1
-        /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /Resources <</XObject <<\@anim@xobject>>>>
-      >> /PUT pdfmark
-    }%
-  }
-\fi
-
-%intermediate container XObject, which represents one animation frame
-%containing all the transparencies that compose the frame
+%non-interactive Widget annotation, representing one frame of the animation
 \ifpdf
   \def\@anim@makeframe#1#2{% #1:@anim@num, #2:@anim@curframe@zb
-    \@anim@newocg{#1}{#2}%
+    %container XObject for all transparencies that compose the frame
     \setlength{\unitlength}{1pt}%
     \global\setbox\@anim@box=\hbox{%
       \pdfliteral{q}%
-      \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
+      \begin{picture}(\@anim@framewidth,\@anim@frametotalheight)%
       \end{picture}%
       \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
     }%
-    \immediate\pdfxform attr {/OC\space\@anim@curocg} resources {%
+    \immediate\pdfxform resources {%
       /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
-    \xdef\@anim@xobject{\@anim@xobject\space /fr#2\space%
-      \the\pdflastxform\space 0 R}%
-    \xdef\@anim@content{\@anim@content\space q /fr#2\space Do Q}%
+    %
+    %frame widget, using the container XObject as its Appearance,
+    %associated with the just created OCG
+    \@anim@newocg{#1}{#2}% create new opt. content group (OCG)
+    \pdfannot
+      width \@anim@animwidth\p@ height \@anim@animheight\p@
+      depth \@anim@animdepth\p@
+    {%
+      /Subtype/Widget%
+      /OC \@anim@curocg
+      /F 4 % allow printing
+      /FT/Btn/Ff 65537% non-interactive push button
+      /BS <</W 0>>%
+      /AP <</N \the\pdflastxform\space 0 R>>%
+      /T (anm#1fr#2)%
+    }%
   }
 \else
   \def\@anim@makeframe#1#2{%
-    \@anim@newocg{#1}{#2}%
+    %container XObject
     \special{ps:
       mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
       mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
@@ -442,12 +422,39 @@
       mark {@anim@anmfrm@#1@#2} <<
         /Type/XObject/Subtype/Form/FormType 1
         /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /OC {@anim@ocg@#1@#2}
         /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
       >> /PUT pdfmark
     }%
-    \xdef\@anim@xobject{\@anim@xobject\space /fr#2\space {@anim@anmfrm@#1@#2}}%
-    \xdef\@anim@content{\@anim@content\space q /fr#2\space Do Q}%
+    %
+    %frame widget
+    \setlength{\unitlength}{1pt}%
+    \begin{picture}(0,0)% mark annotation rectangle
+      \put(0,-\@anim@animdepth){%
+      \special{ps:
+        currentpoint /wid@lly exch def /wid@llx exch def
+      }%
+    }%
+    \put(\@anim@animwidth,\@anim@animheight){%
+      \special{ps:
+        currentpoint /wid@ury exch def /wid@urx exch def
+      }%
+    }%
+    \end{picture}%
+    \@anim@newocg{#1}{#2}%
+    \special{ps:
+      mark
+        /_objdef {annot@\the\@anim@fieldnum}%
+        /Rect [wid@llx wid@lly wid@urx wid@ury]%
+        /Subtype/Widget%
+        /OC {@anim@ocg@#1@#2}
+        /F 4
+        /FT/Btn/Ff 65537
+        /BS <</W 0>>%
+        /AP <</N {@anim@anmfrm@#1@#2}>>%
+        /T (anm#1fr#2)%
+      /ANN pdfmark
+    }%
+    \global\advance\@anim@fieldnum by \@ne%
   }
 \fi
 
@@ -970,13 +977,6 @@
 %draftbox from savebox
 \def\@anim@draftbox#1{% #1: box number
   %get size
-  \xdef\@anim@animwidth{\strip@pt\wd#1}%
-  \xdef\@anim@animheight{\strip@pt\ht#1}%
-  \xdef\@anim@animdepth{\strip@pt\dp#1}%
-  \setlength{\@anim@tmpdima}{\ht#1}%
-  \addtolength{\@anim@tmpdima}{\dp#1}%
-  \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-  \@anim@rescale% rescale box
   \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
@@ -1153,7 +1153,6 @@
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
     %build timeline from optional timeline file
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
-    \@anim@makecontainer{\the\@anim@num}% create container XObject
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
@@ -1192,9 +1191,24 @@
   }%
 }
 
+%measures natural dimensions of its box argument
+\def\@anim@getsize#1{%
+  \xdef\@anim@framewidth{\strip@pt\wd#1}%
+  \xdef\@anim@frameheight{\strip@pt\ht#1}%
+  \xdef\@anim@framedepth{\strip@pt\dp#1}%
+  \setlength{\@anim@tmpdima}{\ht#1}%
+  \addtolength{\@anim@tmpdima}{\dp#1}%
+  \xdef\@anim@frametotalheight{\strip@pt\@anim@tmpdima}%
+}
+
 %calculates widget dimensions from natural ones, taking resizing options
 %into account
-\def\@anim@rescale{%
+\def\@anim@scale{%
+  %initial widget dimensions
+  \xdef\@anim@animwidth{\@anim@framewidth}%
+  \xdef\@anim@animheight{\@anim@frameheight}%
+  \xdef\@anim@animdepth{\@anim@framedepth}%
+  \xdef\@anim@animtotalheight{\@anim@frametotalheight}%
   %rescale height & depth
   \ifthenelse{%
     \NOT\equal{\@anim@boxheight}{}\AND%
@@ -1278,10 +1292,10 @@
   \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
 }
 
-%creates animation widget
+%interactive Widget annotation that is overlayed on the non-interactive
+%frame Windgets
 \ifpdf
   \def\@anim@animwidget#1{%
-    \@anim@rescale%
     %create JavaScript objects
     \@anim@pojscript{#1}% to be executed on PO event
     \@anim@otherjscript{#1}% on other events in the AA dict
@@ -1295,17 +1309,16 @@
       depth \@anim@animdepth\p@
     {%
       /Subtype/Widget%
-      /F 4% allow printing
-      /FT/Btn/Ff 65536% push button
+      /FT/Btn/Ff 65536% interactive push button
       /BS <</W 0>>%
       /H/N%
-      /AP <</N \@anim@container>>%
-      /T (anm@#1)%
+      /T (anm#1)%
       /AA <<% bind JavaScripts to trigger events
         /PO <</S/JavaScript/JS \@anim@pojscriptobj>>%
         \@anim@otherjscriptkey%
       >>%
     }%
+    %append widget reference to Fields array of the AcroForm dict
     \xdef\@anim@fields{\@anim@fields\space\the\pdflastannot\space 0 R}%
     \hbox to \@anim@animwidth\p@ {%
       \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1314,7 +1327,6 @@
   }%
 \else
   \def\@anim@animwidget#1{%
-    \@anim@rescale%
     \setlength{\unitlength}{1pt}%
     %mark annotation rectangle
     \begin{picture}(0,0)%
@@ -1342,12 +1354,10 @@
         /_objdef {annot@\the\@anim@fieldnum}%
         /Rect [wid@llx wid@lly wid@urx wid@ury]%
         /Subtype/Widget%
-        /F 4%
         /FT/Btn/Ff 65536%
         /BS <</W 0>>%
         /H/N%
-        /AP <</N {@anim@xobj#1}>>%
-        /T (anm@#1)%
+        /T (anm#1)%
         /AA <<%
           /PO <</S/JavaScript/JS {a#1@pojscript}>>%
           \@anim@otherjscriptkey%
@@ -1473,7 +1483,6 @@
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
     %build timeline from optional timeline file
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
-    \@anim@makecontainer{\the\@anim@num}% create container XObject
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
@@ -1580,9 +1589,8 @@
   \the\@anim@end%
   \end{lrbox}%
   \ifnum\@anim@skipfram=0
-    %determine size of graphics
+    \@anim@getsize{\@anim@box}%determine size of graphics
     \ifnum #2=0
-      \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
       \ifdim\wd\@anim@box=0pt%
         \PackageError{animate}{%
           Contents of first frame must not have zero width%
@@ -1591,8 +1599,6 @@
           immediately followed by \protect\newframe%
         }%
       \fi%
-      \xdef\@anim@animheight{\strip@pt\ht\@anim@box}%
-      \xdef\@anim@animdepth{\strip@pt\dp\@anim@box}%
       \ifdim\ht\@anim@box=0pt%
         \ifdim\dp\@anim@box=0pt%
           \PackageError{animate}{%
@@ -1600,6 +1606,7 @@
           }{}%
         \fi%
       \fi%
+      \@anim@scale%
       %draw draftbox according to dimensions of the first frame
       \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
     \fi%
@@ -1705,7 +1712,7 @@
       \edef\@anim@trlst{%
         \the\@anim@curframe@zb.\@anim@getkeyval{trlst@\the\@anim@curframe@zb}}%
       \expandafter\@anim@findmult\@anim@trlst,:\@nil%
-      %build frame xobject
+      %insert frame Widget
       \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
       %clean-up
       \expandafter\@anim@resetmult\@anim@trlst,:\@nil%
@@ -2146,8 +2153,6 @@
   \global\let\if@anim@draft=\if@anim@@draft%
   \gdef\@anim@posterocg{}%
   \gdef\@anim@properties{}%
-  \gdef\@anim@xobject{}%
-  \gdef\@anim@content{}%
   \setboolean{@anim@pauseframes}{false}%
   \gdef\@anim@pauseat{}%
   \setboolean{@anim@chfps}{false}%

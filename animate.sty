@@ -11,17 +11,19 @@
 % Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/19]
+
+\def\@anim@version{2008/07/01}
+\ProvidesPackage{animate}[\@anim@version]
 
 %test for e-TeX
-\ifx\eTeXversion\@undefined%
+\expandafter\ifx\csname eTeXversion\endcsname\relax
   \PackageError{animate}{%
     Missing support for e-TeX; abandoning...%
   }{%
     Use a TeX compiler that supports e-TeX and enable e-TeX %
     in the format.%
-  }%
-\fi%
+  }
+\fi
 
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
@@ -50,7 +52,10 @@
     \setboolean{@anim@@dvips}{false}
   }
 \fi
-\ifcsname XeTeXrevision\endcsname
+\newboolean{@anim@xetex}
+\setboolean{@anim@xetex}{false}
+\expandafter\ifx\csname XeTeXrevision\endcsname\relax\else
+  \setboolean{@anim@xetex}{true}
   \setboolean{@anim@@dvipdfmx}{true}
   \setboolean{@anim@@dvips}{false}
 \fi
@@ -68,23 +73,20 @@
     }%
   \fi
   %load MP to PDF converter
-  \ifcsname convertMPtoPDF\endcsname\else
-    \InputIfFileExists{supp-pdf}{}{}
-    \ifcsname convertMPtoPDF\endcsname\else
-      \PackageWarningNoLine{animate}{%
-        File `supp-pdf.tex', which is part of ConTeXt, is not%
-        \MessageBreak%
-        available. Therefore, MetaPost generated PS files%
-        \MessageBreak%
-        cannot be embedded using pdfTeX%
-      }
-    \fi
-  \fi
+  \InputIfFileExists{supp-pdf}{}{%
+    \PackageWarningNoLine{animate}{%
+      File `supp-pdf.tex', which is part of ConTeXt, is not%
+      \MessageBreak%
+      available. Therefore, MetaPost generated PS files%
+      \MessageBreak%
+      cannot be embedded using pdfTeX%
+    }
+  }
 \else
   \if@anim@@dvipdfmx\else
     %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
     \AtBeginDvi{%
-      \ifcsname pdfmark\endcsname\else%
+      \expandafter\ifx\csname pdfmark\endcsname\relax%
         \special{!
           systemdict /pdfmark known%
           {%
@@ -103,7 +105,7 @@
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
-\ifcsname pdfmdfivesum\endcsname\else
+\expandafter\ifx\csname pdfmdfivesum\endcsname\relax
   \def\pdfmdfivesum file #1{#1}
 \fi
 
@@ -259,18 +261,14 @@
         \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
       \fi%
     \else%
-      \edef\@anim@curfile{*[page=#2\@anim@gropts]{#1}}%
+      \edef\@anim@curfile{[clip,page=#2\@anim@gropts]{#1}}%
       \global\setbox\@anim@box=\hbox{%
         \expandafter\includegraphics\@anim@curfile}%
     \fi%
   }
 \else
   \def\@anim@filebox#1#2{% #1 filename, #2 ignored
-    \ifx\@anim@gropts\@empty%
-      \edef\@anim@curfile{*{#1}}%
-    \else%
-      \edef\@anim@curfile{*[\@anim@gropts]{#1}}%
-    \fi%
+    \edef\@anim@curfile{[clip\@anim@gropts]{#1}}%
     \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
   }
 \fi
@@ -420,10 +418,12 @@
         \endgroup%
         \special{ps:
           gsave
-          %translate graphics to lower left page corner
-          frame@llx neg frame@lly neg translate
-          one@inch@x neg one@inch@y neg translate
-          0 paper@height translate
+          {%
+            %translate graphics to lower left page corner (only if mag=1000)
+            \the\mag\space 1000 eq {frame@llx neg frame@lly neg translate
+            one@inch@x neg one@inch@y neg translate
+            0 paper@height translate}if%
+          }?pdfmark
           %distill graphics into XObject
           mark
             /_objdef {@anim@frm@#1@#2}
@@ -736,10 +736,7 @@
           /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
           /Resources <<%
             /Properties <</oc0 @#1.Play#2 /oc1 @#1.Pause#2>>%
-            /XObject <<%
-              /im0 @btnPlay#2:#3
-              /im1 @btnPause#2:#3%
-            >>%
+            /XObject <</im0 @btnPlay#2:#3 /im1 @btnPause#2:#3>>%
           >>%
         >>%
       }%
@@ -750,13 +747,9 @@
       \special{ps:
         %OCGs
         mark /_objdef {#1.Play#2} /type/dict /OBJ pdfmark
-        mark {#1.Play#2} <<
-          /Type/OCG /Name (#1.Play#2)
-        >> /PUT pdfmark
+        mark {#1.Play#2} <</Type/OCG /Name (#1.Play#2)>> /PUT pdfmark
         mark /_objdef {#1.Pause#2} /type/dict /OBJ pdfmark
-        mark {#1.Pause#2} <<
-          /Type/OCG /Name (#1.Pause#2)
-        >> /PUT pdfmark
+        mark {#1.Pause#2} <</Type/OCG /Name (#1.Pause#2)>> /PUT pdfmark
         mark {@anim@ocgs} {#1.Play#2} /APPEND pdfmark
         mark {@anim@ocgs} {#1.Pause#2} /APPEND pdfmark
         mark {@anim@posterocgs} {#1.Play#2} /APPEND pdfmark
@@ -769,10 +762,7 @@
           /BBox [0 0 15 15]
           /Resources <<%
             /Properties <</oc0 {#1.Play#2} /oc1 {#1.Pause#2}>>%
-            /XObject <<%
-              /im0 {btnPlay#2:#3}
-              /im1 {btnPause#2:#3}%
-            >>%
+            /XObject <</im0 {btnPlay#2:#3} /im1 {btnPause#2:#3}>>%
           >>%
         >> /PUT pdfmark
       }%
@@ -931,43 +921,17 @@
     stroke
   }
   \def\@anim@makebuttons#1{% #1: @anim@num
-    \@anim@xbutton{EndLeft}{%
-      [-1 0 0 1 15 0] concat
-      \@anim@btnend%
-    }{#1}%
-    \@anim@xbutton{EndRight}{%
-      \@anim@btnend%
-    }{#1}%
-    \@anim@xbutton{Minus}{%
-      \@anim@btnminus%
-    }{#1}%
-    \@anim@xbutton{PauseLeft}{%
-      [-1 0 0 1 15 0] concat
-      \@anim@btnpause%
-    }{#1}%
-    \@anim@xbutton{PauseRight}{%
-      \@anim@btnpause%
-    }{#1}%
-    \@anim@xbutton{PlayLeft}{%
-      [-1 0 0 1 15 0] concat
-      \@anim@btnplay%
-    }{#1}%
-    \@anim@xbutton{PlayRight}{%
-      \@anim@btnplay%
-    }{#1}%
-    \@anim@xbutton{Plus}{%
-      \@anim@btnplus%
-    }{#1}%
-    \@anim@xbutton{Reset}{%
-      \@anim@btnreset%
-    }{#1}%
-    \@anim@xbutton{StepLeft}{%
-      [-1 0 0 1 15 0] concat
-      \@anim@btnstep%
-    }{#1}%
-    \@anim@xbutton{StepRight}{%
-      \@anim@btnstep%
-    }{#1}%
+    \@anim@xbutton{EndLeft}{[-1 0 0 1 15 0] concat \@anim@btnend}{#1}%
+    \@anim@xbutton{EndRight}{\@anim@btnend}{#1}%
+    \@anim@xbutton{Minus}{\@anim@btnminus}{#1}%
+    \@anim@xbutton{PauseLeft}{[-1 0 0 1 15 0] concat \@anim@btnpause}{#1}%
+    \@anim@xbutton{PauseRight}{\@anim@btnpause}{#1}%
+    \@anim@xbutton{PlayLeft}{[-1 0 0 1 15 0] concat \@anim@btnplay}{#1}%
+    \@anim@xbutton{PlayRight}{\@anim@btnplay}{#1}%
+    \@anim@xbutton{Plus}{\@anim@btnplus}{#1}%
+    \@anim@xbutton{Reset}{\@anim@btnreset}{#1}%
+    \@anim@xbutton{StepLeft}{[-1 0 0 1 15 0] concat \@anim@btnstep}{#1}%
+    \@anim@xbutton{StepRight}{\@anim@btnstep}{#1}%
   }
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
@@ -1214,7 +1178,7 @@
     }}}}}}}}}}%
   }%
 \else
-  \ifcsname XeTeXrevision\endcsname
+  \if@anim@xetex
     \def\@anim@getext#1{%
       \gdef\@anim@ext{.pdf}% we start with `pdf'
       \IfFileExists{#1\@anim@ext}{}{%
@@ -1450,16 +1414,20 @@
 % #3: basename of graphics file sequence (without frame number and extension)
 % #4: first frame (integer)
 % #5: last frame (integer)
-\newcommand{\animategraphics}[5][]{%
+\def\animategraphics{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \catcode`\:=12\catcode`\;=12%
+  \@anim@animategraphics%
+}%
+\newcommand{\@anim@animategraphics}[5][]{%
   \leavevmode%
-  \begingroup%
   \ifpdf\else%
-    \ifcsname includegraphics\endcsname%
-      \ifcsname XeTeXrevision\endcsname%
+    \if@anim@grxloaded%
+      \if@anim@xetex%
         \DeclareGraphicsRule{.mps}{eps}{*}{}%
       \fi%
     \else%
-      \ifcsname XeTeXrevision\endcsname%
+      \if@anim@xetex%
         \@anim@missing[xetex]{graphicx}%
       \else%
         \if@anim@@dvipdfmx%
@@ -1484,6 +1452,11 @@
   %
   \@anim@checkmultipage{\@anim@base}%test for multipage file
   \if@anim@multipage\else% cope with wrong user input
+    \ifthenelse{\equal{#4}{}\OR\equal{#5}{}}{%
+      \PackageError{animate}{%
+        Missing frame number in \protect\animategraphics\space command%
+      }{}%
+    }{}%
     \ifnum\@anim@first>\@anim@last
       \edef\@anim@temp{\@anim@first}\edef\@anim@first{\@anim@last}%
       \edef\@anim@last{\@anim@temp}%
@@ -1559,7 +1532,7 @@
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \global\advance\@anim@num by \@ne%
-  \endgroup%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
 }%
 
 %inserts animation and control button widgets
@@ -1715,6 +1688,7 @@
       /BS <</W 0>>%
       /H/N%
       /T (anm#1)%
+      /Contents (animation by animate[\@anim@version])%
       /AA <<% bind actions to trigger events
         /PO <<%
           /S/JavaScript/JS \@anim@pojscriptobj%
@@ -1747,6 +1721,7 @@
           /BS <</W 0>>%
           /H/N%
           /T (anm#1)%
+          /Contents (animation by animate[\@anim@version])%
           /AA <<%
             /PO <<%
               /S/JavaScript/JS @a#1@pojscript%
@@ -1798,6 +1773,7 @@
           /BS <</W 0>>%
           /H/N%
           /T (anm#1)%
+          /Contents (animation by animate[\@anim@version])%
           /AA <<%
             /PO <<%
               /S/JavaScript/JS {a#1@pojscript}%
@@ -1918,9 +1894,15 @@
 %user environment for animating inline graphics
 % #1: options
 % #2: frame rate (fps)
-\newenvironment{animateinline}[2][]{%
+\newenvironment{animateinline}{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \catcode`\:=12\catcode`\;=12%
+  \@anim@animateinline%
+}{%
+  \end@anim@animateinline%
+}%
+\newenvironment{@anim@animateinline}[2][]{%
   \leavevmode%
-  \begingroup%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
@@ -1950,11 +1932,13 @@
   \fi%
   \global\@anim@curframe@zb=0%
   \global\@anim@skipfram=0%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
   \@anim@beginframe%
   \ignorespaces%
 }{%
   \unskip%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
+  \catcode`\:=12\catcode`\;=12%
   \global\advance\@anim@curframe@zb by \@ne%
   \if@anim@draft\else%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
@@ -1968,8 +1952,8 @@
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \global\advance\@anim@num by \@ne%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
   \setboolean{@anim@inside}{false}%
-  \endgroup%
 }
 
 %usercommand for use within `animateinline' environment;

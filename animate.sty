@@ -13,9 +13,9 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/03/19]
+\ProvidesPackage{animate}[2008/03/26]
 
-%test for eTeX
+%test for e-TeX
 \ifx\eTeXversion\@undefined%
   \PackageError{animate}{%
     Missing support for e-TeX; abandoning...%
@@ -35,7 +35,7 @@
 %(package options will be processed near end of this file)
 
 \ifpdf
-  %testing for correct pdfTeX version
+  %test for correct pdfTeX version
   \ifnum\pdftexversion<120
     \PackageError{animate}{%
       pdfTeX, version >= 1.20, required%
@@ -169,13 +169,13 @@
 
 %tests whether file is already known (and embedded), if so it returns identifier
 %of xobj, otherwise returns `!'
-\def\@anim@fileknown#1#2{% #1 file name, #2 page No.
+\def\@anim@fileknown#1#2{% #1 file name, pdf: #2 page No. ps: #2 @anim@num
   %identify file by md5sum
   \ifcsname file:\pdfmdfivesum file {#1}.#2\endcsname%
     \@anim@getkeyval{file:\pdfmdfivesum file {#1}.#2}\else!\fi%
 }
-\def\@anim@makefileknown#1#2#3{% #1 file name, #2 page No, #3 Form XObj ID
-  \@anim@newkey{file:\pdfmdfivesum file {#1}.#2}{#3}%
+\def\@anim@makefileknown#1#2#3{%#1 file name, pdf: #2 page No. ps: #2 @anim@num,
+  \@anim@newkey{file:\pdfmdfivesum file {#1}.#2}{#3}%   #3 Form XObj ID
 }
 
 \ifpdf
@@ -207,21 +207,39 @@
 \fi
 
 %create Form XObject from graphics file
-\def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
-  %#4: page number of multipage pdf
-  \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
-    \@anim@filebox{#3}{#4}% store file in a box
-    \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-    \ifx\@anim@gropts\@empty\if@anim@multipdf\message{<#4>}\fi\fi%
-    \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
-  }{% file known, re-use existing form xobject
-    \ifnum#2=0
-      \@anim@filebox{#3}{#4}% for size determination of first frame
-      \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#4}}%
-    \else%
-      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
-    \fi%
-  }%
+\ifthenelse{\boolean{pdf}}{
+  \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
+    %#4: page number of multipage pdf
+    \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
+      \@anim@filebox{#3}{#4}% store file in a box
+      \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
+      \ifx\@anim@gropts\@empty\if@anim@multipdf\message{<#4>}\fi\fi%
+      \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
+    }{% file known, re-use existing form xobject
+      \ifnum#2=0
+        \@anim@filebox{#3}{#4}% for size determination of first frame
+        \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#4}}%
+      \else%
+        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
+      \fi%
+    }%
+  }
+}{
+  \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
+    %#4: not used
+    \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
+	  \@anim@filebox{#3}{}% store file in a box                       animation
+      \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
+      \@anim@makefileknown{#3}{#1}{\@anim@lastxform}% keep form xobject number
+    }{%file already used in the current animation, re-use existing form xobject
+      \ifnum#2=0
+        \@anim@filebox{#3}{}% for size determination of first frame
+        \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#1}}%
+      \else%
+        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
+      \fi%
+    }%
+  }
 }
 
 \newboolean{@anim@timeline} %true if `timeline' option was set
@@ -241,7 +259,7 @@
     \fi%
     \ifthenelse{\equal{#4}{!}}{%
       %put graphics into XObject
-      \setbox\@anim@box=\hbox{%
+      \global\setbox\@anim@box=\hbox{%
         \raisebox{-\dp#3}[\@anim@animheight\p@][\@anim@animdepth\p@]{\box#3}%
       }%
       \immediate\pdfxform\@anim@box%
@@ -269,20 +287,20 @@
     \fi%
     \ifthenelse{\equal{#4}{!}}{%
       \begingroup%
-      \setlength{\unitlength}{1pt}%
-      %mark BBox of the graphics
-      \begin{picture}(0,0)%
-      \put(0,-\@anim@animdepth){%
-        \special{ps:
-          currentpoint /frame@lly exch def /frame@llx exch def
+        \setlength{\unitlength}{1pt}%
+        %mark BBox of the graphics
+        \begin{picture}(0,0)%
+        \put(0,-\@anim@animdepth){%
+          \special{ps:
+            currentpoint /frame@lly exch def /frame@llx exch def
+          }%
         }%
-      }%
-      \put(\@anim@animwidth,\@anim@animheight){%
-        \special{ps:
-          currentpoint /frame@ury exch def /frame@urx exch def
+        \put(\@anim@animwidth,\@anim@animheight){%
+          \special{ps:
+            currentpoint /frame@ury exch def /frame@urx exch def
+          }%
         }%
-      }%
-      \end{picture}%
+        \end{picture}%
       \endgroup%
       %distill graphics into XObject
       \special{ps:
@@ -1081,7 +1099,7 @@
   %
   \@anim@checkmultipdf{\@anim@base}%test for multipage pdf
   \@anim@curframe=\@anim@first%
-  \@anim@curframe@zb=0%
+  \global\@anim@curframe@zb=0%
   %
   \if@anim@draft%
     \if@anim@multipdf%
@@ -1130,7 +1148,7 @@
         }{1}%
       \fi%
       \advance\@anim@curframe by \@anim@every%
-      \advance\@anim@curframe@zb by \@ne%
+      \global\advance\@anim@curframe@zb by \@ne%
     \repeat%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
     %build timeline from optional timeline file
@@ -1562,7 +1580,6 @@
   \the\@anim@end%
   \end{lrbox}%
   \ifnum\@anim@skipfram=0
-    \if@anim@draft\else\message{< a#1, fr#2}\fi%
     %determine size of graphics
     \ifnum #2=0
       \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
@@ -1587,7 +1604,9 @@
       \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
     \fi%
     %now create Form XObject of box contents
-    \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}{!}\message{>}\fi%
+    \if@anim@draft\else%
+      \@anim@xinline{#1}{#2}{\@anim@box}{!}\message{<a#1,fr#2>}%
+    \fi%
   \fi%
   \global\advance\@anim@skipfram by \@ne%
   \ifnum\@anim@skipfram=\@anim@every
@@ -1671,7 +1690,7 @@
       %process input line
       \expandafter\@anim@parseline\@anim@inputline\@nil%
       %combine the layers of the current frame
-      \@anim@curlayer=0%
+      \global\@anim@curlayer=0%
       \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
         \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{%
           \@anim@getkeyval{frmcontent@\the\@anim@curframe@zb}%
@@ -1680,7 +1699,7 @@
         }%
         \@anim@newkey{%
           layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
-        \advance\@anim@curlayer by \@ne%
+        \global\advance\@anim@curlayer by \@ne%
       \repeat%
       %detect multiple inclusion of the same transp. in the current frame
       \edef\@anim@trlst{%

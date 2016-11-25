@@ -1,4 +1,4 @@
-# The animate Package
+# The `animate` LaTeX Package
 
 © 2016 Alexander Grahn
 
@@ -6,7 +6,7 @@
 
 This package provides an interface to create portable, JavaScript driven PDF animations from sets of (vector) graphics or rasterized image files or from inline (vector) graphics, such as LaTeX-picture, PSTricks or pgf/TikZ generated pictures, or just from typeset text.
 
-It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX -> dvips -> ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX -> (x)dvipdfmx, LuaLaTeX.
+It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX&rarr;dvips&rarr;ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX&rarr;(x)dvipdfmx, LuaLaTeX.
 
 The resulting PDF with animations can be viewed in Acrobat Reader (except on mobile devices), in PDF-XChange and in Foxit Reader.
 
@@ -31,19 +31,19 @@ method=icon | widget | ocg, dvipdfmx, xetex
 
 - User interface:
 ````latex
-    \animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
+\animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
 
-    \begin{animateinline}[<options>]{<frame rate>}
-        ... typeset material ...
-    \newframe[<frame rate>]
-        ... typeset material ...
-    \newframe*[<frame rate>]
-        ... typeset material ...
-    \newframe
-    \multiframe{<number of frames>}{[<variables>]}{
-        ... repeated (parameterized) material ...
-    }
-    \end{animateinline}
+\begin{animateinline}[<options>]{<frame rate>}
+    ... typeset material ...
+\newframe[<frame rate>]
+    ... typeset material ...
+\newframe*[<frame rate>]
+    ... typeset material ...
+\newframe
+\multiframe{<number of frames>}{[<variables>]}{
+    ... repeated (parameterized) material ...
+}
+\end{animateinline}
 ````
 
 - Command options:

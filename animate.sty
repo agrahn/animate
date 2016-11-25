@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2013/12/20}
+\def\@anim@version{2014/01/05}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -213,8 +213,9 @@
 \newboolean{@anim@useocg}
 % true if any of `autoplay' or `autoresume' options is set
 \newboolean{@anim@autoplayorresume}
-% true if any of `controls' or `palindrome' options is set
-\newboolean{@anim@ctrlorplndrm}
+% true if any of `controls' or `palindrome' or `label' options is set
+\newboolean{@anim@morejs}
+\newboolean{@anim@controlsorlabel}
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
 
@@ -1526,8 +1527,17 @@
     \setboolean{@anim@autoplayorresume}{true}%
   }{}%
   \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
-    \setboolean{@anim@ctrlorplndrm}{true}%
+    \setboolean{@anim@morejs}{true}%
   }{}%
+  \ifx\empty\@anim@label\empty\else%
+    \setboolean{@anim@morejs}{true}%
+  \fi%
+  \ifthenelse{\boolean{@anim@controls}}{%
+    \setboolean{@anim@controlsorlabel}{true}%
+  }{}%
+  \ifx\empty\@anim@label\empty\else%
+    \setboolean{@anim@controlsorlabel}{true}%
+  \fi%
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
@@ -1970,8 +1980,17 @@
     \setboolean{@anim@autoplayorresume}{true}%
   }{}%
   \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
-    \setboolean{@anim@ctrlorplndrm}{true}%
+    \setboolean{@anim@morejs}{true}%
   }{}%
+  \ifx\empty\@anim@label\empty\else%
+    \setboolean{@anim@morejs}{true}%
+  \fi%
+  \ifthenelse{\boolean{@anim@controls}}{%
+    \setboolean{@anim@controlsorlabel}{true}%
+  }{}%
+  \ifx\empty\@anim@label\empty\else%
+    \setboolean{@anim@controlsorlabel}{true}%
+  \fi%
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
@@ -2992,7 +3011,8 @@
   \setboolean{@anim@multipage}{false}%
   \setboolean{@anim@meas}{false}%
   \setboolean{@anim@autoplayorresume}{false}%
-  \setboolean{@anim@ctrlorplndrm}{false}%
+  \setboolean{@anim@morejs}{false}%
+  \setboolean{@anim@controlsorlabel}{false}%
 }
 
 %package options
@@ -3198,7 +3218,11 @@
   \fi
   var a#1,a#1_int;%
   if(typeof(a#1)=='undefined'){% initialize animation
-    a#1=new Object();%
+    a#1=new Object();% animation object
+    \ifx\empty\@anim@label\empty\else
+      if(typeof(anim)=='undefined')anim=new Array();%
+      if(typeof(anim['\@anim@label'])=='undefined')anim['\@anim@label']=a#1;%
+    \fi
     %takes references to frame ocgs/Field objects belonging to the current
     %animation
     a#1.fr=new Array();%
@@ -3257,7 +3281,7 @@
         a#1.playsRight=true;%
       \fi%
     \else
-      a#1.isPlaying=false;%
+      a#1.playing=false;%
       a#1.playsRight=true;%
       a#1.isPaused=false;%
       \if@anim@pauseframes
@@ -3272,6 +3296,10 @@
         a#1.pFpsAt=new Array();%
         \@anim@pfpsat%
         a#1.fps=Math.abs(\@anim@fps);%
+      \else%
+        \ifx\empty\@anim@label\empty\else
+          a#1.fps=Math.abs(\@anim@fps);%
+        \fi%
       \fi
       a#1.dt=1000/(1e-6+Math.abs(\@anim@fps));%
     \fi%
@@ -3281,9 +3309,9 @@
       \@anim@usrjsat%
     \fi%
     %actions
-    a#1.actnEndLeft=function(){%
+    a#1.stopFirst=function(){%
       \if@anim@step\else
-        a#1.actnPause();%
+        a#1.pause();%
         a#1.isPaused=false;% because it has been explicitly stopped
       \fi%
       \if@anim@useocg
@@ -3301,9 +3329,9 @@
         a#1.dt=1000/(1e-6+a#1.fps);%
       \fi%
     };%
-    a#1.actnEndRight=function(){%
+    a#1.stopLast=function(){%
       \if@anim@step\else
-        a#1.actnPause();%
+        a#1.pause();%
         a#1.isPaused=false;%
       \fi%
       \if@anim@useocg
@@ -3321,12 +3349,14 @@
         a#1.dt=1000/(1e-6+a#1.fps);%
       \fi%
     };%
-    a#1.actnNext=function(){%
-      \if@anim@useocg
-        a#1.fr[a#1.idx].state=false;%
-      \else
-        a#1.fr[a#1.idx].display=display.hidden;%
-      \fi
+    a#1.gotoNext=function(){%
+      try{%
+        \if@anim@useocg
+          a#1.fr[a#1.idx].state=false;%
+        \else
+          a#1.fr[a#1.idx].display=display.hidden;%
+        \fi%
+      }catch(e){}%
       try{%
         \if@anim@useocg
           a#1.fr[++a#1.idx].state=true;%
@@ -3334,41 +3364,43 @@
           a#1.fr[++a#1.idx].display=display.visible;%
           curdoc.dirty=false;%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+          console.show();console.println(e);}\fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         --a#1.idx;%
         \if@anim@palindrome%
           \if@anim@step
-            a#1.actnEndRight();%
+            a#1.stopLast();%
             a#1.playsRight=false;%
-          \else%
-            if(a#1.isPlaying){--a#1.idx;}%
+          \else
+            if(a#1.playing){--a#1.idx;}%
             \if@anim@useocg
               a#1.fr[a#1.idx].state=true;%
             \else
               a#1.fr[a#1.idx].display=display.visible;%
               curdoc.dirty=false;%
             \fi%
-            \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
-            if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
+            \if@anim@meas if(a#1.playing){a#1.stopMeas();}\fi
+            if(a#1.playing){a#1.isPaused=true;a#1.playLeft();}%
           \fi%
         \else%
           \if@anim@step
-            a#1.actnEndRight();%
+            a#1.stopLast();%
           \else%
             \if@anim@loop
-              if(a#1.isPlaying){%
+              if(a#1.playing){%
                 \if@anim@chfps
                   a#1.fps=Math.abs(\@anim@fps);%
                   a#1.dt=1000/(1e-6+a#1.fps);%
                 \fi
-                a#1.actnEndLeft();%
-                \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-                a#1.actnPlayRight();%
-              }else{a#1.actnEndRight();}%
+                a#1.stopFirst();%
+                \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+                  console.show();console.println(e);}\fi
+                a#1.playRight();%
+              }else{a#1.stopLast();}%
             \else
-              a#1.actnEndRight();%
+              a#1.stopLast();%
             \fi%
           \fi%
         \fi%
@@ -3381,16 +3413,16 @@
           ){%
             a#1.fps=a#1.nFpsAt[a#1.idx];%
             a#1.dt=1000/(1e-6+a#1.fps);%
-            if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
+            if(a#1.playing){a#1.isPaused=true;a#1.playRight();}%
           }%
         \fi%
         \if@anim@pauseframes
-          if(a#1.isPlaying&&a#1.pauseAt[a#1.idx]){a#1.actnPause();}%
+          if(a#1.playing&&a#1.pauseAt[a#1.idx]){a#1.pause();}%
         \fi%
       \fi%
     };%
-    \if@anim@ctrlorplndrm
-      a#1.actnPrev=function(){%
+    \if@anim@morejs
+      a#1.gotoPrev=function(){%
         \if@anim@useocg
           a#1.fr[a#1.idx].state=false;%
         \else
@@ -3404,40 +3436,42 @@
             curdoc.dirty=false;%
           \fi%
           \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+            console.show();console.println(e);}\fi%
         }catch(e){%
           ++a#1.idx;%
           \if@anim@palindrome%
             \if@anim@step
-              a#1.actnEndLeft();%
+              a#1.stopFirst();%
               a#1.playsRight=true;%
-            \else%
-              if(a#1.isPlaying){++a#1.idx;}%
+            \else
+              if(a#1.playing){++a#1.idx;}%
               \if@anim@useocg
                 a#1.fr[a#1.idx].state=true;%
               \else
                 a#1.fr[a#1.idx].display=display.visible;%
                 curdoc.dirty=false;%
               \fi%
-              \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
-              if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
+              \if@anim@meas if(a#1.playing){a#1.stopMeas();}\fi
+              if(a#1.playing){a#1.isPaused=true;a#1.playRight();}%
             \fi%
           \else%
             \if@anim@step
-              a#1.actnEndLeft();%
+              a#1.stopFirst();%
             \else%
               \if@anim@loop
-                if(a#1.isPlaying){%
+                if(a#1.playing){%
                   \if@anim@chfps
                     a#1.fps=Math.abs(\@anim@nfps);%
                     a#1.dt=1000/(1e-6+a#1.fps);%
                   \fi
-                  a#1.actnEndRight();%
-                  \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-                  a#1.actnPlayLeft();%
-                }else{a#1.actnEndLeft();}%
+                  a#1.stopLast();%
+                  \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+                    console.show();console.println(e);}\fi
+                  a#1.playLeft();%
+                }else{a#1.stopFirst();}%
               \else
-                a#1.actnEndLeft();%
+                a#1.stopFirst();%
               \fi%
             \fi%
           \fi%
@@ -3450,20 +3484,20 @@
             ){%
               a#1.fps=a#1.pFpsAt[a#1.idx];%
               a#1.dt=1000/(1e-6+a#1.fps);%
-              if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
+              if(a#1.playing){a#1.isPaused=true;a#1.playLeft();}%
             }%
           \fi%
           \if@anim@pauseframes
-            if(a#1.isPlaying&&a#1.pauseAt[a#1.idx]){a#1.actnPause();}%
+            if(a#1.playing&&a#1.pauseAt[a#1.idx]){a#1.pause();}%
           \fi%
         \fi%
       };%
     \fi%
     \if@anim@step\else
-      a#1.actnPause=function(){%
-        \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
+      a#1.pause=function(){%
+        \if@anim@meas if(a#1.playing){a#1.stopMeas();}\fi
         try{app.clearInterval(a#1_int);}catch(e){}%
-        a#1.isPlaying=false;%
+        a#1.playing=false;%
         a#1.isPaused=true;%
         \if@anim@controls
           a#1.btn['PauseLeft'].state=false;%
@@ -3472,10 +3506,10 @@
           a#1.btn['PlayRight'].state=true;%
         \fi%
       };%
-      a#1.actnPlayRight=function(){%
+      a#1.playRight=function(){%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1.playsRight=true;%
-        a#1.isPlaying=true;%
+        a#1.playing=true;%
         a#1.isPaused=false;%
         \if@anim@controls
           a#1.btn['PauseLeft'].state=true;%
@@ -3485,14 +3519,14 @@
         \fi%
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval(%
-          'a#1.actnNext()',a#1.dt\if@anim@controls/a#1.sm\fi%
+          'a#1.gotoNext()',a#1.dt\if@anim@controls/a#1.sm\fi%
         );%
       };%
-      \if@anim@ctrlorplndrm
-        a#1.actnPlayLeft=function(){%
+      \if@anim@morejs
+        a#1.playLeft=function(){%
           try{app.clearInterval(a#1_int);}catch(e){}%
           a#1.playsRight=false;%
-          a#1.isPlaying=true;%
+          a#1.playing=true;%
           a#1.isPaused=false;%
           \if@anim@controls
             a#1.btn['PauseLeft'].state=true;%
@@ -3502,41 +3536,43 @@
           \fi%
           \if@anim@meas a#1.startMeas();\fi
           a#1_int=app.setInterval(%
-            'a#1.actnPrev()',a#1.dt\if@anim@controls/a#1.sm\fi%
+            'a#1.gotoPrev()',a#1.dt\if@anim@controls/a#1.sm\fi%
           );%
         };%
       \fi%
       \if@anim@controls
-        a#1.actnIncr=function(){% speed up animation
+        a#1.fpsIncr=function(){% speed up animation
           try{app.clearInterval(a#1_int);}catch(e){}%
           a#1.sm*=1.2;%
-          if(a#1.isPlaying){%
+          if(a#1.playing){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
-        a#1.actnDecr=function(){% slow down animation
+        a#1.fpsDecr=function(){% slow down animation
           try{app.clearInterval(a#1_int);}catch(e){}%
           a#1.sm/=1.2;%
-          if(a#1.isPlaying){%
+          if(a#1.playing){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
-        a#1.actnReset=function(){% reset to default speed
-          a#1.sm=1;%
+      \fi%
+      \if@anim@controlsorlabel
+        a#1.fpsReset=function(){% reset to default speed
           try{app.clearInterval(a#1_int);}catch(e){}%
-          if(a#1.isPlaying){%
+          a#1.sm=1;%
+          if(a#1.playing){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
+              a#1_int=app.setInterval('a#1.gotoPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
@@ -3566,45 +3602,90 @@
   \if@anim@step\else%
     \if@anim@autoplay%
       \if@anim@useocg%
-        \if@anim@ctrlorplndrm
-          if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
-        \else%
-          a#1.actnPlayRight();%
+        \if@anim@morejs
+          if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
+        \else
+          a#1.playRight();%
         \fi%
-      \else
-        \if@anim@ctrlorplndrm
+      \else%
+        \if@anim@morejs
           if(a#1.playsRight){%
-            a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
+            a#1_intd=app.setTimeOut('a#1.playRight()',1);%
           }else{%
-            a#1_intd=app.setTimeOut('a#1.actnPlayLeft()',1);%
+            a#1_intd=app.setTimeOut('a#1.playLeft()',1);%
           }%
-        \else%
-          a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
+        \else
+          a#1_intd=app.setTimeOut('a#1.playRight()',1);%
         \fi%
       \fi%
-      \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+      \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+        console.show();console.println(e);}\fi%
     \fi%
     \if@anim@autoresume
       if(a#1.isPaused){%
         \if@anim@useocg%
-          \if@anim@ctrlorplndrm
-            if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
+          \if@anim@morejs
+            if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
           \else
-            a#1.actnPlayRight();%
+            a#1.playRight();%
           \fi%
         \else%
-          \if@anim@ctrlorplndrm
+          \if@anim@morejs
             if(a#1.playsRight){%
-              a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
+              a#1_intd=app.setTimeOut('a#1.playRight()',1);%
             }else{%
-              a#1_intd=app.setTimeOut('a#1.actnPlayLeft()',1);%
+              a#1_intd=app.setTimeOut('a#1.playLeft()',1);%
             }%
           \else
-            a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
+            a#1_intd=app.setTimeOut('a#1.playRight()',1);%
           \fi%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+          console.show();console.println(e);}\fi%
       }%
+    \fi%
+  \fi%
+  \ifx\empty\@anim@label\empty\else
+    a#1.getDirection=function(){%
+      if(a#1.playsRight)return 'fwd';else return 'bwd';%
+    };%
+    a#1.seekFrame=function(f){%
+      \if@anim@useocg
+        a#1.fr[a#1.idx].state=false;%
+      \else
+        a#1.fr[a#1.idx].display=display.hidden;%
+      \fi
+      if(f>\@anim@maxframe)f=\@anim@maxframe;if(f<0)f=0;%
+      a#1.idx=f-1;%
+      a#1.gotoNext();%
+    };%
+    a#1.setFps=function(f){%
+      var old=a#1.fps;%
+      a#1.fps=Math.abs(f);%
+      a#1.dt=1000/(1e-6+a#1.fps);%
+      a#1.fpsReset();%
+      return old;%
+    };%
+  \fi%
+  \if@anim@controlsorlabel%
+    \if@anim@step
+      a#1.stepBwd=function(){if(a#1.idx!=0){a#1.gotoPrev();}};%
+      a#1.stepFwd=function(){if(a#1.idx!=\@anim@maxframe){a#1.gotoNext();}};%
+    \else
+      a#1.stepBwd=function(){%
+        if(!a#1.playing&&a#1.idx!=0){a#1.isPaused=true;a#1.gotoPrev();}};%
+      a#1.stepFwd=function(){%
+        if(!a#1.playing&&a#1.idx!=\@anim@maxframe){%
+          a#1.isPaused=true;a#1.gotoNext();}};%
+      a#1.playBwd=function(){%
+        if(a#1.idx==0){a#1.stopLast();}%
+        a#1.playLeft();%
+      };%
+      a#1.playFwd=function(){%
+        if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
+        a#1.playRight();%
+      };%
+      a#1.isPlaying=function(){return a#1.playing;};%
     \fi%
   \fi%
 }
@@ -3616,10 +3697,10 @@
       \if@anim@step\else
         if(%
           \if@anim@autopause
-            a#1.isPlaying||%
+            a#1.playing||%
           \fi
           a#1.isPaused%
-        ){a#1.actnPause();}%
+        ){a#1.pause();}%
         else{%
         \if@anim@controls
           a#1.playsRight=true;%
@@ -3631,15 +3712,15 @@
       \fi%
       \ifx\@anim@poster\@anim@posterlast%
         \if@anim@useocg
-          a#1.actnEndRight();%
+          a#1.stopLast();%
         \else
-          a#1_intd=app.setTimeOut('a#1.actnEndRight()',1);%
+          a#1_intd=app.setTimeOut('a#1.stopLast()',1);%
         \fi%
       \else%
         \if@anim@useocg
-          a#1.actnEndLeft();%
+          a#1.stopFirst();%
         \else
-          a#1_intd=app.setTimeOut('a#1.actnEndLeft()',1);%
+          a#1_intd=app.setTimeOut('a#1.stopFirst()',1);%
         \fi%
       \fi%
       \if@anim@step\else%
@@ -3650,7 +3731,7 @@
       /D <</S/JavaScript/JS (% pause on MouseDown
         %disable focus rectangle
         app.focusRect=false;%
-        try{if(a#1.isPlaying){a#1.actnPause();}}catch(e){}%
+        try{if(a#1.playing){a#1.pause();}}catch(e){}%
       )>>%
     \fi%
     /U <</S/JavaScript/JS (% play/resume on MouseUp
@@ -3659,39 +3740,41 @@
           \if@anim@palindrome
             if(a#1.idx==\@anim@maxframe){%
               a#1.playsRight=false;%
-              a#1.actnPrev();%
+              a#1.gotoPrev();%
             }else if(a#1.idx==0){%
               a#1.playsRight=true;%
-              a#1.actnNext();%
+              a#1.gotoNext();%
             }else if(a#1.playsRight){%
-              a#1.actnNext();%
+              a#1.gotoNext();%
             }else{%
-              a#1.actnPrev();%
+              a#1.gotoPrev();%
             }%
           \else
             if(a#1.idx==\@anim@maxframe){%
-              a#1.actnEndLeft();%
-              \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+              a#1.stopFirst();%
+              \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+                console.show();console.println(e);}\fi%
             }else{%
-              a#1.actnNext();%
+              a#1.gotoNext();%
             }%
           \fi%
         \else%
-          \if@anim@palindrome%
+          \if@anim@palindrome
             if(a#1.idx==\@anim@maxframe){%
-              a#1.actnPlayLeft();%
+              a#1.playLeft();%
             }else if(a#1.idx==0){%
-              a#1.actnPlayRight();%
+              a#1.playRight();%
             }else if(a#1.playsRight){%
-              a#1.actnPlayRight();%
+              a#1.playRight();%
             }else{%
-              a#1.actnPlayLeft();%
+              a#1.playLeft();%
             }%
           \else
-            if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
-            a#1.actnPlayRight();%
+            if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
+            a#1.playRight();%
           \fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+            console.show();console.println(e);}\fi%
         \fi%
       }catch(e){}%
     )>>%
@@ -3712,49 +3795,39 @@
   \xdef\@anim@upjscriptstring{%
     app.focusRect=false;%
     \ifx\@anim@action\@anim@EndLeft
-      a#1.actnEndLeft();%
+      a#1.stopFirst();%
     \else%
-    \ifx\@anim@action\@anim@StepLeft%
-      \if@anim@step
-        if(a#1.idx!=0){a#1.actnPrev();}%
-      \else
-        if(!a#1.isPlaying&&a#1.idx!=0){a#1.isPaused=true;a#1.actnPrev();}%
-      \fi%
+    \ifx\@anim@action\@anim@StepLeft
+      a#1.stepBwd();%
     \else%
     \ifx\@anim@action\@anim@PlayPauseLeft
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==0){a#1.actnEndRight();}%
-        a#1.actnPlayLeft();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+      if(a#1.playing){a#1.pause();}else{%
+        a#1.playBwd();%
+        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+          console.show();console.println(e);}\fi%
       }%
     \else%
     \ifx\@anim@action\@anim@PlayPauseRight
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
-        a#1.actnPlayRight();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
+      if(a#1.playing){a#1.pause();}else{%
+        a#1.playFwd();%
+        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){%
+          console.show();console.println(e);}\fi%
       }%
     \else%
-    \ifx\@anim@action\@anim@StepRight%
-      \if@anim@step
-        if(a#1.idx!=\@anim@maxframe){a#1.actnNext();}%
-      \else
-        if(!a#1.isPlaying&&a#1.idx!=\@anim@maxframe){%
-          a#1.isPaused=true;a#1.actnNext();%
-        }%
-      \fi%
+    \ifx\@anim@action\@anim@StepRight
+      a#1.stepFwd();%
     \else%
     \ifx\@anim@action\@anim@EndRight
-      a#1.actnEndRight();%
+      a#1.stopLast();%
     \else%
     \ifx\@anim@action\@anim@Minus
-      a#1.actnDecr();%
+      a#1.fpsDecr();%
     \else%
     \ifx\@anim@action\@anim@Reset
-      a#1.actnReset();%
+      a#1.fpsReset();%
     \else%
     \ifx\@anim@action\@anim@Plus
-      a#1.actnIncr();%
+      a#1.fpsIncr();%
     \fi\fi\fi\fi\fi\fi\fi\fi\fi%
   }%
 }

@@ -8,8 +8,6 @@
 % graphics files or inline graphics (e. g. LaTeX-picture, PSTricks,
 % pgf/TikZ, ...)
 
-% makes use of OCGs (Optional Content Groups, aka PDF Layers)
-
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
@@ -104,6 +102,9 @@
   }{}%
 }
 
+%animation method if any of autoplay, autopause, autoresume options is used
+\newboolean{@anim@useocg}
+
 %add AcroForm and OCProperties entries to Catalog
 \ifpdf
   \newcount\@anim@@fields
@@ -123,7 +124,6 @@
       /OCGs \the\@anim@@ocgs\space 0 R
       /D <<
         /BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
-%        /Order \the\@anim@@ocgs\space 0 R
       >>
     >>
   }
@@ -159,7 +159,6 @@
         /OCGs {@anim@ocgs}
         /D <<
           /BaseState/OFF /ON {@anim@posterocgs}
-%          /Order {@anim@ocgs}
         >>
       >>
     >> /PUT pdfmark
@@ -396,21 +395,37 @@
     \immediate\pdfxform resources {%
       /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
     %
-    %frame widget, using the container XObject as its Appearance,
-    %associated with the just created OCG
-    \@anim@newocg{#1}{#2}% create new opt. content group (OCG)
+    %frame widget, using the container XObject as its Appearance
+    \if@anim@useocg%
+      \@anim@newocg{#1}{#2}% create new opt. content group (OCG)
+    \fi%
     \pdfannot
       width \@anim@animwidth\p@ height \@anim@animheight\p@
       depth \@anim@animdepth\p@
     {%
       /Subtype/Widget%
-      /OC \@anim@curocg
+      \if@anim@useocg%
+        /OC \@anim@curocg %associated with the just created OCG
+      \fi%
       /F 4 % allow printing
       /FT/Btn/Ff 65537% non-interactive push button
       /BS <</W 0>>%
       /AP <</N \the\pdflastxform\space 0 R>>%
-      /T (anm#1fr#2)%
+      /T (#1.#2)%
     }%
+    %for initialization of visibility if non-ocg method is used
+    \if@anim@useocg\else%
+      \ifnum#2=0
+        \def\@anim@posterframe{first}%
+      \else%
+        \def\@anim@posterframe{last}%
+      \fi%
+      \ifx\@anim@poster\@anim@posterframe%
+        \xdef\@anim@posterwidget{\the\pdflastannot\space 0 R}%
+      \fi%
+      \xdef\@anim@hidewidget{%
+        \@anim@hidewidget\space\the\pdflastannot\space 0 R}%
+    \fi%
   }
 \else
   \def\@anim@makeframe#1#2{%
@@ -440,13 +455,17 @@
       }%
     }%
     \end{picture}%
-    \@anim@newocg{#1}{#2}%
+    \if@anim@useocg%
+      \@anim@newocg{#1}{#2}%
+    \fi%
     \special{ps:
       mark
         /_objdef {annot@\the\@anim@fieldnum}%
         /Rect [wid@llx wid@lly wid@urx wid@ury]%
         /Subtype/Widget%
-        /OC {@anim@ocg@#1@#2}
+        \if@anim@useocg%
+          /OC {@anim@ocg@#1@#2}
+        \fi%
         /F 4
         /FT/Btn/Ff 65537
         /BS <</W 0>>%
@@ -454,6 +473,18 @@
         /T (anm#1fr#2)%
       /ANN pdfmark
     }%
+    \if@anim@useocg\else%
+      \ifnum#2=0
+        \def\@anim@posterframe{first}%
+      \else%
+        \def\@anim@posterframe{last}%
+      \fi%
+      \ifx\@anim@poster\@anim@posterframe%
+        \xdef\@anim@posterwidget{{annot@\the\@anim@fieldnum}}%
+      \fi%
+      \xdef\@anim@hidewidget{%
+        \@anim@hidewidget\space{annot@\the\@anim@fieldnum}}%
+    \fi%
     \global\advance\@anim@fieldnum by \@ne%
   }
 \fi
@@ -1313,8 +1344,20 @@
       /BS <</W 0>>%
       /H/N%
       /T (anm#1)%
-      /AA <<% bind JavaScripts to trigger events
-        /PO <</S/JavaScript/JS \@anim@pojscriptobj>>%
+      /AA <<% bind actions to trigger events
+        /PO <<%
+          \if@anim@useocg\else%
+            /S/Hide/T [\@anim@hidewidget]%
+            /Next <<%
+              /S/Hide/H false/T \@anim@posterwidget%
+              /Next <<%
+          \fi%
+                /S/JavaScript/JS \@anim@pojscriptobj%
+          \if@anim@useocg\else%
+              >>%
+            >>%
+          \fi%
+        >>%
         \@anim@otherjscriptkey%
       >>%
     }%
@@ -1358,8 +1401,20 @@
         /BS <</W 0>>%
         /H/N%
         /T (anm#1)%
-        /AA <<%
-          /PO <</S/JavaScript/JS {a#1@pojscript}>>%
+        /AA <<% bind actions to trigger events
+          /PO <<%
+            \if@anim@useocg\else%
+              /S/Hide/T [\@anim@hidewidget]%
+              /Next <<%
+                /S/Hide/H false/T \@anim@posterwidget%
+                /Next <<%
+            \fi%
+                  /S/JavaScript/JS {a#1@pojscript}%
+            \if@anim@useocg\else%
+                >>%
+              >>%
+            \fi%
+          >>%
           \@anim@otherjscriptkey%
         >>%
       /ANN pdfmark
@@ -2045,18 +2100,25 @@
 \setboolean{@anim@autoplay}{false}
 \define@key{anim@user}{autoplay}[true]{%
   \setboolean{@anim@autoplay}{#1}%
-  \if@anim@autoplay\setboolean{@anim@autoresume}{false}\fi%
+  \if@anim@autoplay%
+    \setboolean{@anim@autoresume}{false}%
+    \setboolean{@anim@useocg}{true}%
+  \fi%
 }
 \newboolean{@anim@autoresume}
 \setboolean{@anim@autoresume}{false}
 \define@key{anim@user}{autoresume}[true]{%
   \setboolean{@anim@autoresume}{#1}%
-  \if@anim@autoresume\setboolean{@anim@autoplay}{false}\fi%
+  \if@anim@autoresume%
+    \setboolean{@anim@autoplay}{false}%
+    \setboolean{@anim@useocg}{true}%
+  \fi%
 }
 \newboolean{@anim@autopause}
 \setboolean{@anim@autopause}{false}
 \define@key{anim@user}{autopause}[true]{%
   \setboolean{@anim@autopause}{#1}%
+  \if@anim@autopause\setboolean{@anim@useocg}{true}\fi%
 }
 \newboolean{@anim@palindrome}
 \setboolean{@anim@palindrome}{false}
@@ -2166,6 +2228,17 @@
   \gdef\@anim@gropts{}%
   \setboolean{@anim@multipdf}{false}%
   \setboolean{@anim@meas}{false}%
+  \gdef\@anim@posterwidget{}%
+  \gdef\@anim@hidewidget{}%
+  \ifthenelse{%
+    \boolean{@anim@autoplay}\OR%
+    \boolean{@anim@autopause}\OR%
+    \boolean{@anim@autoresume}%
+  }{%
+    \setboolean{@anim@useocg}{true}%
+  }{%
+    \setboolean{@anim@useocg}{false}%
+  }%
 }
 
 %package options

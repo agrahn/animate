@@ -1,0 +1,1802 @@
+% Copyright 2007 Alexander Grahn
+
+% This material is subject to the LaTeX Project Public License. See
+%   http://www.ctan.org/tex-archive/help/Catalogue/licenses.lppl.html
+% for the details of that license.
+
+% Package for creating portable, JavaScript driven animations from sets of
+% graphics files or inline graphics (e. g. latex-picture, pstricks,
+% pgf/TikZ, Asymptote, ...)
+
+% Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
+
+% Based on the work by Jan Holecek and Petr Sojka.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{animate}[2007/03/23]
+\RequirePackage{keyval}
+\RequirePackage{ifthen}
+\RequirePackage{ifpdf}
+\RequirePackage{calc}
+
+\DeclareOption*{}\ProcessOptions*\relax %allow anything as option
+%(package options will be processed near end of this file)
+
+\ifpdf\else
+  %define `?pdfmark' operator; taken from the PDFmark Reference
+  \AtBeginDocument{%
+    \ifthenelse{\isundefined{\pdfmark}}{% (hyperref provides its own
+      \special{ps:                      % definition)
+        /pdfmark where
+        { pop globaldict /?pdfmark /exec load put }
+        {
+          globaldict
+          begin
+          /?pdfmark /pop load def
+          /pdfmark /cleartomark load def
+          end
+        }
+        ifelse
+      }%
+    }{}%
+  }
+\fi%
+
+%testing for correct TeX version, pdfmdfivesum is needed for both,
+%pdf _and_ dvi output
+\ifx\@undefined\pdfmdfivesum
+  \PackageError{animate}{%
+    pdfeTeX, version >= 1.30, required
+  }{%
+    Install a more recent version!
+  }%
+\fi
+
+%define our own label making commands
+\def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
+\def\@anim@getkeyval#1{%
+  \expandafter\ifx\csname#1\endcsname\relax%
+    undefined%
+  \else%
+    \csname#1\endcsname%
+  \fi%
+}%
+
+%missing package error message
+\def\@anim@missing#1{%
+  \PackageError{animate}{%
+    Package `#1' has not been loaded yet%
+  }{%
+    Put the line\MessageBreak%
+    `\protect\usepackage{#1}'\MessageBreak%
+    to the preamble of your document!
+  }%
+}
+
+%add AP (appearances name tree) root node to the Names dict of the PDF Catalog
+\ifpdf
+  \newcount\@anim@aproot
+  \pdfobj reserveobjnum
+  \@anim@aproot=\pdflastobj
+  \pdfnames{/AP \the\pdflastobj\space 0 R}
+  \def\@anim@buttontree{}
+  \AtEndDocument{%
+    \immediate\pdfobj useobjnum \@anim@aproot {%
+      <</Kids [\@anim@buttontree\@anim@apkids]>>%
+    }%
+  }%
+\else
+  \special{ps:
+    mark {Catalog} <</Names <</AP <</Kids {@anim@apkids}>>>>>> /PUT pdfmark
+  }
+\fi
+
+%create name tree object from XObject hash & add a reference to it to the
+%name tree list
+\ifpdf
+  \def\@anim@apkids{}
+  \def\@anim@addtree#1{% #1 @anim@num
+    \immediate\pdfobj {<<%
+        /Names [\@anim@getkeyval{a#1.hash}]
+        /Limits [(\@anim@getkeyval{a#1.ffirst}) (\@anim@getkeyval{a#1.flast})]%
+    >>}%
+    \xdef\@anim@apkids{\@anim@apkids\the\pdflastobj\space 0 R\space}%
+  }
+\else
+  \special{ps: mark /_objdef {@anim@apkids} /type/array /OBJ pdfmark }
+  \def\@anim@addtree#1{%
+    \special{ps:
+      mark
+        /_objdef {tree@#1}
+        /type/dict
+      /OBJ pdfmark
+      mark
+        {tree@#1} <<
+          /Names [\@anim@getkeyval{a#1.hash}]
+          /Limits [(\@anim@getkeyval{a#1.ffirst}) (\@anim@getkeyval{a#1.flast})]
+        >>
+      /PUT pdfmark
+      mark {@anim@apkids} {tree@#1} /APPEND pdfmark
+    }%
+  }
+\fi
+
+\newbox\@anim@box %used for storing graphics
+\newdimen\@anim@tmpdima %length registers for occasional use
+\newdimen\@anim@tmpdimb
+
+%creates Form XObject from graphics file & appends a reference to it to the
+%XObject hash (XObject name <-> XObject reference) of the current animation;
+%also determines natural size of the graphics file
+\def\@anim@pt{pt}
+\ifpdf
+  \def\@anim@ximage#1#2#3{%#1:zero padded anim num, #2:@anim@curframe@zb,
+    \edef\@anim@curfr@zb@form{\@anim@pad{123456}{#2}}%             #3:filename
+    \IfFileExists{#3}{%
+      %embed the same graphics file only once (reference doesn't exist yet)
+      \ifthenelse{%
+        \equal{\@anim@getkeyval{\pdfmdfivesum file {#3}.r}}{undefined}%
+      }{%
+        \def\@anim@mps{.mps}%
+        \ifx\@anim@ext\@anim@mps%
+          \setbox\@anim@box=\hbox{\convertMPtoPDF{#3}{1}{1}}%
+          \ifnum#2=0% size (measuring the first frame only)
+            % store name of first frame XObject
+            \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+            \@anim@newkey{a#1.wd}{\the\wd\@anim@box}%
+            \@anim@newkey{a#1.ht}{\the\ht\@anim@box}%
+            \@anim@newkey{a#1.dp}{0pt}%
+          \fi%
+          \immediate\pdfxform\@anim@box%
+          \@anim@newkey{\pdfmdfivesum file {#3}.r}{\the\pdflastxform}%
+        \else%
+          \immediate\pdfximage{#3}%
+          \@anim@newkey{\pdfmdfivesum file {#3}.r}{\the\pdflastximage}%
+          \ifnum#2=0% size (measuring the first frame only)
+            % store name of first frame XObject
+            \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+            \setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
+            \@anim@newkey{a#1.wd}{\the\wd\@anim@box}%
+            \@anim@newkey{a#1.ht}{\the\ht\@anim@box}%
+            \@anim@newkey{a#1.dp}{0pt}%
+          \fi%
+        \fi%
+        \@anim@newkey{\pdfmdfivesum file {#3}.a}{#1}% file is part of animation #1
+      }{%
+        \ifnum#2=0%
+          \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+          %retrieve previously determined size and make it the current
+          \@anim@newkey{a#1.wd}{%
+            \@anim@getkeyval{a\@anim@getkeyval{\pdfmdfivesum file {#3}.a}.wd}%
+          }%
+          \@anim@newkey{a#1.ht}{%
+            \@anim@getkeyval{a\@anim@getkeyval{\pdfmdfivesum file {#3}.a}.ht}%
+          }%
+          \@anim@newkey{a#1.dp}{0pt}%
+        \fi%
+      }%
+      % store name of last frame XObject
+      \@anim@newkey{a#1.flast}{ba#1f\@anim@curfr@zb@form}%
+      \@anim@newkey{a#1.hash}{% append reference
+        \@anim@getkeyval{a#1.hash}(ba#1f\@anim@curfr@zb@form)
+        \@anim@getkeyval{\pdfmdfivesum file {#3}.r}\space 0 R\space%
+      }%
+      %reference to poster frame
+      \ifnum#2=0%
+        \def\@anim@posterframe{first}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@newkey{a#1.poster}{%
+            \@anim@getkeyval{\pdfmdfivesum file {#3}.r}\space 0 R%
+          }%
+        \fi%
+      \else%
+        \def\@anim@posterframe{last}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@newkey{a#1.poster}{%
+            \@anim@getkeyval{\pdfmdfivesum file {#3}.r}\space 0 R%
+          }%
+        \fi%
+      \fi%
+    }{%
+      \PackageError{animate}{File `#3' cannot be opened for embedding.}{}%
+    }%
+  }
+\else
+  \def\@anim@ximage#1#2#3{%
+    \edef\@anim@curfr@zb@form{\@anim@pad{123456}{#2}}%
+    \IfFileExists{#3}{%
+      \ifthenelse{%
+        \equal{\@anim@getkeyval{\pdfmdfivesum file {#3}.r}}{undefined}%
+      }{%
+        \edef\@anim@curfile{{#3}}%
+        \setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
+        \ifnum#2=0% size (measuring the first frame only)
+          % store name of first frame XObject
+          \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+          \@anim@newkey{a#1.wd}{\the\wd\@anim@box}%
+          \@anim@newkey{a#1.ht}{\the\ht\@anim@box}%
+          \@anim@newkey{a#1.dp}{0pt}%
+        \fi%
+        \def\@anim@oldunitlength{\the\unitlength}% make backup
+        \setlength{\unitlength}{1pt}%
+        %mark BBox of the graphics
+        \begin{picture}(0,0)%
+        \put(0,0){%
+          \special{ps:
+            currentpoint /frame@lly exch def /frame@llx exch def
+          }%
+        }%
+        \put(\strip@pt\wd\@anim@box,\strip@pt\ht\@anim@box){%
+          \special{ps:
+            currentpoint /frame@ury exch def /frame@urx exch def
+          }%
+        }%
+        \special{ps:
+          save gsave
+          mark
+            /_objdef {ba#1f\@anim@curfr@zb@form}
+            /BBox [frame@llx frame@lly frame@urx frame@ury]
+          /BP pdfmark
+          %flip around horizontal axis
+          { [1 0 0 -1 0 frame@lly frame@ury add ] concat } ?pdfmark
+        }%
+        \put(0,0){\box\@anim@box}%
+        \special{ps:
+          mark /EP pdfmark
+          grestore restore
+        }%
+        \end{picture}%
+        \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlen
+        \@anim@newkey{\pdfmdfivesum file {#3}.r}{ba#1f\@anim@curfr@zb@form}%
+        \@anim@newkey{\pdfmdfivesum file {#3}.a}{#1}%
+      }{%
+        \ifnum#2=0%
+          \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+          \@anim@newkey{a#1.wd}{%
+            \@anim@getkeyval{a\@anim@getkeyval{\pdfmdfivesum file {#3}.a}.wd}%
+          }%
+          \@anim@newkey{a#1.ht}{%
+            \@anim@getkeyval{a\@anim@getkeyval{\pdfmdfivesum file {#3}.a}.ht}%
+          }%
+          \@anim@newkey{a#1.dp}{0pt}%
+        \fi%
+      }%
+      \@anim@newkey{a#1.flast}{ba#1f\@anim@curfr@zb@form}%
+      \@anim@newkey{a#1.hash}{% append reference
+        \@anim@getkeyval{a#1.hash}(ba#1f\@anim@curfr@zb@form)
+        {\@anim@getkeyval{\pdfmdfivesum file {#3}.r}}\space%
+      }%
+      \ifnum#2=0%
+        \def\@anim@posterframe{first}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@newkey{a#1.poster}{%
+            \@anim@getkeyval{\pdfmdfivesum file {#3}.r}%
+          }%
+        \fi%
+      \else%
+        \def\@anim@posterframe{last}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@newkey{a#1.poster}{%
+            \@anim@getkeyval{\pdfmdfivesum file {#3}.r}%
+          }%
+        \fi%
+      \fi%
+    }{%
+      \PackageError{animate}{File `#3' cannot be opened for embedding.}{}%
+    }%
+  }
+\fi
+
+%creates Form XObject from box contents & appends a reference to it to the
+%XObject hash (XObject name <-> XObject reference) of the current animation
+\ifpdf
+  \def\@anim@xinline#1#2#3{%#1:zero padded anim num, #2:@anim@curframe@zb,
+    \immediate\pdfxform#3%  #3:box number
+    \edef\@anim@curfr@zb@form{\@anim@pad{123456}{#2}}%
+    \ifnum#2=0%
+      \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+    \fi%
+    % store name of last frame of sequence
+    \@anim@newkey{a#1.flast}{ba#1f\@anim@curfr@zb@form}%
+    \@anim@newkey{a#1.hash}{% append reference
+      \@anim@getkeyval{a#1.hash}%
+      (ba#1f\@anim@curfr@zb@form)\space\the\pdflastxform\space 0 R\space%
+    }%
+    %reference to poster frame
+    \ifnum#2=0%
+      \def\@anim@posterframe{first}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \@anim@newkey{a#1.poster}{\the\pdflastxform\space 0 R}%
+      \fi%
+    \else%
+      \def\@anim@posterframe{last}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \@anim@newkey{a#1.poster}{\the\pdflastxform\space 0 R}%
+      \fi%
+    \fi%
+  }
+\else
+  \def\@anim@xinline#1#2#3{%
+    \def\@anim@oldunitlength{\the\unitlength}% make backup
+    \setlength{\unitlength}{1pt}%
+    %mark BBox of the graphics
+    \begin{picture}(0,0)%
+    \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.dp}}%
+    \put(0,-\strip@pt\@anim@tmpdima){%
+      \special{ps:
+        currentpoint /frame@lly exch def /frame@llx exch def
+      }%
+    }%
+    \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.wd}}%
+    \setlength{\@anim@tmpdimb}{\@anim@getkeyval{a#1.ht}}%
+    \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdimb){%
+      \special{ps:
+        currentpoint /frame@ury exch def /frame@urx exch def
+      }%
+    }%
+    \end{picture}%
+    \edef\@anim@curfr@zb@form{\@anim@pad{123456}{#2}}% cur frame num formatted
+    \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlength
+    \special{ps:
+      save gsave
+      mark
+        /_objdef {ba#1f\@anim@curfr@zb@form}
+        /BBox [frame@llx frame@lly frame@urx frame@ury]
+      /BP pdfmark
+      %flip around horizontal axis
+      { [1 0 0 -1 0 frame@lly frame@ury add ] concat } ?pdfmark
+    }%
+    \begin{picture}(0,0)%
+      \put(0,0){\box#3}%
+    \end{picture}%
+    \special{ps:
+      mark /EP pdfmark
+      grestore restore
+    }%
+    \ifnum#2=0%
+      \@anim@newkey{a#1.ffirst}{ba#1f\@anim@curfr@zb@form}%
+    \fi%
+    \@anim@newkey{a#1.flast}{ba#1f\@anim@curfr@zb@form}%
+    \@anim@newkey{a#1.hash}{%
+      \@anim@getkeyval{a#1.hash}%
+      (ba#1f\@anim@curfr@zb@form)\space {ba#1f\@anim@curfr@zb@form}\space%
+    }%
+    \ifnum#2=0%
+      \def\@anim@posterframe{first}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \@anim@newkey{a#1.poster}{ba#1f\@anim@curfr@zb@form}%
+      \fi%
+    \else%
+      \def\@anim@posterframe{last}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \@anim@newkey{a#1.poster}{ba#1f\@anim@curfr@zb@form}%
+      \fi%
+    \fi%
+  }
+\fi
+
+%control button faces
+\def\@anim@buttonhash{}%
+\ifpdf
+  \def\@anim@xbutton#1#2{% #1 name, #2 stroking commands
+    \immediate\pdfobj stream attr{%
+      /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
+      /Resources <</ProcSet [/PDF]>>%
+    }{#2}%
+    \xdef\@anim@buttonhash{%
+      \@anim@buttonhash(abtn#1)\space\the\pdflastobj\space 0 R\space%
+    }%
+  }
+  \def\@anim@btnend{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    45 40 m
+    95 75 l
+    45 110 l
+    S
+    0 j
+    105 44 m
+    105 106 l
+    S
+  }
+  \def\@anim@btnstep{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    50 40 m
+    100 75 l
+    50 110 l
+    S
+  }
+  \def\@anim@btnplay{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    50 40 m
+    50 110 l
+    100 75 l
+    h
+    S
+  }
+  \def\@anim@btnpause{%
+    2.5 w
+    1 j
+    0 G
+    0 10 m
+    140 10 l
+    140 140 l
+    0 140 l
+    S
+    20 w
+    22 40 m
+    22 110 l
+    S
+  }
+  \def\@anim@btnminus{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    0 J
+    40 75 m
+    110 75 l
+    S
+  }
+  \def\@anim@btnplus{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    0 J
+    40 75 m
+    110 75 l
+    75 40 m
+    75 110 l
+    S
+  }
+  \def\@anim@btnreset{%
+    2.5 w
+    1 J
+    1 j
+    0 G
+    10 10 130 130 re
+    S
+    10 w
+    75 40 m
+    75 110 l
+    S
+    0 g
+    35 50 m
+    70 75 l
+    35 100 l
+    f
+    115 50 m
+    80 75 l
+    115 100 l
+    f
+    2 J
+    0 j
+    30 75 m
+    35 75 l
+    120 75 m
+    115 75 l
+    S
+  }
+  \def\@anim@makebuttons{%
+    \@anim@xbutton{EndLeft}{%
+      -0.1 0 0 0.1 15 0 cm
+      \@anim@btnend%
+    }%
+    \@anim@xbutton{EndRight}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnend%
+    }%
+    \@anim@xbutton{Minus}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnminus%
+    }%
+    \@anim@xbutton{PauseLeft}{%
+      -0.1 0 0 0.1 15 0 cm
+      \@anim@btnpause%
+    }%
+    \@anim@xbutton{PauseRight}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnpause%
+    }%
+    \@anim@xbutton{PlayLeft}{%
+      -0.1 0 0 0.1 15 0 cm
+      \@anim@btnplay%
+    }%
+    \@anim@xbutton{PlayRight}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnplay%
+    }%
+    \@anim@xbutton{Plus}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnplus%
+    }%
+    \@anim@xbutton{Reset}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnreset%
+    }%
+    \@anim@xbutton{StepLeft}{%
+      -0.1 0 0 0.1 15 0 cm
+      \@anim@btnstep%
+    }%
+    \@anim@xbutton{StepRight}{%
+      0.1 0 0 0.1 0 0 cm
+      \@anim@btnstep%
+    }%
+    \immediate\pdfobj {<<%
+      /Names [\@anim@buttonhash]
+      /Limits [(abtnEndLeft) (abtnStepRight)]%
+    >>}%
+    \xdef\@anim@buttontree{\the\pdflastobj\space 0 R\space}%
+    \setboolean{@anim@buttonsmade}{true}%
+  }
+\else
+  \def\@anim@xbutton#1#2{% #1: name; #2: stroking commands
+    \special{ps:
+      save gsave
+      mark
+        /_objdef {abtn#1}
+        /BBox [0 0 15 15]
+      /BP pdfmark { #2 } ?pdfmark mark /EP pdfmark
+      grestore restore
+    }%
+    \xdef\@anim@buttonhash{%
+      \@anim@buttonhash(abtn#1)\space {abtn#1}\space%
+    }%
+  }
+  \def\@anim@btnend{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1 setlinewidth
+    4.5 4 moveto
+    9.5 7.5 lineto
+    4.5 11 lineto
+    stroke
+    0 setlinejoin
+    10.5 4.4 moveto
+    10.5 10.6 lineto
+    stroke
+  }
+  \def\@anim@btnstep{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1 setlinewidth
+    5 4 moveto
+    10 7.5 lineto
+    5 11 lineto
+    stroke
+  }
+  \def\@anim@btnplay{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1 setlinewidth
+    5 4 moveto
+    5 11 lineto
+    10 7.5 lineto
+    closepath
+    stroke
+  }
+  \def\@anim@btnpause{%
+    0 setgray
+    0.25 setlinewidth
+    0 setlinecap
+    1 setlinejoin
+    0 1 moveto
+    14 1 lineto
+    14 14 lineto
+    0 14 lineto
+    stroke
+    2 setlinewidth
+    2.2 4 moveto
+    2.2 11 lineto
+    stroke
+  }
+  \def\@anim@btnminus{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1.0 setlinewidth
+    0 setlinecap
+    4 7.5 moveto
+    11 7.5 lineto
+    stroke
+  }
+  \def\@anim@btnplus{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1.0 setlinewidth
+    0 setlinecap
+    4 7.5 moveto
+    11 7.5 lineto
+    7.5 4  moveto
+    7.5 11 lineto
+    stroke
+  }
+  \def\@anim@btnreset{%
+    0 setgray
+    0.25 setlinewidth
+    1 setlinecap
+    1 setlinejoin
+    1 1 moveto
+    14 1 lineto
+    14 14 lineto
+    1 14 lineto
+    closepath
+    stroke
+    1 setlinewidth
+    7.5 4 moveto
+    7.5 11 lineto
+    stroke
+    0 setlinejoin
+    3.5 5 moveto
+    7 7.5 lineto
+    3.5 10 lineto
+    closepath
+    fill
+    11.5 5 moveto
+    8 7.5 lineto
+    11.5 10 lineto
+    closepath
+    fill
+    1 setlinewidth
+    2 setlinecap
+    3 7.5 moveto
+    3.5 7.5 lineto
+    12 7.5 moveto
+    11.5 7.5 lineto
+    stroke
+  }
+  \def\@anim@makebuttons{%
+    \@anim@xbutton{EndLeft}{%
+      [-1 0 0 1 15 0] concat
+      \@anim@btnend%
+    }%
+    \@anim@xbutton{EndRight}{%
+      \@anim@btnend%
+    }%
+    \@anim@xbutton{Minus}{%
+      \@anim@btnminus%
+    }%
+    \@anim@xbutton{PauseLeft}{%
+      [-1 0 0 1 15 0] concat
+      \@anim@btnpause%
+    }%
+    \@anim@xbutton{PauseRight}{%
+      \@anim@btnpause%
+    }%
+    \@anim@xbutton{PlayLeft}{%
+      [-1 0 0 1 15 0] concat
+      \@anim@btnplay%
+    }%
+    \@anim@xbutton{PlayRight}{%
+      \@anim@btnplay%
+    }%
+    \@anim@xbutton{Plus}{%
+      \@anim@btnplus%
+    }%
+    \@anim@xbutton{Reset}{%
+      \@anim@btnreset%
+    }%
+    \@anim@xbutton{StepLeft}{%
+      [-1 0 0 1 15 0] concat
+      \@anim@btnstep%
+    }%
+    \@anim@xbutton{StepRight}{%
+      \@anim@btnstep%
+    }%
+    \special{ps:
+      mark /_objdef {tree@button} /type/dict /OBJ pdfmark
+      mark
+        {tree@button} <<%
+          /Names [\@anim@buttonhash]
+          /Limits [(abtnEndLeft) (abtnStepRight)]
+        >> /PUT
+      pdfmark
+      mark {@anim@apkids} 0 {tree@button} /PUT pdfmark
+    }%
+    \setboolean{@anim@buttonsmade}{true}%
+  }
+\fi
+
+%determines file type of the sequence
+\ifpdf
+  \def\@anim@getext#1{%
+    \gdef\@anim@ext{.pdf}% we start with `pdf'
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.mps}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.png}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jpg}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jpeg}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jbig2}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jb2}%
+    \IfFileExists{#1\@anim@ext}{}{%
+      \PackageError{animate}{%
+        Neither of the files\MessageBreak%
+        `#1.pdf',\MessageBreak%
+        `#1.mps',\MessageBreak%
+        `#1.png',\MessageBreak%
+        `#1.jpg',\MessageBreak%
+        `#1.jpeg',\MessageBreak%
+        `#1.jbig2' or\MessageBreak%
+        `#1.jb2',\MessageBreak%
+        could be found.\MessageBreak%
+        Wrong file type? Mis-spelled file name?
+      }{}%
+    }}}}}}}%
+  }%
+\else
+  \def\@anim@getext#1{%
+    \gdef\@anim@ext{.eps}% we start with `eps'
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.mps}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.ps}%
+    \IfFileExists{#1\@anim@ext}{}{%
+      \PackageError{animate}{%
+        Neither of the files\MessageBreak%
+        `#1.eps',\MessageBreak%
+        `#1.mps'\MessageBreak%
+        `#1.ps' or\MessageBreak%
+        could be found.\MessageBreak%
+        Wrong file type? Mis-spelled file name?
+      }{}%
+    }}}%
+  }%
+\fi
+
+%counts embedded animations
+\newcount\@anim@num\@anim@num=0
+
+%current frame
+\newcount\@anim@curframe
+\newcount\@anim@curframe@zb% zero based
+
+%user command for embedding animation sequence
+% #1: options
+% #2: frame rate (fps)
+% #3: basename of graphics file sequence (without frame number and extension)
+% #4: first frame (zero padded integer of same width as #5)
+% #5: last frame (zero padded integer of same width as #4)
+\newcommand{\animategraphics}[5][]{%
+  \leavevmode%
+  \ifpdf\else%
+    \ifthenelse{\isundefined{\includegraphics}}{\@anim@missing{graphics}}{}%
+  \fi%
+  \@anim@reset% to default settings
+  \setkeys{anim@user}{#1}%
+  \def\@anim@base{#3}%
+  \def\@anim@first{#4}%
+  \def\@anim@last{#5}%
+  %
+  %create button faces if necessary
+  \if@anim@controls%
+    \if@anim@buttonsmade\else%
+      \@anim@makebuttons%
+    \fi%
+  \fi%
+  %formatted (zero padded) animation no.
+  \edef\@anim@numform{\@anim@pad{1234}{\the\@anim@num}}%
+  \@anim@newkey{a\@anim@numform.hash}{}% empty XObject hash
+  \@anim@newkey{a\@anim@numform.fps}{#2}%
+  %
+  %read all frames of the sequence
+  \@anim@curframe=\@anim@first%
+  \@anim@curframe@zb=0%
+  \loop%
+  \ifnum\@anim@curframe>\@anim@last\else%
+    %get file name extension of current file
+    \@anim@getext{%
+      \@anim@base\@anim@pad{\@anim@last}{\the\@anim@curframe}%
+    }%
+    %embed graphics
+    \@anim@ximage{\@anim@numform}{\the\@anim@curframe@zb}{%
+      \@anim@base\@anim@pad{\@anim@last}{\the\@anim@curframe}\@anim@ext%
+    }%
+    \advance\@anim@curframe by 1%
+    \advance\@anim@curframe@zb by 1%
+    \@anim@newkey{a\@anim@numform.frames}{\the\@anim@curframe@zb}% total number
+  \repeat%
+  \@anim@addtree{\@anim@numform}% create name tree
+  %insert animation widget & controls
+  \vtop{%
+    \offinterlineskip%
+    \hbox{\@anim@animwidget{\@anim@numform}}%
+    \if@anim@controls%
+      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \setlength{\@anim@tmpdima}{0.1\@anim@tmpdima}%
+      \vskip \@anim@tmpdima%
+      \hbox to \@anim@getkeyval{a\@anim@numform.wd} {%
+        \hss%
+        \@anim@buttonwidget{\@anim@numform}{EndLeft}%
+        \@anim@buttonwidget{\@anim@numform}{StepLeft}%
+        \if@anim@step\else%
+          \@anim@buttonwidget{\@anim@numform}{PlayPauseLeft}%
+          \@anim@buttonwidget{\@anim@numform}{PlayPauseRight}%
+        \fi%
+        \@anim@buttonwidget{\@anim@numform}{StepRight}%
+        \@anim@buttonwidget{\@anim@numform}{EndRight}%
+        \if@anim@step\else%
+          \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+          \setlength{\@anim@tmpdima}{0.3\@anim@tmpdima}%
+          \hskip \@anim@tmpdima%
+          \@anim@buttonwidget{\@anim@numform}{Minus}%
+          \@anim@buttonwidget{\@anim@numform}{Reset}%
+          \@anim@buttonwidget{\@anim@numform}{Plus}%
+        \fi%
+        \hss%
+      }%
+    \fi%
+  }%
+  \global\advance\@anim@num by 1%
+}%
+
+%calculates widget dimensions from natural ones, taking resizing options
+%into account
+\def\@anim@rescale#1{% #1:formatted anim number
+  %original totalheight
+  \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.ht}}%
+  \addtolength{\@anim@tmpdima}{\@anim@getkeyval{a#1.dp}}%
+  \edef\@anim@th{\the\@anim@tmpdima}%
+  %rescale height & depth
+  \ifthenelse{%
+    \NOT\equal{\@anim@boxheight}{}\AND%
+    \NOT\equal{\@anim@boxdepth}{}%
+  }{%
+    \@anim@newkey{a#1.ht}{\@anim@boxheight}%
+    \@anim@newkey{a#1.dp}{\@anim@boxdepth}%
+  }{%
+    \ifthenelse{\NOT\equal{\@anim@boxheight}{}}{%
+      \@anim@newkey{a#1.ht}{\@anim@boxheight}%
+    }{%
+      \ifthenelse{\NOT\equal{\@anim@boxdepth}{}}{%
+        \@anim@newkey{a#1.dp}{\@anim@boxdepth}%
+      }{%if neither height nor depth are given but width is, rescale
+        %ht & dp to keep aspect ratio
+        \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%
+          \setlength{\@anim@tmpdima}{%
+            \@anim@getkeyval{a#1.ht}%
+              *\ratio{\@anim@boxwidth}{\@anim@getkeyval{a#1.wd}}%
+          }\@anim@newkey{a#1.ht}{\the\@anim@tmpdima}%
+          \setlength{\@anim@tmpdima}{%
+            \@anim@getkeyval{a#1.dp}%
+              *\ratio{\@anim@boxwidth}{\@anim@getkeyval{a#1.wd}}%
+          }\@anim@newkey{a#1.dp}{\the\@anim@tmpdima}%
+        }{}%
+      }%
+    }%
+  }%
+  \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%rescale width
+    \@anim@newkey{a#1.wd}{\@anim@boxwidth}%
+  }{%
+    %if width is not given, but either height or depth are, scale
+    %width to keep aspect ratio
+    \ifthenelse{%
+      \NOT\equal{\@anim@boxheight}{}\OR%
+      \NOT\equal{\@anim@boxdepth}{}%
+    }{%
+      \setlength{\@anim@tmpdima}{%
+        \@anim@getkeyval{a#1.wd}%
+          *\ratio{%
+             \@anim@getkeyval{a#1.ht}+\@anim@getkeyval{a#1.dp}%
+           }{\@anim@th}%
+      }%
+      \@anim@newkey{a#1.wd}{\the\@anim@tmpdima}%
+    }{}%
+  }%
+  %apply scaling by a factor
+  \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.wd}}%
+  \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
+  \@anim@newkey{a#1.wd}{\the\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.ht}}%
+  \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
+  \@anim@newkey{a#1.ht}{\the\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.dp}}%
+  \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
+  \@anim@newkey{a#1.dp}{\the\@anim@tmpdima}%
+}
+
+%creates animation widget
+\ifpdf
+  \def\@anim@animwidget#1{%
+    \@anim@rescale{#1}%
+    %create JavaScript objects
+    \@anim@pojscript{#1}% to be executed on PO event
+    \@anim@otherjscript{#1}% on other events in the AA dict
+    %default appearance
+    \def\@anim@posterframe{none}%
+    \ifx\@anim@poster\@anim@posterframe%
+      \def\@anim@defaultap{}%
+    \else%
+      \edef\@anim@defaultap{%
+        /AP <</N \@anim@getkeyval{a#1.poster}>>%
+      }%
+    \fi
+    \pdfannot
+      width \@anim@getkeyval{a#1.wd}
+      height \@anim@getkeyval{a#1.ht}
+      depth \@anim@getkeyval{a#1.dp}
+    {%
+      /Subtype/Widget%
+      /F 4% allow printing
+      /FT/Btn/Ff 65536% push button
+      /T (anm@#1)%
+      /BS <</W 0>>%
+      /H/N%
+      \@anim@defaultap%
+      /MK <<%
+        /TP 1% icon, no caption
+        /BG [\@anim@bg]%
+        /IF <</SW/A/S/A>>% scale icon freely within widget
+      >>%
+      /AA <<% bind JavaScripts to trigger events
+        /PO <</S/JavaScript/JS \@anim@getkeyval{a#1.pojscript}\space 0 R>>%
+        \@anim@getkeyval{a#1.otherjscript}%
+      >>%
+    }%
+    \hbox to \@anim@getkeyval{a#1.wd} {%
+      \vrule width 0pt height \@anim@getkeyval{a#1.ht}
+             depth \@anim@getkeyval{a#1.dp}%
+      \hss%
+    }%
+  }%
+\else
+  \def\@anim@animwidget#1{%
+    \@anim@rescale{#1}%
+    \def\@anim@oldunitlength{\the\unitlength}%
+    \setlength{\unitlength}{1pt}%
+    %mark annotation rectangle
+    \begin{picture}(0,0)%
+      \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.dp}}%
+      \put(0,-\strip@pt\@anim@tmpdima){%
+      \special{ps:
+        currentpoint /wid@lly exch def /wid@llx exch def
+      }%
+    }%
+    \setlength{\@anim@tmpdima}{\@anim@getkeyval{a#1.wd}}%
+    \setlength{\@anim@tmpdimb}{\@anim@getkeyval{a#1.ht}}%
+    \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdimb){%
+      \special{ps:
+        currentpoint /wid@ury exch def /wid@urx exch def
+      }%
+    }%
+    \end{picture}%
+    \setlength{\unitlength}{\@anim@oldunitlength}%
+    \@anim@pojscript{#1}%
+    \@anim@otherjscript{#1}%
+    \def\@anim@posterframe{none}%
+    \ifx\@anim@poster\@anim@posterframe%
+      \def\@anim@defaultap{}%
+    \else%
+      \edef\@anim@defaultap{%
+        /AP <</N {\@anim@getkeyval{a#1.poster}}>>%
+      }%
+    \fi
+    \special{ps:
+      mark
+        /Rect [wid@llx wid@lly wid@urx wid@ury]%
+        /Subtype/Widget%
+        /F 4%
+        /FT/Btn/Ff 65536%
+        /T (anm@#1)%
+        /BS <</W 0>>%
+        /H/N%
+        \@anim@defaultap%
+        /MK <<%
+          /TP 1
+          /BG [\@anim@bg]%
+          /IF <</SW/A/S/A>>%
+        >>%
+        /AA <<%
+          /PO <</S/JavaScript/JS {a#1@pojscript}>>%
+          \@anim@getkeyval{a#1.otherjscript}%
+        >>%
+      /ANN pdfmark
+    }%
+    \hbox to \@anim@getkeyval{a#1.wd} {%
+      \vrule width 0pt height \@anim@getkeyval{a#1.ht}
+             depth \@anim@getkeyval{a#1.dp}%
+      \hss%
+    }%
+  }
+\fi
+
+\newboolean{@anim@buttonsmade} %true if button faces have been made
+\setboolean{@anim@buttonsmade}{false}
+%creates control button widget
+\ifpdf
+  \def\@anim@buttonwidget#1#2{% #1: zero padded anim num, #2: action
+    \@anim@upjscript{#1}{#2}% JavaScript actions for ButtonUp events
+    %button size corresponds to current font size
+    \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+    \hbox to \@anim@tmpdima {%
+      \pdfannot
+        width \@anim@tmpdima
+        height \@anim@tmpdima
+        depth 0pt
+      {%
+        /Subtype/Widget%
+        /FT/Btn/Ff 65536% push button
+        /T (btn@#1@#2)%
+        /BS <</W 0>>%
+        /H/I%
+        /MK <<%
+          /TP 1%
+          /BG [\@anim@btnbg]%
+          /IF <</SW/A/S/A>>% scale button face icon freely within widget
+        >>%
+        /A <</S/JavaScript/JS (\@anim@getkeyval{a#1.upjscript})>>%
+      }%
+      \vrule width 0pt height \@anim@tmpdima depth 0pt%
+      \hss%
+    }%
+  }%
+\else
+  \def\@anim@buttonwidget#1#2{%
+    \@anim@upjscript{#1}{#2}%
+    \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+    \def\@anim@oldunitlength{\the\unitlength}%
+    \setlength{\unitlength}{1pt}%
+    \begin{picture}(0,0)%
+      \put(0,0){%
+      \special{ps:
+        currentpoint /wid@lly exch def /wid@llx exch def
+      }%
+    }%
+    \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdima){%
+      \special{ps:
+        currentpoint /wid@ury exch def /wid@urx exch def
+      }%
+    }%
+    \end{picture}%
+    \setlength{\unitlength}{\@anim@oldunitlength}%
+    \special{ps:
+      mark
+        /Rect [wid@llx wid@lly wid@urx wid@ury]
+        /Subtype/Widget
+        /FT/Btn/Ff 65536
+        /T (btn@#1@#2)
+        /BS <</W 0>>
+        /H/I
+        /MK <<
+          /TP 1
+          /BG [\@anim@btnbg]
+          /IF <</SW/A/S/A>>
+        >>%
+        /A <</S/JavaScript/JS (\@anim@getkeyval{a#1.upjscript})>>%
+      /ANN pdfmark
+    }%
+    \hbox to \the\@anim@tmpdima {%
+      \vrule width 0pt height \the\@anim@tmpdima\space depth 0pt%
+        \hss%
+    }%
+  }
+\fi
+
+\newboolean{@anim@inside} % for checking whether we are inside the
+\setboolean{@anim@inside}{false} %  `animateinline' environment
+
+%user environment for animating inline graphics
+% #1: options
+% #2: frame rate (fps)
+\newenvironment{animateinline}[2][]{%
+  \leavevmode%
+  \setboolean{@anim@inside}{true}%
+  \@anim@reset% to default settings
+  \setkeys{anim@user}{#1}%
+  %create button faces if necessary
+  \if@anim@controls%
+    \if@anim@buttonsmade\else%
+      \@anim@makebuttons%
+    \fi%
+  \fi%
+  %formatted (zero padded animation number)
+  \edef\@anim@numform{\@anim@pad{1234}{\the\@anim@num}}%
+  \@anim@newkey{a\@anim@numform.hash}{}% empty XObject hash
+  \@anim@newkey{a\@anim@numform.fps}{#2}%
+  \global\@anim@curframe@zb=0%
+  \@anim@beginframe%
+  \ignorespaces%
+}{%
+  \unskip%
+  %formatted (zero padded) animation number & current zero based frame no.
+  \edef\@anim@numform{\@anim@pad{1234}{\the\@anim@num}}%
+  \@anim@endframe{\@anim@numform}{\the\@anim@curframe@zb}%
+  \global\advance\@anim@curframe@zb by 1%
+  \@anim@newkey{a\@anim@numform.frames}{\the\@anim@curframe@zb}% total number
+  \@anim@addtree{\@anim@numform}% create name tree
+  %insert animation widget & controls
+  \vtop{%
+    \offinterlineskip%
+    \hbox{\@anim@animwidget{\@anim@numform}}%
+    \if@anim@controls%
+      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \setlength{\@anim@tmpdima}{0.1\@anim@tmpdima}%
+      \vskip \@anim@tmpdima%
+      \hbox to \@anim@getkeyval{a\@anim@numform.wd} {%
+        \hss%
+        \@anim@buttonwidget{\@anim@numform}{EndLeft}%
+        \@anim@buttonwidget{\@anim@numform}{StepLeft}%
+        \if@anim@step\else%
+          \@anim@buttonwidget{\@anim@numform}{PlayPauseLeft}%
+          \@anim@buttonwidget{\@anim@numform}{PlayPauseRight}%
+        \fi%
+        \@anim@buttonwidget{\@anim@numform}{StepRight}%
+        \@anim@buttonwidget{\@anim@numform}{EndRight}%
+        \if@anim@step\else%
+          \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+          \setlength{\@anim@tmpdima}{0.3\@anim@tmpdima}%
+          \hskip \@anim@tmpdima%
+          \@anim@buttonwidget{\@anim@numform}{Minus}%
+          \@anim@buttonwidget{\@anim@numform}{Reset}%
+          \@anim@buttonwidget{\@anim@numform}{Plus}%
+        \fi%
+        \hss%
+      }%
+    \fi%
+  }%
+  \global\advance\@anim@num by 1%
+  \setboolean{@anim@inside}{false}%
+}
+
+%usercommand for use within `animateinline' environment;
+%terminates the current frame and starts a new one
+\def\newframe{%
+  \unskip%
+  \if@anim@inside\else%
+    \PackageError{animate}{%
+      \protect\newframe cannot be used\MessageBreak%
+      outside `animateinline' environment
+    }{}%
+  \fi%
+  \edef\@anim@numform{\@anim@pad{1234}{\the\@anim@num}}%
+  \@anim@endframe{\@anim@numform}{\the\@anim@curframe@zb}%
+  \global\advance\@anim@curframe@zb by 1%
+  \@anim@beginframe%
+  \ignorespaces%
+}%
+
+%starts a new frame
+\def\@anim@beginframe{%
+  \begin{lrbox}{\@anim@box}% store the graphics in a box
+}
+
+%terminates current frame
+\def\@anim@endframe#1#2{%
+  \end{lrbox}%
+  %determine size of graphics
+  \ifnum #2=0
+    \@anim@newkey{a#1.wd}{\the\wd\@anim@box}%
+    \@anim@newkey{a#1.ht}{\the\ht\@anim@box}%
+    \@anim@newkey{a#1.dp}{\the\dp\@anim@box}%
+  \fi%
+  %now create Form XObject of box contents
+  \@anim@xinline{#1}{#2}{\@anim@box}%
+  \message{<a\the\@anim@num, fr#2>}%
+}
+
+%prints zero padded integers
+% #1: arbitrary, non-zero integer number as template specifying the
+%     width, e. g. `987654' for a width of 6 digits
+% #2: the number to be formatted (zero padded)
+\def\@anim@pad#1#2{%
+  \@anim@@pad{\@anim@template{0}{#1}}{#2}%
+}
+%low level macros used by \@anim@pad
+\def\@anim@@pad#1#2{% #1: string of zeros specifying width, #2 number
+  \ifnum1#2<1#1
+    \@anim@@pad{#1}{0#2}%
+  \else%
+    #2%
+  \fi%
+}%
+\def\@anim@template#1#2{% create template (stringed zeros) from given num
+  \ifnum10#1<1#2
+    \@anim@template{0#1}{#2}%
+  \else%
+    #1%
+  \fi%
+}%
+
+%command options
+%setting the widget size
+\define@key{anim@user}{width}{%
+  \setlength{\@anim@tmpdima}{#1}%
+  \xdef\@anim@boxwidth{\the\@anim@tmpdima}%
+}
+\define@key{anim@user}{height}{%
+  \setlength{\@anim@tmpdima}{#1}%
+  \xdef\@anim@boxheight{\the\@anim@tmpdima}%
+}
+\define@key{anim@user}{depth}{%
+  \setlength{\@anim@tmpdima}{#1}%
+  \xdef\@anim@boxdepth{\the\@anim@tmpdima}%
+}
+\define@key{anim@user}{scale}{%
+  \gdef\@anim@boxscale{#1}%
+}
+
+\define@key{anim@user}{screenbg}{%background colour
+  \gdef\@anim@bg{#1}%
+}
+\define@key{anim@user}{buttonsize}{%
+  \gdef\@anim@btnsize{#1}%
+}
+\define@key{anim@user}{buttonbg}{%background of buttons
+  \gdef\@anim@btnbg{#1}%
+}
+\newboolean{@anim@controls}
+\setboolean{@anim@controls}{false}
+\define@key{anim@user}{controls}[true]{%
+  \setboolean{@anim@controls}{#1}%
+}
+\newboolean{@anim@loop}
+\setboolean{@anim@loop}{false}
+\define@key{anim@user}{loop}[true]{%
+  \setboolean{@anim@loop}{#1}%
+}
+\newboolean{@anim@autoplay}
+\setboolean{@anim@autoplay}{false}
+\define@key{anim@user}{autoplay}[true]{%
+  \setboolean{@anim@autoplay}{#1}%
+  \if@anim@autoplay
+  \setboolean{@anim@autoresume}{false}
+  \fi%
+}
+\newboolean{@anim@autoresume}
+\setboolean{@anim@autoresume}{false}
+\define@key{anim@user}{autoresume}[true]{%
+  \setboolean{@anim@autoresume}{#1}%
+  \if@anim@autoresume\setboolean{@anim@autoplay}{false}\fi%
+}
+\newboolean{@anim@autopause}
+\setboolean{@anim@autopause}{false}
+\define@key{anim@user}{autopause}[true]{%
+  \setboolean{@anim@autopause}{#1}%
+}
+\newboolean{@anim@palindrome}
+\setboolean{@anim@palindrome}{false}
+\define@key{anim@user}{palindrome}[true]{%
+  \setboolean{@anim@palindrome}{#1}%
+}
+%default frame to be shown if animation is not activated
+\define@key{anim@user}{poster}[first]{% | none | last
+  \ifthenelse{% correct wrong input to `none'
+    \equal{#1}{first}\OR%
+    \equal{#1}{last}%
+  }{%
+    \gdef\@anim@poster{#1}%
+  }{%
+    \gdef\@anim@poster{none}%
+  }%
+}
+\newboolean{@anim@step}
+\setboolean{@anim@step}{false}
+\define@key{anim@user}{step}[true]{%
+  \setboolean{@anim@step}{#1}%
+}
+
+%macro to reset macros and booleans
+\def\@anim@reset{%
+  \gdef\@anim@boxscale{1.0}%
+  \gdef\@anim@boxdepth{}%
+  \gdef\@anim@boxheight{}%
+  \gdef\@anim@boxwidth{}%
+  \xdef\@anim@bg{\@anim@@bg}%
+  \xdef\@anim@btnbg{\@anim@@btnbg}%
+  \xdef\@anim@btnsize{\@anim@@btnsize}%
+  \xdef\@anim@poster{\@anim@@poster}%
+  \let\if@anim@controls=\if@anim@@controls%
+  \let\if@anim@loop=\if@anim@@loop%
+  \let\if@anim@autoplay=\if@anim@@autoplay%
+  \let\if@anim@autoresume=\if@anim@@autoresume%
+  \let\if@anim@autopause=\if@anim@@autopause%
+  \let\if@anim@palindrome=\if@anim@@palindrome%
+  \let\if@anim@step=\if@anim@@step%
+}
+
+%package options
+\def\@anim@@bg{}%
+\define@key{anim@pkg}{screenbg}{%
+  \gdef\@anim@@bg{#1}%
+}
+\def\@anim@@btnsize{1.44em}%
+\define@key{anim@pkg}{buttonsize}{%
+  \gdef\@anim@@btnsize{#1}%
+}
+\def\@anim@@btnbg{}%
+\define@key{anim@pkg}{buttonbg}{%
+  \gdef\@anim@@btnbg{#1}%
+}
+\newboolean{@anim@@controls}
+\setboolean{@anim@@controls}{false}%
+\define@key{anim@pkg}{controls}[true]{%
+  \setboolean{@anim@@controls}{#1}%
+}
+\newboolean{@anim@@loop}
+\setboolean{@anim@@loop}{false}%
+\define@key{anim@pkg}{loop}[true]{%
+  \setboolean{@anim@@loop}{#1}%
+}
+\newboolean{@anim@@autoplay}
+\setboolean{@anim@@autoplay}{false}
+\define@key{anim@pkg}{autoplay}[true]{%
+  \setboolean{@anim@@autoplay}{#1}%
+  \if@anim@@autoplay\setboolean{@anim@@autoresume}{false}\fi%
+}
+\newboolean{@anim@@autoresume}
+\setboolean{@anim@@autoresume}{false}
+\define@key{anim@pkg}{autoresume}[true]{%
+  \setboolean{@anim@@autoresume}{#1}%
+  \if@anim@@autoresume\setboolean{@anim@@autoplay}{false}\fi%
+}
+\newboolean{@anim@@autopause}
+\setboolean{@anim@@autopause}{false}
+\define@key{anim@pkg}{autopause}[true]{%
+  \setboolean{@anim@@autopause}{#1}%
+}
+\newboolean{@anim@@palindrome}
+\setboolean{@anim@@palindrome}{false}
+\define@key{anim@pkg}{palindrome}[true]{%
+  \setboolean{@anim@@palindrome}{#1}%
+}
+\gdef\@anim@@poster{first}%
+\define@key{anim@pkg}{poster}[first]{%
+  \ifthenelse{%
+    \equal{#1}{first}\OR%
+    \equal{#1}{last}%
+  }{%
+    \gdef\@anim@@poster{#1}%
+  }{%
+    \gdef\@anim@@poster{none}%
+  }%
+}
+\newboolean{@anim@@step}
+\setboolean{@anim@@step}{false}
+\define@key{anim@pkg}{step}[true]{%
+  \setboolean{@anim@@step}{#1}%
+}
+
+%process package options
+\def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
+\edef\@anim@pkgopts{{\@ptionlist{animate.sty}}}
+\expandafter\@anim@setpkgkeys\@anim@pkgopts
+
+%JavaScript objects
+%animation widget's PageOpen event
+\ifpdf
+  \def\@anim@pojscript#1{%
+    \gdef\@anim@posterlast{last}%
+    \gdef\@anim@posternone{none}%
+    \immediate\pdfobj stream {\@anim@@pojscript{#1}}%
+    \@anim@newkey{a#1.pojscript}{\the\pdflastobj}%
+  }
+\else
+  \def\@anim@pojscript#1{%
+    \gdef\@anim@posterlast{last}%
+    \gdef\@anim@posternone{none}%
+    \special{ps:
+      mark /_objdef {a#1@pojscript} /type/stream /OBJ pdfmark
+      mark {a#1@pojscript} (\@anim@@pojscript{#1}) /PUT pdfmark
+    }%
+  }
+\fi
+\def\@anim@@pojscript#1{% #1: formatted (zero padded) animation number
+  \if@anim@controls
+    \if@anim@step\else
+      %get references to button face icons `Play' & `Pause'
+      if (typeof(icn)=='undefined') {
+        var icn = new Object();
+        icn.playLeft = this.getIcon('abtnPlayLeft');
+        icn.pauseLeft = this.getIcon('abtnPauseLeft');
+        icn.pauseRight = this.getIcon('abtnPauseRight');
+        icn.playRight = this.getIcon('abtnPlayRight');
+      }
+    \fi
+  \fi
+  %create animation object
+  if (typeof(a#1)=='undefined') {
+    var a#1 = new Object();
+    a#1.wid = this.getField('anm@#1'); %reference to animation widget
+    \if@anim@step\else
+      if(\@anim@getkeyval{a#1.fps} == 0) {
+        a#1.dtDefault = 3.6e6;
+      }else{
+        a#1.dtDefault = Math.abs(1/\@anim@getkeyval{a#1.fps}) * 1000;
+      }
+      a#1.dt = a#1.dtDefault;
+    \fi
+    %get references to all animation frames
+    a#1.frame = new Array();
+    for (i=0; i<\@anim@getkeyval{a#1.frames}; i++){
+      a#1.frame[i] = this.getIcon('ba#1f' + util.printf('\%06d', i));
+    }
+    %load default frame
+    \ifx\@anim@poster\@anim@posterlast
+      %holds index of the frame to be displayed
+      a#1.cntr = \@anim@getkeyval{a#1.frames} -1;
+    \else % first & none
+      a#1.cntr = 0;
+      \ifx\@anim@poster\@anim@posternone
+        a#1.wid.buttonSetIcon(a#1.frame[0]);
+      \fi
+    \fi
+    \if@anim@controls %references to button widgets
+      a#1.endLeft = this.getField('btn@#1@EndLeft');
+      a#1.stepLeft = this.getField('btn@#1@StepLeft');
+      \if@anim@step\else
+        a#1.playPauseLeft = this.getField('btn@#1@PlayPauseLeft');
+        a#1.playPauseRight = this.getField('btn@#1@PlayPauseRight');
+        a#1.minus = this.getField('btn@#1@Minus');
+        a#1.plus = this.getField('btn@#1@Plus');
+        a#1.reset = this.getField('btn@#1@Reset');
+      \fi
+      a#1.stepRight = this.getField('btn@#1@StepRight');
+      a#1.endRight = this.getField('btn@#1@EndRight');
+      %set the button appearances
+      a#1.endLeft.buttonSetIcon(this.getIcon('abtnEndLeft'));
+      a#1.stepLeft.buttonSetIcon(this.getIcon('abtnStepLeft'));
+      \if@anim@step\else
+        a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+        a#1.playPauseRight.buttonSetIcon(icn.playRight);
+        a#1.minus.buttonSetIcon(this.getIcon('abtnMinus'));
+        a#1.plus.buttonSetIcon(this.getIcon('abtnPlus'));
+        a#1.reset.buttonSetIcon(this.getIcon('abtnReset'));
+      \fi
+      a#1.stepRight.buttonSetIcon(this.getIcon('abtnStepRight'));
+      a#1.endRight.buttonSetIcon(this.getIcon('abtnEndRight'));
+    \fi
+    %playing state and direction
+    \if@anim@step
+      \if@anim@palindrome
+        a#1.playsRight=true;
+      \fi
+    \else
+      a#1.isPlaying = false;
+      a#1.playsRight=true;
+      a#1.isPaused = false;
+    \fi
+    %actions
+    a#1.actnEndLeft = function () {
+      \if@anim@step\else
+        try{app.clearInterval(a#1_int);}catch(e){}
+        a#1.isPlaying = false;
+        a#1.isPaused = false; %because it has been explicitely stopped
+      \fi
+      \if@anim@controls
+        \if@anim@step\else
+          a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+          a#1.playPauseRight.buttonSetIcon(icn.playRight);
+        \fi
+      \fi
+      a#1.cntr = 0;
+      a#1.wid.buttonSetIcon(a#1.frame[0]);
+    };
+    \if@anim@controls
+      a#1.actnEndRight = function () {
+        \if@anim@step\else
+          try{app.clearInterval(a#1_int);}catch(e){}
+          a#1.isPlaying = false;
+          a#1.isPaused = false;
+        \fi
+        a#1.cntr = \@anim@getkeyval{a#1.frames} - 1;
+        a#1.wid.buttonSetIcon(a#1.frame[a#1.cntr]);
+        \if@anim@step\else
+          a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+          a#1.playPauseRight.buttonSetIcon(icn.playRight);
+        \fi
+      };
+    \fi
+    \if@anim@palindrome
+      a#1.actnNext = function () {
+        if(a#1.cntr == \@anim@getkeyval{a#1.frames} - 1){
+          \if@anim@step
+            a#1.playsRight=false;
+          \else
+            if(a#1.isPlaying){a#1.isPaused = true; a#1.actnPlayLeft();}
+          \fi
+        }else{a#1.cntr++;}
+        a#1.wid.buttonSetIcon(a#1.frame[a#1.cntr]);
+      };
+      a#1.actnPrev = function () {
+        if(a#1.cntr == 0){
+          \if@anim@step
+            a#1.playsRight=true;
+          \else
+            if(a#1.isPlaying){a#1.isPaused = true; a#1.actnPlayRight();}
+          \fi
+        }else{a#1.cntr--;}
+        a#1.wid.buttonSetIcon(a#1.frame[a#1.cntr]);
+      };
+    \else
+      a#1.actnNext = function () {
+        if(a#1.cntr == \@anim@getkeyval{a#1.frames} - 1){
+          \if@anim@step\else
+            \if@anim@loop
+              \if@anim@step\else
+                if(a#1.isPlaying){a#1.cntr = 0;}
+              \fi
+            \else
+              try{app.clearInterval(a#1_int);}catch(e){}
+              a#1.isPlaying = false;
+              \if@anim@controls
+                a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+                a#1.playPauseRight.buttonSetIcon(icn.playRight);
+              \fi
+            \fi
+          \fi
+        }else{a#1.cntr++;}
+        a#1.wid.buttonSetIcon(a#1.frame[a#1.cntr]);
+      };
+      a#1.actnPrev = function () {
+        if(a#1.cntr == 0){
+          \if@anim@step\else
+            \if@anim@loop
+              if(a#1.isPlaying){a#1.cntr = \@anim@getkeyval{a#1.frames} - 1;}
+            \else
+              try{app.clearInterval(a#1_int);}catch(e){}
+              a#1.isPlaying = false;
+              \if@anim@controls
+                a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+                a#1.playPauseRight.buttonSetIcon(icn.playRight);
+              \fi
+            \fi
+          \fi
+        }else{a#1.cntr--;}
+        a#1.wid.buttonSetIcon(a#1.frame[a#1.cntr]);
+      };
+    \fi
+    \if@anim@step\else
+      a#1.actnPause = function () {
+        try{app.clearInterval(a#1_int);}catch(e){}
+        a#1.isPlaying = false;
+        a#1.isPaused = true;
+        \if@anim@controls
+          a#1.playPauseLeft.buttonSetIcon(icn.playLeft);
+          a#1.playPauseRight.buttonSetIcon(icn.playRight);
+        \fi
+      };
+      a#1.actnPlayRight = function () {
+        try{app.clearInterval(a#1_int);}catch(e){}
+        \if@anim@controls
+          a#1.playPauseLeft.buttonSetIcon(icn.pauseLeft);
+          a#1.playPauseRight.buttonSetIcon(icn.pauseRight);
+        \fi
+        if(!a#1.isPaused){a#1.cntr = 0;}
+        a#1.playsRight = true;
+        a#1.isPlaying = true;
+        a#1.isPaused = false;
+        a#1_int = app.setInterval('a#1.actnNext()', a#1.dt);
+      };
+      a#1.actnPlayLeft = function () {
+        try{app.clearInterval(a#1_int);}catch(e){}
+        \if@anim@controls
+          a#1.playPauseLeft.buttonSetIcon(icn.pauseLeft);
+          a#1.playPauseRight.buttonSetIcon(icn.pauseRight);
+        \fi
+        if(!a#1.isPaused){a#1.cntr = \@anim@getkeyval{a#1.frames} - 1;}
+        a#1.playsRight = false;
+        a#1.isPlaying = true;
+        a#1.isPaused = false;
+        a#1_int = app.setInterval('a#1.actnPrev()', a#1.dt);
+      };
+      \if@anim@controls
+        a#1.actnIncr = function () { % speed up animation
+          try{app.clearInterval(a#1_int);}catch(e){}
+          a#1.dt /= 1.2;
+          if (a#1.isPlaying) {
+            if (a#1.playsRight) {
+              a#1_int = app.setInterval('a#1.actnNext()', a#1.dt);
+            }else{
+              a#1_int = app.setInterval('a#1.actnPrev()', a#1.dt);
+            }
+          }
+        };
+        a#1.actnDecr = function () { % slow down animation
+          a#1.dt *= 1.2;
+          try{app.clearInterval(a#1_int);}catch(e){}
+          if (a#1.isPlaying) {
+            if (a#1.playsRight) {
+              a#1_int = app.setInterval('a#1.actnNext()', a#1.dt);
+            }else{
+              a#1_int = app.setInterval('a#1.actnPrev()', a#1.dt);
+            }
+          }
+        };
+        a#1.actnReset = function () { % reset to default speed
+          a#1.dt = a#1.dtDefault;
+          try{app.clearInterval(a#1_int);}catch(e){}
+          if (a#1.isPlaying) {
+            if (a#1.playsRight) {
+              a#1_int = app.setInterval('a#1.actnNext()', a#1.dt);
+            }else{
+              a#1_int = app.setInterval('a#1.actnPrev()', a#1.dt);
+            }
+          }
+        };
+      \fi
+    \fi
+  }
+  \if@anim@step\else
+    \if@anim@autoplay
+      if (a#1.playsRight){
+        a#1.actnPlayRight();
+      }else{
+        a#1.actnPlayLeft();
+      }
+    \fi
+    \if@anim@autoresume
+      if(a#1.isPaused){
+        if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}
+      }
+    \fi
+  \fi
+}
+%other trigger events in the anim widget's AA dictionary
+\def\@anim@otherjscript#1{%
+  \def\@anim@posterframe{last}%
+  \@anim@newkey{a#1.otherjscript}{%
+    /PC <</S/JavaScript/JS (% %PageClose
+      \if@anim@autopause%
+        \if@anim@step\else
+          if(a#1.isPlaying) {a#1.actnPause();}
+        \fi
+      \else% == autostop
+        \ifx\@anim@poster\@anim@posterframe
+          a#1.actnEndRight();%
+        \else
+          a#1.actnEndLeft();%
+        \fi
+      \fi%
+    )>>%
+    \if@anim@step\else%
+      /D <</S/JavaScript/JS (% pause on MouseDown
+        %disable focus rectangle
+        app.focusRect = false;%
+          if(a#1.isPlaying) {a#1.actnPause();}%
+      )>>%
+    \fi%
+    /U <</S/JavaScript/JS (% play/resume on MouseUp
+      \if@anim@step
+        \if@anim@palindrome
+          if (a#1.playsRight){%
+            a#1.actnNext();%
+          }else{%
+            a#1.actnPrev();%
+          }%
+        \else
+          if(a#1.cntr == \@anim@getkeyval{a#1.frames} - 1){%
+            a#1.actnEndLeft();%
+          }else{%
+            a#1.actnNext();%
+          }%
+        \fi
+      \else
+        if (a#1.playsRight){%
+          a#1.actnPlayRight();%
+        }else{%
+          a#1.actnPlayLeft();%
+        }%
+      \fi
+    )>>%
+  }%
+}
+%actions for control buttons
+\def\@anim@upjscript#1#2{%
+  \def\@anim@action{#2}%
+  \def\@anim@EndLeft{EndLeft}%
+  \def\@anim@StepLeft{StepLeft}%
+  \def\@anim@PlayPauseLeft{PlayPauseLeft}%
+  \def\@anim@PlayPauseRight{PlayPauseRight}%
+  \def\@anim@StepRight{StepRight}%
+  \def\@anim@EndRight{EndRight}%
+  \def\@anim@Minus{Minus}%
+  \def\@anim@Reset{Reset}%
+  \def\@anim@Plus{Plus}%
+  \@anim@newkey{a#1.upjscript}{%
+    app.focusRect = false;%
+    \ifx\@anim@action\@anim@EndLeft
+      a#1.actnEndLeft();%
+    \else%
+    \ifx\@anim@action\@anim@StepLeft
+      \if@anim@step
+        a#1.actnPrev();%
+      \else
+        if(!a#1.isPlaying){a#1.actnPrev();}%
+      \fi
+    \else%
+    \ifx\@anim@action\@anim@PlayPauseLeft
+      if(a#1.isPlaying) {a#1.actnPause();}%
+      else{a#1.actnPlayLeft();}%
+    \else%
+    \ifx\@anim@action\@anim@PlayPauseRight
+      if(a#1.isPlaying) {a#1.actnPause();}%
+      else{a#1.actnPlayRight();}%
+    \else%
+    \ifx\@anim@action\@anim@StepRight
+      \if@anim@step
+        a#1.actnNext();%
+      \else
+        if(!a#1.isPlaying){a#1.actnNext();}%
+      \fi
+    \else%
+    \ifx\@anim@action\@anim@EndRight
+      a#1.actnEndRight();%
+    \else%
+    \ifx\@anim@action\@anim@Minus
+      a#1.actnDecr();%
+    \else%
+    \ifx\@anim@action\@anim@Reset
+      a#1.actnReset();%
+    \else%
+    \ifx\@anim@action\@anim@Plus
+      a#1.actnIncr();%
+    \fi\fi\fi\fi\fi\fi\fi\fi\fi%
+  }%
+}

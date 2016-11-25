@@ -1,0 +1,310 @@
+2016-09-07
+	* fix: adjust JavaScript part for compatibility with Foxit Reader
+
+2016-08-31
+	* fix: missing variable declarations in JavaScript part
+
+2016-08-26
+	* fix: adjust JavaScript part for compatibility with current PDF-XChange
+	Editor
+
+2016-07-27
+	* new: `method=icon' default setting for dvips+ps2pdf; support for
+	Foxit Reader (besides Acrobat Reader and PDF-XChange Viewer) added
+
+2016-07-25
+	* fix: timeline JavaScript of the displayed poster frame not executed
+	while loading the animation for the first time
+
+2016-06-08
+	* new: reverse playback direction with shift + mouse click
+
+2016-05-30
+	* fix: broken `draft' option
+	* new: aux. package `animfp' removed, now using \fp_eval:n from l3fp
+
+2016-04-15
+	* fix: compilation failure when using `timeline' option in beamer class
+	document
+
+2016-03-22
+	* fix: documentation recompiled, minor code clean-ups
+
+2016-03-15
+	* fix: bug related to XObject referencing
+
+2016-03-11
+	* new: now uses pdfbase.sty for low level PDF operations 
+
+2016-02-28
+	* Fix: workaround for bug http://tex.stackexchange.com/q/295715 : different
+	behaviour of AR versions with regard to PageOpen and PageVisible events
+	where animation initialisation takes place 
+
+2016-02-15
+	* Fix: bug http://tex.stackexchange.com/q/292805
+
+2016-02-04
+	* Fix: minor dvips-related bug
+
+2016-02-02
+	* Fix: compilation failure with `method=ocg' setting
+
+2016-01-25
+	* Fix: compilation failure with `method=widget' setting (which is the
+	default in the `dvips' mode)
+
+2016-01-19
+	* Fix: \newframe and \multiframe defined locally inside `animateinline' to
+	protect them from being redefined accidentially
+
+2015-11-02
+	* Fix: improved compatibility with ocgbase.sty
+
+2015-10-28
+	* Fix: code adapted for use of ocgbase.sty (part of ocgx2 package)
+
+2015-08-28
+	* New: control button faces
+
+2015-08-18
+	* Fix: catcode issue http://tex.stackexchange.com/q/261601
+
+2015-06-19
+	* Fix: compatibility issue with luatex-0.80
+
+2015-03-11
+	* New: support for `fixocgx' [v0.3, 2015/03/11] package (placing
+	animations on PDF layers)
+
+2015-01-21
+	* Fix: OCG related code
+
+2014-12-04
+	* New: option `type=<file ext>' to force animation of image sequence with
+	file name extension <file ext>
+	* Fix: rotated buttons in landscape (package `geometry') documents
+
+2014-11-27
+	* Fix: Animations with a particular combination of command options
+	(poster=last, loop=false) did not play when clicked.
+
+2014-11-25
+	* New: In addition to `first', `last' and `none', the `poster' option also
+	takes an integer number to specify the default poster frame.
+
+2014-11-11
+	* Fix: (work-around for) JavaScript NotAllowedError in AR-9 when skimming
+	over pages with icon-based animations
+
+2014-11-10
+	* Fix: poster / current frame did not get printed with `method=icon'
+
+2014-10-16
+	* New: third animation method added (based on JS methods `getIcon' &
+	`buttonSetIcon') with best animation performance (frame rate) so far; set as
+	default for pdfLaTeX/XeLaTeX/dvipdfmx, Widget based method is default for
+	dvips, as before
+	* Change: option `useocg' removed in favour of `method=icon | widget | ocg'
+	for selecting one of the implemented animation methods
+
+2014-09-23
+	* Change: Ghostscript 9.15+ now required for PS to PDF conversion;
+	`depth' option now deprecated and ignored
+	* New: options `totalheight', `keepaspectratio', `nomouse' added; `width',
+	`height', `totalheight', `keepaspectratio', `scale' added as package options
+	* Fix: OCG and XObject-related code rewritten, mostly thanks to recent
+	 Ghostscript additions and fixes (BDC, EMC, SP pdfmarks); code reorganized
+	 in order to reduce driver dependent code
+
+2014-08-07
+	* Fix: improved fix from 2014-08-06, removing need for global catcode
+	changes
+
+2014-08-06
+	* Fix: bug analysed by egreg on TeX.SX
+	http://tex.stackexchange.com/q/194407
+
+2014-07-02
+	* Fix: compilation error when used in `tabular' environment
+
+2014-06-20
+	* Fix: compilation failures in connection with (automatic) hyperref
+	insertions in the animated material
+
+2014-06-04
+	* fix: OCG related compatibility issue with `media9' package
+
+2014-03-25
+	* fix: bugs related to AcroForm and OCProperties catalog entries;
+	documentation
+
+2014-03-12
+	* Fix: incompatibility with pgf-3.0
+
+2014-03-06
+	* Fix: animation widgets were blank in some viewers
+
+2014-02-11
+	* Change: Dependency of controls on OCGs removed; better LuaLaTeX support
+
+2014-02-06
+	* New: JavaScript API for animation control added
+	* Fix: broken PDF-XChange Viewer support due to [2013-07-19] changes
+
+2013-09-24
+	* Fix: Adobe Reader prompting for "save changes" for documents without
+	animations
+
+2013-07-19
+	* minor, non-vital change of /AcroForm contents
+
+2013-04-23
+	* Fix: spaces in file names possible (at least with pdflatex)
+
+2012-12-06
+	* Fix: non-zeropadded file numbers did not work when embedding
+	files in reverse (count-down) order
+
+2012-10-26
+	* Fix: default OC configuration dictionary of PDF catalog is
+	now PDF-spec compliant
+
+2012-09-03
+	* Fix: [french]{babel}-related bug in option processing, reported by
+	Jean-Luc Chesnot
+
+2012-07-09
+	* minor, non-vital fix
+
+2012-05-24
+	* minor, non-vital fix
+
+2012-05-11
+	* New: optional fourth field in timeline files for calling JavaScript;
+	ticking PSTricks metronome example by Manuel Luque added to docs
+
+2011-12-21
+	* transparency and patterns in pgf/TikZ graphics with dvipdfmx/xetex
+	drivers
+
+2011-09-16
+	* detects powerdot's `clock' option
+
+2011-08-22
+	* \pdfmdfivesum now used correctly
+
+2011-05-30
+	* rephrasing error message in documentation source file
+	* improving call to \pdfmdfivesum in animate.sty
+
+2010-09-28
+	* \graphicspath also used for searching timeline file
+
+2010-09-16
+	* now uses \graphicspath from graphics bundle, if set
+
+2010-08-31
+	* some improvements to \multiframe loop variable computation
+
+2010-03-04
+	* Fix: workaround for some powerdot/pstricks-add/animate issue
+
+2010-02-17
+	* small code changes
+
+2010-01-22
+	* H. Oberdiek's `transparent' package now supported as well
+
+2010-01-20
+	* Fix: transparency and patterns in PGF/TikZ pictures lead to broken PDFs
+	with the pdftex output driver
+	* Fix: animations from PGF/TikZ pictures could not be produced with the
+	dvips output driver
+
+2010-01-04
+	* check if ConTeXt's support file `supp-pdf.mkii' exists (MPS
+	to PDF converter, formerly named `supp-pdf.tex')
+
+2009-10-30
+	* revision of the documentation
+
+2009-10-08
+	* New: embedding files and pages in reverse order now possible with
+	\animategraphics
+
+2009-10-02
+	* small code changes
+
+2009-09-30
+	* small code changes
+
+2009-09-24
+	* DVI resolution is now checked during PS to PDF conversion and a warning
+	message is written to stderr if it is >1200dpi. Large dpi values may
+	lead to distorted animations when using Ghostscript ps2pdf.
+
+2009-08-31
+	* small code and documentation adjustments
+
+2009-08-17
+	* small code changes
+
+2009-07-23
+	* slight changes in the documentation
+
+2009-07-20
+	* New: the transparency stack can now be cleared using `c' in the
+	timeline file
+	* improved documentation of the timeline option
+	* New animateinline example (Lorenz Attractor) 
+	* Fix: animfp.sty: trailing zeros are now removed from the fractional part
+	of the result of the addition of two reals
+
+2009-06-08
+	* Fix: \newframe did not like non-integer frame rates; the same applied to
+	frame rate arguments in timeline files
+
+2009-05-07
+	* minor changes/additions in the documentation
+
+2009-01-26
+	* minor code refinements
+
+2008-10-06
+	* Fix: sometimes, when used with Powerdot document class, parts
+	of embedded graphics were missing
+
+2008-08-28
+	* Fix: package `calc' like length specifications didn't work with resizing
+	options
+
+2008-08-26
+	* \@anim@scale rewritten
+	* New: length commands \width, \height, \depth and \totalheight for use
+	with the resizing options
+
+2008-08-20
+	* New: multipage PDF support for XeTeX output driver
+	* Change: some exotic graphics formats that depend on QuickTime removed
+	from search list for XeTeX output driver
+
+2008-08-06
+	* minor modifications of the documentation
+
+2008-07-31
+	* minor code and documentation refinements
+
+2008-07-17
+	* New: start of maintaining a ChangeLog file
+	* Fix: wrong calculation of dimension variables in \multiframe command
+	* Change: stepped animations (using `step' option) don't loop any longer
+	by default if `controls' option is set; better \multiframe diagnostics of
+	wrong user input
+
+2008-07-14
+	* New: \multiframe command for building loops around parameterized
+	pictures
+
+2007-03-16
+	* New: everything (initial release)

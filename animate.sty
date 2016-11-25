@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/11/28]
+\ProvidesPackage{animate}[2007/11/30]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -146,33 +146,33 @@
 
 %tests whether file is known, if so it returns identifier of form xobj
 %otherwise `!'
-\def\@anim@fileknown#1{% #1 file name
+\def\@anim@fileknown#1#2{% #1 file name, #2 page No
   %identify file by md5sum
-  \expandafter\ifx\csname file:\pdfmdfivesum file {#1}\endcsname\relax!%
-  \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}}\fi%
+  \expandafter\ifx\csname file:\pdfmdfivesum file {#1}.#2\endcsname\relax!%
+  \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}.#2}\fi%
 }
-\def\@anim@makefileknown#1#2{%
-  \@anim@newkey{file:\pdfmdfivesum file {#1}}{#2}%
+\def\@anim@makefileknown#1#2#3{% #1 file name, #2 page No, #3 Form XObj ID
+  \@anim@newkey{file:\pdfmdfivesum file {#1}.#2}{#3}%
 }
 
 \ifpdf
   %helper macro that typesets graphics file into savebox
-  \def\@anim@filebox#1{% #1 filename
+  \def\@anim@filebox#1#2{% #1 filename, #2 page No. for multipage files
     \ifx\@anim@gropts\@empty%
       \def\@anim@mps{.mps}%
       \ifx\@anim@ext\@anim@mps%
         \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
       \else%
-        \pdfximage{#1}%
+        \pdfximage page #2 {#1}%
         \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
       \fi%
     \else%
-      \edef\@anim@curfile{*[\@anim@gropts]{#1}}%
+      \edef\@anim@curfile{*[page=#2\@anim@gropts]{#1}}%
       \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
     \fi%
   }
 \else
-  \def\@anim@filebox#1{% #1 filename
+  \def\@anim@filebox#1#2{% #1 filename, #2 ignored
     \ifx\@anim@gropts\@empty%
       \edef\@anim@curfile{*{#1}}%
     \else%
@@ -183,17 +183,19 @@
 \fi
 
 %create Form XObject from graphics file
-\def\@anim@ximage#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename
-  \ifthenelse{\equal{\@anim@fileknown{#3}}{!}}{% new file to be embedded
-    \@anim@filebox{#3}% store file in a box
+\def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
+  %#4: page number of multipage pdf
+  \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
+    \@anim@filebox{#3}{#4}% store file in a box
     \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-    \@anim@makefileknown{#3}{\@anim@lastxform}% keep form xobject number
+    \ifx\@anim@gropts\@empty\if@anim@multipdf\message{<#4>}\fi\fi%
+    \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
   }{% file known, re-use existing form xobject
     \ifnum#2=0
-      \@anim@filebox{#3}% for size determination of first frame
-      \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}}%
+      \@anim@filebox{#3}{#4}% for size determination of first frame
+      \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}{#4}}%
     \else%
-      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}}%
+      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
     \fi%
   }%
 }
@@ -1034,6 +1036,48 @@
   }%
 }
 
+\newboolean{@anim@multipdf} % multipage PDF?
+
+\ifpdf
+  %detects multipage PDF and corrects user supplied page range
+  \def\@anim@checkmultipdf#1{% #1: file base name
+    \IfFileExists{#1.pdf}{%
+      \gdef\@anim@ext{.pdf}%
+      \@anim@filebox{#1.pdf}{1}%
+      \ifx\@anim@first\@empty%
+        \@anim@curframe=\@ne%
+      \else%
+        \ifnum\@anim@first<0 \gdef\@anim@first{0}\fi%
+        \@anim@curframe=\@anim@first%
+        \advance\@anim@curframe by \@ne% because pdfximage pages are 1-based
+        \ifnum\@anim@curframe>\pdflastximagepages
+          \@anim@curframe=\pdflastximagepages% correct wrong user input
+        \fi%
+      \fi%
+      \xdef\@anim@first{\the\@anim@curframe}%
+      \ifx\@anim@last\@empty%
+        \@anim@curframe=\pdflastximagepages%
+      \else%
+        \ifnum\@anim@last<0 \gdef\@anim@last{0}\fi%
+        \@anim@curframe=\@anim@last%
+        \advance\@anim@curframe by \@ne%
+        \ifnum\@anim@curframe>\pdflastximagepages
+          \@anim@curframe=\pdflastximagepages%
+        \fi%
+      \fi%
+      \ifnum\@anim@first>\@anim@curframe
+        \xdef\@anim@last{\@anim@first}%
+        \xdef\@anim@first{\the\@anim@curframe}%
+      \else%
+        \xdef\@anim@last{\the\@anim@curframe}%
+      \fi%
+      \setboolean{@anim@multipdf}{true}%
+    }{}%
+  }
+\else
+  \def\@anim@checkmultipdf#1{}% no-op in dvi mode
+\fi
+
 %user command for embedding animation sequence
 % #1: options
 % #2: frame rate (fps)
@@ -1052,14 +1096,19 @@
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
   %
+  \@anim@checkmultipdf{\@anim@base}%test for multipage pdf
   \@anim@curframe=\@anim@first%
   \@anim@curframe@zb=0%
+  %
   \if@anim@draft%
-    %get file name extension
-    \@anim@getext{%
-      \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
-    }%
-    \@anim@filebox{\@anim@base\@anim@first\@anim@ext}% store file in a box
+    \if@anim@multipdf%
+      %store file in a box
+      \@anim@filebox{\@anim@base.pdf}{\@anim@first}%
+    \else%
+      %get file name extension
+      \@anim@getext{\@anim@base\@anim@first}%
+      \@anim@filebox{\@anim@base\@anim@first\@anim@ext}{1}%
+    \fi%
     %draw draftbox according to dimensions of the first frame
     \@anim@draftbox{\@anim@box}%
   \else%
@@ -1083,14 +1132,20 @@
     %
     %read all frames of the sequence
     \loop\ifnum\@anim@curframe>\@anim@last\else%
-      %get file name extension of current file
-      \@anim@getext{%
-        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
-      }%
-      %embed graphics
-      \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
-        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
-      }%
+      \if@anim@multipdf%
+        %embed graphics
+        \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{\@anim@base.pdf}{%
+          \the\@anim@curframe}%
+      \else%
+        %get file name extension of current file
+        \@anim@getext{%
+          \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
+        }%
+        %embed graphics
+        \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
+          \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
+        }{1}%
+      \fi%
       \advance\@anim@curframe by \@anim@every%
       \advance\@anim@curframe@zb by \@ne%
     \repeat%
@@ -2019,14 +2074,14 @@
   \xdef\@anim@fgcolour{\@anim@@fgcolour}%
   \xdef\@anim@btnsize{\@anim@@btnsize}%
   \xdef\@anim@poster{\@anim@@poster}%
-  \let\if@anim@controls=\if@anim@@controls%
-  \let\if@anim@loop=\if@anim@@loop%
-  \let\if@anim@autoplay=\if@anim@@autoplay%
-  \let\if@anim@autoresume=\if@anim@@autoresume%
-  \let\if@anim@autopause=\if@anim@@autopause%
-  \let\if@anim@palindrome=\if@anim@@palindrome%
-  \let\if@anim@step=\if@anim@@step%
-  \let\if@anim@draft=\if@anim@@draft%
+  \global\let\if@anim@controls=\if@anim@@controls%
+  \global\let\if@anim@loop=\if@anim@@loop%
+  \global\let\if@anim@autoplay=\if@anim@@autoplay%
+  \global\let\if@anim@autoresume=\if@anim@@autoresume%
+  \global\let\if@anim@autopause=\if@anim@@autopause%
+  \global\let\if@anim@palindrome=\if@anim@@palindrome%
+  \global\let\if@anim@step=\if@anim@@step%
+  \global\let\if@anim@draft=\if@anim@@draft%
   \gdef\@anim@posterocg{}%
   \gdef\@anim@properties{}%
   \gdef\@anim@xobject{}%
@@ -2038,10 +2093,11 @@
   \gdef\@anim@pfpsat{}%
   \gdef\@anim@tmlnfile{}%
   \setboolean{@anim@timeline}{false}%
-  \@anim@begin={}%
-  \@anim@end={}%
+  \global\@anim@begin={}%
+  \global\@anim@end={}%
   \gdef\@anim@every{1}% frames to be included
   \gdef\@anim@gropts{}%
+  \setboolean{@anim@multipdf}{false}%
 }
 
 %package options

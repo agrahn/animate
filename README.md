@@ -6,7 +6,7 @@
 
 This package provides an interface to create portable, JavaScript driven PDF animations from sets of (vector) graphics or rasterized image files or from inline (vector) graphics, such as LaTeX-picture, PSTricks or pgf/TikZ generated pictures, or just from typeset text.
 
-It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX&rArr;dvips&rArr;ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX&rArr;(x)dvipdfmx, LuaLaTeX.
+It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX &rArr; dvips &rArr; ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX &rArr; (x)dvipdfmx, LuaLaTeX.
 
 The resulting PDF with animations can be viewed in Acrobat Reader (except on mobile devices), in PDF-XChange and in Foxit Reader.
 

@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/17]
+\ProvidesPackage{animate}[2008/06/19]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -216,20 +216,6 @@
         /D <</BaseState/OFF /ON @anim@posterocgs>>
       >>
     >>}
-    \def\@anim@fields{}
-    \def\@anim@ocgs{}
-    \def\@anim@posterocgs{}
-    \AtEndDocument{%
-      \ifx\@anim@fields\@empty\else
-        \special{pdf:put @anim@fields \@anim@fields}%
-      \fi
-      \ifx\@anim@ocgs\@empty\else
-        \special{pdf:put @anim@ocgs \@anim@ocgs}%
-      \fi
-      \ifx\@anim@posterocgs\@empty\else
-        \special{pdf:put @anim@posterocgs \@anim@posterocgs}%
-      \fi
-    }%
   \else
     \special{ps:
       mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
@@ -510,7 +496,7 @@
   \if@anim@@dvipdfmx
     \def\@anim@newocg#1#2{%
       \special{pdf:obj @anim@ocg@#1@#2 <</Type/OCG /Name (#1.#2)>>}%
-      \xdef\@anim@ocgs{\@anim@ocgs\space @anim@ocg@#1@#2}%
+      \special{pdf:put @anim@ocgs @anim@ocg@#1@#2}%
       \ifx\@anim@poster\@anim@posternone\else%
         \ifnum#2=0
           \ifx\@anim@poster\@anim@posterfirst%
@@ -518,7 +504,7 @@
           \fi%
         \fi%
         \ifx\@anim@poster\@anim@posterlast%
-          \xdef\@anim@posterocg{\@anim@curocg}%
+          \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
         \fi%
       \fi%
     }
@@ -641,7 +627,7 @@
           /T (#1.#2)%
         >>%
       }%
-      \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+      \special{pdf:put @anim@fields @annot@\the\@anim@fieldnum}%
       \global\advance\@anim@fieldnum by \@ne%
     }
   \else
@@ -743,8 +729,8 @@
     \def\@anim@makeppcontainer#1#2#3{%
       \special{pdf:obj @#1.Play#2 <</Type/OCG /Name (#1.Play#2)>>}%
       \special{pdf:obj @#1.Pause#2 << /Type/OCG /Name (#1.Pause#2)>>}%
-      \xdef\@anim@ocgs{\@anim@ocgs\space @#1.Play#2 @#1.Pause#2}%
-      \xdef\@anim@posterocgs{\@anim@posterocgs\space @#1.Play#2}%
+      \special{pdf:put @anim@ocgs @#1.Play#2 @#1.Pause#2}%
+      \special{pdf:put @anim@posterocgs @#1.Play#2}%
       \special{pdf:stream @btn#1.PlayPause#2\space
         (/OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC) <<%
           /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
@@ -1750,7 +1736,7 @@
       \@anim@otherjscript{#1}%
       \if@anim@useocg%
         \ifx\@anim@poster\@anim@posternone\else%
-          \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
+          \special{pdf:put @anim@posterocgs \@anim@posterocg}%
         \fi%
       \fi%
       \special{pdf:annot @annot@\the\@anim@fieldnum\space
@@ -1769,7 +1755,7 @@
           >>
         >>%
       }%
-      \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+      \special{pdf:put @anim@fields @annot@\the\@anim@fieldnum}%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \@anim@animwidth\p@ {%
         \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1873,7 +1859,7 @@
             /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
           >>%
         }%
-        \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+        \special{pdf:put @anim@fields @annot@\the\@anim@fieldnum}%
         \global\advance\@anim@fieldnum by \@ne%
         \vrule width 0pt height \@anim@tmpdima depth 0pt%
         \hss%

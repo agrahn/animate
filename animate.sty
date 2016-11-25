@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/03/04}
+\def\@anim@version{2010/08/31}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2118,8 +2118,8 @@
   \fi%
 }
 
-%user command for building loops around parameterized frame content, just like
-%\multido (package multido) with embedded \newframe
+%user command for building loops around parameterized frame content, somewhat
+%like \multido (package multido) with embedded \newframe
 \newcount\@anim@mulframecnt %takes current loop No. of \multiframe
 \newboolean{@anim@insidemulti} % for checking whether we are inside \multiframe
 \setboolean{@anim@insidemulti}{false}
@@ -2184,11 +2184,14 @@
     \expandafter\edef\csname#1\endcsname{\number\@anim@tmpdima sp}%
     %global copy that saves current variable value between loops
     \expandafter\xdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
+    \setlength{\@anim@tmpdimb}{#3}%
+    %global copy of increment
+    \expandafter\xdef\csname#1@inc\endcsname{\number\@anim@tmpdimb sp}%
     %append script for updating variable to \@anim@updatevars macro
     \g@addto@macro\@anim@updatevars{%
       %new value
       \setlength{\@anim@tmpdima}{\csname#1@old\endcsname}%
-      \addtolength{\@anim@tmpdima}{#3}%
+      \addtolength{\@anim@tmpdima}{\csname#1@inc\endcsname}%
       \expandafter\edef\csname#1\endcsname{\number\@anim@tmpdima sp}%
       %global copy
       \expandafter\xdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
@@ -2201,7 +2204,7 @@
       %initialize variable
       \expandafter\@anim@add\csname#1\endcsname{#2}{0.0}%
       %global copy that saves current variable value between loops
-      \expandafter\gdef\csname#1@old\endcsname{#2}%
+      \expandafter\xdef\csname#1@old\endcsname{#2}%
       %append script for updating variable to \@anim@updatevars macro
       \g@addto@macro\@anim@updatevars{%
         %new value
@@ -2213,14 +2216,18 @@
       \ifthenelse{\equal{\@anim@vartype}{i}\OR\equal{\@anim@vartype}{I}}{%
         % integers, prefix i, I
         %initialize variable
-        \expandafter\edef\csname#1\endcsname{#2}%
+        \setcounter{@anim@tmpcnt}{#2}%
+        \expandafter\edef\csname#1\endcsname{\the@anim@tmpcnt}%
         %global copy that saves current variable value between loops
-        \expandafter\gdef\csname#1@old\endcsname{#2}%
+        \expandafter\xdef\csname#1@old\endcsname{\the@anim@tmpcnt}%
+        \setcounter{@anim@tmpcnt}{#3}%
+        %global copy of increment
+        \expandafter\xdef\csname#1@inc\endcsname{\the@anim@tmpcnt}%
         %append script for updating variable to \@anim@updatevars macro
         \g@addto@macro\@anim@updatevars{%
           %new value
           \expandafter\global\expandafter\@anim@tmpcnt\csname#1@old\endcsname%
-          \global\advance\@anim@tmpcnt by #3%
+          \global\advance\@anim@tmpcnt by \csname#1@inc\endcsname%
           \expandafter\edef\csname#1\endcsname{\the\@anim@tmpcnt}%
           %global copy
           \expandafter\xdef\csname#1@old\endcsname{\the\@anim@tmpcnt}%
@@ -2284,6 +2291,7 @@
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
 \newcount\@anim@tmpcnt %scratch counter for different uses
+\newcounter{@anim@tmpcnt} %scratch LaTeX counter for different uses
 \newcount\@anim@curlayer %takes the number of the current layer being processed
 \newcount\@anim@lineno %current input line No.
 

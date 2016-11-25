@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/09/23}
+\def\@anim@version{2014/10/16}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -136,7 +136,8 @@
    @@____Warning:_DVI_resolution_greater_than_1200_dpi!_____@@\string\n%
    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
    @@_______________________________________________________@@\string\n%
-   @@_Animation_frames_may_be_clipped_or_invisible._________@@\string\n%
+   @@_Animation_frames_may_be_badly_scaled,_clipped_or______@@\string\n%
+   @@_invisible.____________________________________________@@\string\n%
    @@_______________________________________________________@@\string\n%
    @@_Dvips_should_be_called_either_without_option_`-Ppdf':_@@\string\n%
    @@_______________________________________________________@@\string\n%
@@ -232,153 +233,167 @@
   }{}%
 }
 
-%alternative animation method using OCGs (option `useocg')
-\newboolean{@anim@useocg}
+%macros for adding Appearances name tree / AcroForm / OCProperties dicts to
+%PDF Catalog
+\def\@anim@appearances{}
+\ifdefined\@anim@fields\else\def\@anim@fields{}\fi %takes Field object refs
+\ifdefined\@anim@ocgs\else\def\@anim@ocgs{}\fi %takes ocg object refs
+\ifdefined\@anim@offocgs\else\def\@anim@offocgs{}\fi
+\ifpdf
+  %Appearance name tree
+  \AtEndDvi{%
+    \ifx\empty\@anim@appearances\empty\else%
+      \immediate\pdfobj{[\@anim@appearances]}%
+      \pdfnames{%
+        /AP <</Names \the\pdflastobj\space 0 R>>%
+      }%
+    \fi%
+  }%
+  %AcroForm dict
+  \ifdefined\Acro@Form@added\else%
+    \AtEndDvi{%
+      \ifx\empty\@anim@fields\empty\else%
+        \immediate\pdfobj{[\@anim@fields]}%
+        \pdfcatalog{%
+          /AcroForm <</Fields \the\pdflastobj\space 0 R /NeedAppearances false>>%
+        }%
+      \fi%
+    }%
+    \gdef\Acro@Form@added{}%
+  \fi%
+  %OCProperties dict
+  \ifdefined\oc@props@added\else%
+    \AtEndDvi{%
+      \ifx\empty\@anim@ocgs\empty\else%
+        \immediate\pdfobj{[\@anim@ocgs]}%
+        \edef\@anim@@ocgs{\the\pdflastobj}%
+        \immediate\pdfobj{[\@anim@offocgs]}%
+        \edef\@anim@@offocgs{\the\pdflastobj}%
+        \pdfcatalog{%
+          /OCProperties <<%
+            /OCGs \@anim@@ocgs\space 0 R%
+            /D <<%
+              /BaseState/ON /OFF \@anim@@offocgs\space 0 R%
+              /AS [%
+                <</Event/View  /Category[/View]  /OCGs \@anim@@ocgs\space 0 R>>%
+                <</Event/Print /Category[/Print] /OCGs \@anim@@ocgs\space 0 R>>%
+                <</Event/Export/Category[/Export]/OCGs \@anim@@ocgs\space 0 R>>%
+              ]%
+            >>%
+          >>%
+        }%
+      \fi%
+    }%
+    \gdef\oc@props@added{}%
+  \fi%
+\else
+  %counts inserted widget annots
+  \newcount\@anim@fieldnum\@anim@fieldnum=\z@
+  \if@anim@dvipdfmx
+    \AtEndDvi{%
+      \ifx\empty\@anim@appearances\empty\else%
+        \special{pdf:obj @anim@appearances []}%
+        \special{pdf:put @anim@appearances \@anim@appearances}%
+        \special{pdf:put @names <</AP <</Names @anim@appearances>>>>}%
+      \fi%
+    }%
+    \ifdefined\Acro@Form@added\else%
+      \AtEndDvi{%
+        \ifx\empty\@anim@fields\empty\else%
+          %array which takes refs to all widget annotations
+          \special{pdf:obj @anim@fields []}%
+          \special{pdf:put @anim@fields \@anim@fields}%
+          \special{pdf:put @catalog <<%
+            /AcroForm <</Fields @anim@fields /NeedAppearances false>>>>}%
+        \fi%
+      }%
+      \gdef\Acro@Form@added{}%
+    \fi%
+    \ifdefined\oc@props@added\else%
+      \AtEndDvi{%
+        \ifx\empty\@anim@ocgs\empty\else%
+          \special{pdf:obj @anim@ocgs []}%
+          \special{pdf:put @anim@ocgs \@anim@ocgs}%
+          \special{pdf:obj @anim@offocgs []}%
+          \special{pdf:put @anim@offocgs \@anim@offocgs}%
+          \special{pdf:put @catalog <<%
+            /OCProperties <<%
+              /OCGs @anim@ocgs%
+              /D <<%
+                /BaseState/ON /OFF @anim@offocgs%
+                /AS[%
+                  <</Event/View  /Category[/View]  /OCGs @anim@ocgs>>%
+                  <</Event/Print /Category[/Print] /OCGs @anim@ocgs>>%
+                  <</Event/Export/Category[/Export]/OCGs @anim@ocgs>>%
+                ]%
+              >>%
+            >>%
+          >>}%
+        \fi%
+      }%
+      \gdef\oc@props@added{}%
+    \fi%
+  \else
+    \AtEndDvi{%
+      \ifx\empty\@anim@appearances\empty\else%
+        \special{ps:
+          mark /_objdef {@anim@appearances} /type/array /OBJ pdfmark
+          mark {@anim@appearances} 0 [\@anim@appearances] /PUTINTERVAL pdfmark
+          mark {Catalog} <<%
+            /Names <</AP <</Names {@anim@appearances}>> >>
+          >> /PUT pdfmark%
+        }%
+      \fi%
+    }%
+    \ifdefined\Acro@Form@added\else%
+      \AtEndDvi{%
+        \ifx\empty\@anim@fields\empty\else%
+          \special{ps:
+            mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
+            mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark
+            mark {Catalog} <<%
+              /AcroForm <</Fields {@anim@fields} /NeedAppearances false>>
+            >> /PUT pdfmark%
+          }%
+        \fi%
+      }%
+      \gdef\Acro@Form@added{}%
+    \fi%
+    \ifdefined\oc@props@added\else%
+      \AtEndDvi{%
+        \ifx\empty\@anim@ocgs\empty\else%
+          \special{ps:
+            mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
+            mark {@anim@ocgs} 0 [\@anim@ocgs] /PUTINTERVAL pdfmark
+            mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
+            mark {@anim@offocgs} 0 [\@anim@offocgs] /PUTINTERVAL pdfmark
+            mark {Catalog} <<%
+              /OCProperties <<%
+                /OCGs {@anim@ocgs}%
+                /D <<%
+                  /BaseState/ON /OFF {@anim@offocgs}%
+                  /AS[%
+                    <</Event/View  /Category[/View]  /OCGs {@anim@ocgs}>>%
+                    <</Event/Print /Category[/Print] /OCGs {@anim@ocgs}>>%
+                    <</Event/Export/Category[/Export]/OCGs {@anim@ocgs}>>%
+                  ]%
+                >>%
+              >>%
+            >> /PUT pdfmark%
+          }%
+        \fi%
+      }%
+      \gdef\oc@props@added{}%
+    \fi%
+  \fi
+\fi
+
 % true if any of `autoplay' or `autoresume' options is set
 \newboolean{@anim@autoplayorresume}
 % true if any of `controls' or `palindrome' or `label' options is set
 \newboolean{@anim@morejs}
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
-
-%macros for adding AcroForm and OCProperties dicts to PDF Catalog
-\ifdefined\@anim@fields\else\def\@anim@fields{}\fi %takes Field object refs
-\ifdefined\@anim@ocgs\else\def\@anim@ocgs{}\fi %takes ocg object refs
-\ifdefined\@anim@offocgs\else\def\@anim@offocgs{}\fi
-
-\ifpdf
-  %AcroForm dict
-  \def\@anim@acroform{%
-    \ifdefined\Acro@Form@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@anim@fields\empty\else%
-          \immediate\pdfobj{[\@anim@fields]}%
-          \pdfcatalog{%
-            /AcroForm <</Fields \the\pdflastobj\space 0 R /NeedAppearances false>>%
-          }%
-        \fi%
-      }%
-      \gdef\Acro@Form@added{}%
-    \fi%
-  }
-  %OCProperties dict
-  \def\@anim@ocprops{%
-    \ifdefined\oc@props@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@anim@ocgs\empty\else%
-          \immediate\pdfobj{[\@anim@ocgs]}%
-          \edef\@anim@@ocgs{\the\pdflastobj}%
-          \immediate\pdfobj{[\@anim@offocgs]}%
-          \edef\@anim@@offocgs{\the\pdflastobj}%
-          \pdfcatalog{%
-            /OCProperties <<%
-              /OCGs \@anim@@ocgs\space 0 R%
-              /D <<%
-                /BaseState/ON /OFF \@anim@@offocgs\space 0 R%
-                /AS [%
-                  <</Event/View  /Category[/View]  /OCGs \@anim@@ocgs\space 0 R>>%
-                  <</Event/Print /Category[/Print] /OCGs \@anim@@ocgs\space 0 R>>%
-                  <</Event/Export/Category[/Export]/OCGs \@anim@@ocgs\space 0 R>>%
-                ]%
-              >>%
-            >>%
-          }%
-        \fi%
-      }%
-      \gdef\oc@props@added{}%
-    \fi%
-  }
-\else
-  %counts inserted widget annots
-  \newcount\@anim@fieldnum\@anim@fieldnum=\z@
-  \if@anim@dvipdfmx
-    \def\@anim@acroform{%
-      \ifdefined\Acro@Form@added\else%
-        \AtEndDvi{%
-          \ifx\empty\@anim@fields\empty\else%
-            %array which takes refs to all widget annotations
-            \special{pdf:obj @anim@fields []}%
-            \special{pdf:put @anim@fields \@anim@fields}%
-            \special{pdf:put @catalog <<%
-              /AcroForm <</Fields @anim@fields /NeedAppearances false>>>>}%
-          \fi%
-        }%
-        \gdef\Acro@Form@added{}%
-      \fi%
-    }
-    \def\@anim@ocprops{%
-      \ifdefined\oc@props@added\else%
-        \AtEndDvi{%
-          \ifx\empty\@anim@ocgs\empty\else%
-            \special{pdf:obj @anim@ocgs []}%
-            \special{pdf:put @anim@ocgs \@anim@ocgs}%
-            \special{pdf:obj @anim@offocgs []}%
-            \special{pdf:put @anim@offocgs \@anim@offocgs}%
-            \special{pdf:put @catalog <<%
-              /OCProperties <<%
-                /OCGs @anim@ocgs
-                /D <<%
-                  /BaseState/ON /OFF @anim@offocgs%
-                  /AS[%
-                    <</Event/View  /Category[/View]  /OCGs @anim@ocgs>>%
-                    <</Event/Print /Category[/Print] /OCGs @anim@ocgs>>%
-                    <</Event/Export/Category[/Export]/OCGs @anim@ocgs>>%
-                  ]%
-                >>%
-              >>%
-            >>}%
-          \fi%
-        }%
-        \gdef\oc@props@added{}%
-      \fi%
-    }
-  \else
-    \def\@anim@acroform{%
-      \ifdefined\Acro@Form@added\else%
-        \AtEndDvi{%
-          \ifx\empty\@anim@fields\empty\else%
-            \special{ps:
-              mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
-              mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark
-              mark {Catalog} <<%
-                /AcroForm <</Fields {@anim@fields} /NeedAppearances false>>
-              >> /PUT pdfmark%
-            }%
-          \fi%
-        }%
-        \gdef\Acro@Form@added{}%
-      \fi%
-    }
-    \def\@anim@ocprops{%
-      \ifdefined\oc@props@added\else%
-        \AtEndDvi{%
-          \ifx\empty\@anim@ocgs\empty\else%
-            \special{ps:
-              mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
-              mark {@anim@ocgs} 0 [\@anim@ocgs] /PUTINTERVAL pdfmark
-              mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
-              mark {@anim@offocgs} 0 [\@anim@offocgs] /PUTINTERVAL pdfmark
-              mark {Catalog} <<%
-                /OCProperties <<%
-                  /OCGs {@anim@ocgs}%
-                  /D <<%
-                    /BaseState/ON /OFF {@anim@offocgs}%
-                    /AS[%
-                      <</Event/View  /Category[/View]  /OCGs {@anim@ocgs}>>%
-                      <</Event/Print /Category[/Print] /OCGs {@anim@ocgs}>>%
-                      <</Event/Export/Category[/Export]/OCGs {@anim@ocgs}>>%
-                    ]%
-                  >>%
-                >>%
-              >> /PUT pdfmark%
-            }%
-          \fi%
-        }%
-        \gdef\oc@props@added{}%
-      \fi%
-    }
-  \fi
-\fi
 
 \newbox\@anim@box %stores animation frames
 \newbox\@anim@measbox % for measuring purposes
@@ -387,13 +402,13 @@
 
 %tests whether file is already known (and embedded), if so it returns identifier
 %of xobj, otherwise returns `!'
-\def\@anim@fileknown#1#2{% #1 file name, pdf: #2 page No. ps: #2 @anim@num
+\def\@anim@fileknown#1#2{%#1 file name, #2 page No. (multipage files)
   %identify file by md5sum
   \ifcsname file:\@anim@pdfmdfivesum{#1}.#2\endcsname%
     \@anim@getkeyval{file:\@anim@pdfmdfivesum{#1}.#2}\else!\fi%
 }
 \def\@anim@makefileknown#1#2#3{%
-  %#1 file name, pdf: #2 page No. ps: #2 @anim@num %#3 Form XObj ID,
+  %#1 file name, #2 page No. (multipage files), #3 Form XObj ID
   \@anim@newkey{file:\@anim@pdfmdfivesum{#1}.#2}{#3}%
 }
 %retrieve nat. dimensions from XObjects
@@ -503,13 +518,14 @@
     \immediate\pdfxform resources {\the\pdfpageresources}#3%
     \xdef\@anim@lastxform{\the\pdflastxform}%
   }
+
   \def\@anim@refxform#1{% #1: xform obj ID
-    \rlap{\pdfrefxform#1}%
-    %\begin{picture}(0,0)\put(0,0){\pdfrefxform#1}\end{picture}%
+    \rlap{\vbox to \z@{\vss\pdfrefxform#1}}%
   }
 
   \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
     \pdfannot width #1\p@ height #2\p@ depth #3\p@ {#4}%
+    %since all annots are Widgets
     \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
   }
 
@@ -552,10 +568,10 @@
 
     \def\@anim@refobj#1{#1}
 
-    \def\@anim@xform#1#2#3{%#1 add. pgf resources?1:0, #2 not used, #3 boxnum
+    \def\@anim@xform#1#2#3{%#1 add. pgf resources ? 1:0, #2 not used, #3 boxnum
       \special{pdf:bxobj @anm@obj\the\@anim@objnum\space width \strip@pt\wd#3pt
         height \strip@pt\ht#3pt depth \strip@pt\dp#3pt}%
-      \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
+      \rlap{\vbox to \z@{\vss\box#3}}%
       \ifx1#1%
         \ifthenelse{\boolean{@anim@pgfloaded}}{%
           \def\@anim@resources{}%
@@ -621,8 +637,18 @@
 
     \def\@anim@refobj#1{#1}
 
-    \def\@anim@xform#1#2#3{%#1 not used, #2 used as appearance?1:0, #3 boxnum
-      \if@anim@useocg\else%
+    \def\@anim@xform#1#2#3{%#1 not used, #2 used as appearance ? 1:0, #3 boxnum
+      \ifnum\@anim@method=\z@% icon based && dvips kill links in document
+        \ifdefined\hypersetup%
+          \ifdefined\@anim@icondvipswarned\else%
+            \AtEndDocument{%
+              \PackageWarningNoLine{animate}{\@anim@icondvipswarning}%
+            }%
+            \gdef\@anim@icondvipswarned{}%
+          \fi%
+        \fi%
+      \fi%
+      \ifnum\@anim@method<\tw@% icon based && widget based
         \ifdefined\@anim@@dpiwarning\else%
           %determine DVI resolution and output warning message if too high
           \AtEndDvi{\special{ps:\@anim@dpiwarning}}%
@@ -698,7 +724,7 @@
         }?pdfmark%
         \fi%
       }%
-      \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
+      \rlap{\vbox to \z@{\vss\box#3}}%
       \special{ps:
         mark /EP pdfmark
         grestore%
@@ -816,28 +842,40 @@
   \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
 }
 
-%inserts one animation frame into the output, either as a non-interactive Widget
-%annotation, or directly into the content stream of the page object for OCG-based
-%animation
+%inserts one animation frame into the output acc. to
+% \ifcase\@anim@method as
+% 0: Form XObject (not referenced in the page content stream)
+% 1: non-interactive Widget annotation
+% 2: referenced Form XObject in the page content, tagged as OC
+% animation
 \def\@anim@makeframe#1#2{%
-  %visibility
-  \if@anim@useocg%
-    \@anim@newocg{#1}{#2}%
-    \ifx\@anim@poster\@anim@posterlast%
-      \@anim@keytoaux{a#1.poster}{#2}%
-      \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-        \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
-      }%
-    \else%
+  %container box
+  \global\setbox\@anim@box=\hbox to \@anim@zframewd\p@{%
+    \vrule width \z@ height \@anim@zframeht\p@ depth \@anim@zframedp\p@%
+    \@anim@getkeyval{frmcontent@#2}%
+    \hss%
+  }%
+  \ifcase\@anim@method% icon based
+    \@anim@xform{0}{1}{\@anim@box}%
+    %initial visibility
+    \ifx\@anim@poster\@anim@posternone\else%
       \ifnum#2=\z@%
-        \ifx\@anim@poster\@anim@posternone%
-          \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
+        \ifx\@anim@poster\@anim@posterfirst%
+          \edef\@anim@posterap{\@anim@lastxform}%
         \fi%
-      \else%
-        \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
+      \fi%
+      \ifx\@anim@poster\@anim@posterlast%
+        \edef\@anim@posterap{\@anim@lastxform}%
       \fi%
     \fi%
-  \else%
+    %build appearance name tree
+    \xdef\@anim@appearances{%
+      \@anim@appearances
+      (\@anim@pad{1234}{#1}.\@anim@pad{1234}{#2})
+      \@anim@refobj{\@anim@lastxform}%
+    }%
+  \or% widget based
+    %initial visibility
     \def\@anim@annotflag{/F 2}%
     \ifx\@anim@poster\@anim@posternone\else%
       \ifnum#2=\z@%
@@ -852,15 +890,34 @@
         }{}%
       \fi%
     \fi%
-  \fi%
-  %container box
-  \global\setbox\@anim@box=\hbox to \@anim@zframewd\p@{%
-    \vrule width \z@ height \@anim@zframeht\p@ depth \@anim@zframedp\p@%
-    \@anim@getkeyval{frmcontent@#2}%
-    \hss%
-  }%
-  %frame insertion
-  \if@anim@useocg%
+    %frame insertion
+    \@anim@xform{0}{1}{\@anim@box}%
+    \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+      /Subtype/Widget%
+      \@anim@annotflag%
+      /FT/Btn/Ff 65537%
+      /BS <</W 0>>%
+      /AP <</N \@anim@refobj{\@anim@lastxform}>>%
+      /MK <</TP 1/I \@anim@refobj{\@anim@lastxform}/IF<</S/A/FB true>>>>%
+      /T (#1.#2)%
+    }%
+  \or% ocg based
+    \@anim@newocg{#1}{#2}%
+    %initial visibility
+    \ifx\@anim@poster\@anim@posterlast%
+      \@anim@keytoaux{a#1.poster}{#2}%
+      \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
+        \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
+      }%
+    \else%
+      \ifnum#2=\z@%
+        \ifx\@anim@poster\@anim@posternone%
+          \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
+        \fi%
+      \else%
+        \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
+      \fi%
+    \fi%
     \def\@anim@needresize{0}%
     \ifdim\@anim@animwidth\p@=\@anim@zframewd\p@\else%
       \def\@anim@needresize{1}\fi%
@@ -877,21 +934,11 @@
         }%
       }%
     \fi%
+    %frame insertion
     \@anim@xform{0}{0}{\@anim@box}%
     \@anim@bdc{/OC}{\@anim@curocg}%
     \@anim@refxform{\@anim@lastxform}%
     \@anim@emc%
-  \else%
-    \@anim@xform{0}{1}{\@anim@box}%
-    \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
-      /Subtype/Widget%
-      \@anim@annotflag%
-      /FT/Btn/Ff 65537%
-      /BS <</W 0>>%
-      /AP <</N \@anim@refobj{\@anim@lastxform}>>%
-      /MK <</TP 1/I \@anim@refobj{\@anim@lastxform}/IF<</S/A/FB true>>>>%
-      /T (#1.#2)%
-    }%
   \fi%
 }
 
@@ -1095,7 +1142,7 @@
     \gdef\@anim@ext{.jpx}%
     \IfFileExists{#1\@anim@ext}{}{%
       \PackageError{animate}{%
-        Neither of the files\MessageBreak%
+        None of the files\MessageBreak%
         `#1.pdf',\MessageBreak%
         `#1.mps',\MessageBreak%
         `#1.png',\MessageBreak%
@@ -1132,7 +1179,7 @@
       \gdef\@anim@ext{.bmp}%
       \IfFileExists{#1\@anim@ext}{}{%
         \PackageError{animate}{%
-          Neither of the files\MessageBreak%
+          None of the files\MessageBreak%
           `#1.pdf',\MessageBreak%
           `#1.mps',\MessageBreak%
           `#1.eps',\MessageBreak%
@@ -1156,7 +1203,7 @@
       \gdef\@anim@ext{.ps}%
       \IfFileExists{#1\@anim@ext}{}{%
         \PackageError{animate}{%
-          Neither of the files\MessageBreak%
+          None of the files\MessageBreak%
           `#1.eps',\MessageBreak%
           `#1.mps' or\MessageBreak%
           `#1.ps'\MessageBreak%
@@ -1582,10 +1629,29 @@
 }
 
 %interactive Widget annotation that is overlayed on the
-%non-interactive frame Widgets
+%non-interactive frame Widgets / page content with frame OCGs
 \def\@anim@animwidget#1{%
   \@anim@pojscript{#1}%
   \@anim@otherjscript{#1}%
+  \ifnum\@anim@method=\z@%
+    \ifx\@anim@poster\@anim@posternone%
+      \ifdefined\@anim@apdummy\else% empty appearance dummy
+        \setbox\@anim@box=\hbox{\phantom{x}}%
+        \@anim@xform{0}{0}{\@anim@box}%
+        \xdef\@anim@apdummy{\@anim@lastxform}%
+      \fi%
+      \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
+    \else%
+      \def\@anim@apmk{\@anim@refobj{\@anim@posterap}}%
+    \fi%
+  \else%
+    \ifdefined\@anim@apdummy\else% empty appearance dummy
+      \setbox\@anim@box=\hbox{\phantom{x}}%
+      \@anim@xform{0}{0}{\@anim@box}%
+      \xdef\@anim@apdummy{\@anim@lastxform}%
+    \fi%
+    \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
+  \fi%
   \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
     /Subtype/Widget%
     /FT/Btn/Ff \@anim@btnflag%
@@ -1599,6 +1665,8 @@
       >>%
       \@anim@otherjscriptkey%
     >>%
+    /AP <</N \@anim@apmk>>%
+    /MK <</TP 1/I \@anim@apmk/IF<</S/A/FB true>>>>%
   }%
   \hbox to \@anim@animwidth\p@ {%
     \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1624,6 +1692,13 @@
   \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
   \def\@anim@arg{PlayPauseRight}%
   \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+  \if@anim@mk\else%
+    \ifdefined\@anim@apdummy\else% empty appearance dummy
+      \setbox\@anim@box=\hbox{\phantom{x}}%
+      \@anim@xform{0}{0}{\@anim@box}%
+      \xdef\@anim@apdummy{\@anim@lastxform}%
+    \fi%
+  \fi%
   \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
   \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
@@ -1635,6 +1710,9 @@
     \if@anim@mk%
       /AP <</N \@anim@getkeyval{btn#3}>>%
       /MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>%
+    \else%
+      /AP <</N \@anim@refobj{\@anim@apdummy}>>%
+      /MK <</TP 1/I \@anim@refobj{\@anim@apdummy}/IF<</S/A/FB true>>>>%
     \fi%
     /T (#1.#2)%
     \@anim@tooltip%
@@ -2014,6 +2092,13 @@
   @_for_additional_information!_______________________@\MessageBreak%
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
 }
+\xdef\@anim@icondvipswarning{%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
+  @_Icon-based_animation_method_(``useicon'')_breaks_@\MessageBreak%
+  @_all_hyperref-inserted_links_in_the_final_PDF_____@\MessageBreak%
+  @_produced_via_the_Dvips_route!____________________@\MessageBreak%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+}
 \endgroup
 
 %macros for sanitizing characters read from timeline file
@@ -2278,6 +2363,10 @@
     \fi%
   }%
 }
+%get number of repetitions of frame
+\def\@anim@getrepetitions#1x\@nil{%
+  \gdef\@anim@repeats{#1}%
+}
 
 \begingroup\catcode`\_=13\let_\space
 \xdef\@anim@multwarning{%
@@ -2326,11 +2415,6 @@
   \ifthenelse{\equal{#3}{}}{}{%
     \@anim@resetmult#1.#3\@nil%
   }%
-}
-
-%get number of repetitions of frame
-\def\@anim@getrepetitions#1x\@nil{%
-  \gdef\@anim@repeats{#1}%
 }
 
 %command options
@@ -2535,8 +2619,24 @@
 \define@key{anim@user}{measure}[true]{%
   \setboolean{@anim@meas}{#1}%
 }
-\define@key{anim@user}{useocg}[true]{%
-  \setboolean{@anim@useocg}{#1}%
+\define@key{anim@user}{method}{%
+  \ifthenelse{\equal{#1}{icon}}{%
+    \def\@anim@method{\z@}%
+  }{%
+    \ifthenelse{\equal{#1}{widget}}{%
+      \def\@anim@method{\@ne}%
+    }{%
+      \ifthenelse{\equal{#1}{ocg}}{%
+        \def\@anim@method{\tw@}%
+      }{}%
+    }%
+  }%
+}
+\define@key{anim@user}{useocg}[]{%
+  \PackageError{animate}{%
+    Option `useocg' has been removed.\MessageBreak%
+    Use `method=ocg' instead%
+  }{}%
 }
 %\define@key{anim@user}{firstframejs}{%
 %  \@anim@firstjs{#1}%
@@ -2575,7 +2675,7 @@
   \global\let\if@anim@palindrome=\if@anim@@palindrome%
   \global\let\if@anim@step=\if@anim@@step%
   \global\let\if@anim@draft=\if@anim@@draft%
-  \global\let\if@anim@useocg=\if@anim@@useocg%
+  \xdef\@anim@method{\@anim@@method}%
   \global\let\@anim@btnflag=\@anim@@btnflag%
   \gdef\@anim@properties{}%
   \setboolean{@anim@pauseframes}{false}%
@@ -2769,11 +2869,33 @@
     \gdef\@anim@@btnflag{65537}%
   }{}%
 }
-\newboolean{@anim@@useocg}
-\setboolean{@anim@@useocg}{false}
-\define@key{anim@pkg}{useocg}[true]{%
-  \setboolean{@anim@@useocg}{#1}%
+
+% animation method: icon vs. widget vs. ocg based
+\define@key{anim@pkg}{method}{%
+  \ifthenelse{\equal{#1}{icon}}{%
+    \def\@anim@@method{\z@}%
+  }{%
+    \ifthenelse{\equal{#1}{widget}}{%
+      \def\@anim@@method{\@ne}%
+    }{%
+      \ifthenelse{\equal{#1}{ocg}}{%
+        \def\@anim@@method{\tw@}%
+      }{}% ignoring wrong input
+    }%
+  }%
 }
+\define@key{anim@pkg}{useocg}[]{%
+  \PackageError{animate}{%
+    Package option `useocg' has been removed.\MessageBreak%
+    Use `method=ocg' instead%
+  }{}%
+}
+
+%default animation method is Icon based, except for dvips
+\def\@anim@@method{\z@}
+\ifpdf\else\if@anim@dvipdfmx\else % dvips, by default, uses Widget based method
+  \def\@anim@@method{\@ne}
+\fi\fi
 
 %process package options
 \def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
@@ -2797,7 +2919,24 @@
     %animation
     a#1.fr=new Array();%
     %initialize fr properties
-    \if@anim@useocg
+    \ifcase\@anim@method %icon based
+      var spc=String.fromCharCode(32);%
+      if(typeof(this.getIcon)==='undefined'){%
+        app.alert('Icon-based'+spc+'animation'+spc+'is'+spc+'not'+spc+%
+          'supported'+spc+'by'+spc+'this'+spc+'Reader.'+spc+'Try'+spc+%
+          'one'+spc+'of'+spc+'"method=widget"'+spc+'or'+spc+%
+          '"method=useocg"'+spc+'options.');%
+      }%
+      a#1.wid=this.getField('anm#1');%reference to interactive widget
+      for(i=0;i<=\@anim@maxframe;i++){%
+        a#1.fr[i]=this.getIcon(util.printf('\@anim@pad{1234}{#1}.\%04d',i));%
+      }%
+    \or %widget based
+      %get array of animation frames
+      for(i=0;i<=\@anim@maxframe;i++){%
+        a#1.fr[i]=this.getField('#1.'+i);%
+      }%
+    \or %ocg based
       %get array of ocgs of current page
       var ocg=this.getOCGs(this.pageNum);%
       for(var i in ocg){%
@@ -2808,11 +2947,6 @@
           %set basic frame state
           a#1.fr[ocgName[1]].state=ocg[i].initState;%
         }%
-      }%
-    \else
-      %get array of animation frames
-      for(i=0;i<=\@anim@maxframe;i++){%
-        a#1.fr[i]=this.getField('#1.'+i);%
       }%
     \fi%
     \if@anim@controls\if@anim@step\else
@@ -2868,16 +3002,15 @@
           var ret=app.setTimeOut(cmd,1);%
         }%
       \fi%
-      \if@anim@useocg
-        a#1.fr[a#1.on].state=false;%
-      \else
+      \ifcase\@anim@method %icon based
+        a#1.wid.buttonSetIcon(a#1.fr[f]);%
+      \or %widget based
         a#1.fr[a#1.on].display=display.hidden;%
-      \fi%
-      \if@anim@useocg
-        a#1.fr[f].state=true;%
-      \else
         a#1.fr[f].display=display.visible;%
         curdoc.dirty=false;%
+      \or %ocg based
+        a#1.fr[a#1.on].state=false;%
+        a#1.fr[f].state=true;%
       \fi
       a#1.on=f;%
       \if@anim@step\else%
@@ -3036,11 +3169,11 @@
       \fi%
       \if@anim@meas
         var spc=String.fromCharCode(32);%
-        a#1.frcnt=0;% frame counter for speed measurements
+        a#1.frcnt=1;% frame counter for speed measurements
         a#1.msStart=0;% takes start time (in millisecs)
         a#1.msEnd=0;% takes end time (in millisecs)
         a#1.startMeas=function(){%
-          a#1.frcnt=0;% reset frame counter
+          a#1.frcnt=1;% reset frame counter
           a#1.msStart=(new Date()).getTime();%
         };%
         a#1.stopMeas=function(){%
@@ -3108,7 +3241,9 @@
         };%
       }%
     \fi%
-    a#1.seekFrame(a#1.on);%
+    \ifnum\@anim@method>\z@%
+      \ifx\@anim@poster\@anim@posternone\else a#1.seekFrame(a#1.on);\fi%
+    \fi%
   }%
   curdoc.dirty=false;%
   \if@anim@step\else%
@@ -3249,4 +3384,3 @@
     \fi\fi\fi\fi\fi\fi\fi\fi\fi%
   }%
 }
-\@anim@acroform\@anim@ocprops

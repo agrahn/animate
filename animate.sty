@@ -1,4 +1,4 @@
-% Copyright 2007 Alexander Grahn
+% Copyright 2007--2008 Alexander Grahn
 
 % This material is subject to the LaTeX Project Public License. See
 %   http://www.ctan.org/tex-archive/help/Catalogue/licenses.lppl.html
@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/01/03]
+\ProvidesPackage{animate}[2008/01/04]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -111,8 +111,10 @@
   \pdfcatalog{
     /OCProperties <<
       /OCGs \the\@anim@@ocgs\space 0 R
-      /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
-        /Order \the\@anim@@ocgs\space 0 R>>
+      /D <<
+        /BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
+        /Order \the\@anim@@ocgs\space 0 R
+      >>
     >>
   }
   \def\@anim@ocgs{}
@@ -144,9 +146,9 @@
 \newdimen\@anim@tmpdima %length registers for occasional use
 \newdimen\@anim@tmpdimb
 
-%tests whether file is known, if so it returns identifier of form xobj
-%otherwise `!'
-\def\@anim@fileknown#1#2{% #1 file name, #2 page No
+%tests whether file is already known (and embedded), if so it returns identifier
+%of form xobj, otherwise returns `!'
+\def\@anim@fileknown#1#2{% #1 file name, #2 page No.
   %identify file by md5sum
   \expandafter\ifx\csname file:\pdfmdfivesum file {#1}.#2\endcsname\relax!%
   \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}.#2}\fi%

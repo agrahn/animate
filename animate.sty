@@ -8,10 +8,10 @@
 % graphics files or inline graphics (e. g. LaTeX-picture, PSTricks,
 % pgf/TikZ, ...)
 
-% Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
+% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/09]
+\ProvidesPackage{animate}[2008/06/13]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -29,6 +29,32 @@
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
 
+%driver options (the only package options we process immediately)
+\newboolean{@anim@@dvips}
+\setboolean{@anim@@dvips}{false}
+\newboolean{@anim@@dvipdfmx}
+\setboolean{@anim@@dvipdfmx}{false}
+\ifpdf\else
+  \setboolean{@anim@@dvips}{true}% default dvi mode
+  \setboolean{@anim@@dvipdfmx}{false}
+  \DeclareOption{dvips}{%
+    \setboolean{@anim@@dvips}{true}
+    \setboolean{@anim@@dvipdfmx}{false}
+  }
+  \DeclareOption{dvipdfmx}{%
+    \setboolean{@anim@@dvipdfmx}{true}
+    \setboolean{@anim@@dvips}{false}
+  }
+  \DeclareOption{xetex}{%
+    \setboolean{@anim@@dvipdfmx}{true}
+    \setboolean{@anim@@dvips}{false}
+  }
+\fi
+\ifcsname XeTeXrevision\endcsname
+  \setboolean{@anim@@dvipdfmx}{true}
+  \setboolean{@anim@@dvips}{false}
+\fi
+
 \DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
 %(package options will be processed near end of this file)
 
@@ -42,40 +68,42 @@
     }%
   \fi
   %load MP to PDF converter
-  \ifx\convertMPtoPDF\@undefined%
-    \InputIfFileExists{supp-pdf}{}{}%
-    \ifx\convertMPtoPDF\@undefined%
+  \ifcsname convertMPtoPDF\endcsname\else
+    \InputIfFileExists{supp-pdf}{}{}
+    \ifcsname convertMPtoPDF\endcsname\else
       \PackageWarningNoLine{animate}{%
         File `supp-pdf.tex', which is part of ConTeXt, is not%
         \MessageBreak%
         available. Therefore, MetaPost generated PS files%
         \MessageBreak%
         cannot be embedded using pdfTeX%
-      }%
-    \fi%
-  \fi%
+      }
+    \fi
+  \fi
 \else
-  %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
-  \AtBeginDvi{%
-    \ifx\pdfmark\@undefined%
-      \special{!
-        systemdict /pdfmark known%
-        {%
-          userdict /?pdfmark systemdict /exec get put%
-        }{%
-          userdict /?pdfmark systemdict /pop get put
-          userdict /pdfmark systemdict /cleartomark get put%
+  \if@anim@@dvipdfmx\else
+    %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
+    \AtBeginDvi{%
+      \ifcsname pdfmark\endcsname\else%
+        \special{!
+          systemdict /pdfmark known%
+          {%
+            userdict /?pdfmark systemdict /exec get put%
+          }{%
+            userdict /?pdfmark systemdict /pop get put
+            userdict /pdfmark systemdict /cleartomark get put%
+          }%
+          ifelse%
         }%
-        ifelse%
-      }%
-    \fi%
-  }
-\fi%
+      \fi%
+    }
+  \fi
+\fi
 
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
-\ifx\@undefined\pdfmdfivesum
+\ifcsname pdfmdfivesum\endcsname\else
   \def\pdfmdfivesum file #1{#1}
 \fi
 
@@ -89,7 +117,7 @@
     \string\@anim@newkey{#1}{#2}%
   }\@esphack%
   \ifcsname#1\endcsname\else%
-    \ifx\@anim@rerunwarned\@undefined%
+    \ifcsname @anim@rerunwarned\endcsname\else%
       \gdef\@anim@rerunwarned{}%
       \AtEndDocument{%
         \PackageWarningNoLine{animate}{%
@@ -102,13 +130,21 @@
 }
 
 %missing package error message
-\def\@anim@missing#1{%
-  \PackageError{animate}{%
-    Package `#1' has not been loaded yet%
+\newcommand{\@anim@missing}[2][]{%
+  \ifthenelse{\equal{#1}{}}{%
+    \PackageError{animate}{%
+      Package `#2' has not been loaded yet.\MessageBreak%
+      Put the line\MessageBreak%
+      `\protect\usepackage{#2}'\MessageBreak%
+      to the preamble of your document!%
+    }{}%
   }{%
-    Put the line\MessageBreak%
-    `\protect\usepackage{#1}'\MessageBreak%
-    to the preamble of your document!%
+    \PackageError{animate}{%
+      Package `#2' has not been loaded yet.\MessageBreak%
+      Put the line\MessageBreak%
+      `\protect\usepackage[#1]{#2}'\MessageBreak%
+      to the preamble of your document!%
+    }{}%
   }%
 }
 
@@ -129,7 +165,6 @@
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
 
-
 %add AcroForm and OCProperties entries to Catalog
 \ifpdf
   \newcount\@anim@@fields
@@ -142,9 +177,7 @@
   \pdfobj reserveobjnum
   \@anim@@posterocgs=\pdflastobj
   \pdfcatalog{
-    /AcroForm <<
-      /Fields \the\@anim@@fields\space 0 R
-    >>
+    /AcroForm <</Fields \the\@anim@@fields\space 0 R>>
     /OCProperties <<
       /OCGs \the\@anim@@ocgs\space 0 R
       /D <<
@@ -167,27 +200,50 @@
     }%
   }%
 \else
-  % counts inserted interactive fields (widget annots)
+  %counts inserted widget annots
   \newcount\@anim@fieldnum\@anim@fieldnum=0
-  \special{ps:
-    % array which takes refs to all widget annotations
-    mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
-    % array which takes all ocgs (one per animation frame)
-    mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
-    % array which takes ocgs shown by default (the poster frames)
-    mark /_objdef {@anim@posterocgs} /type/array /OBJ pdfmark
-    mark {Catalog} <<
-      /AcroForm <<
-        /Fields {@anim@fields}
-      >>
+  \if@anim@@dvipdfmx
+    %array which takes refs to all widget annotations
+    \special{pdf:obj @anim@fields [ ]}
+    %array which takes all ocgs (one per animation frame)
+    \special{pdf:obj @anim@ocgs [ ]}
+    %array which takes ocgs shown by default (the poster frames)
+    \special{pdf:obj @anim@posterocgs [ ]}
+    \special{pdf:put @catalog <<
+      /AcroForm <</Fields @anim@fields>>
       /OCProperties <<
-        /OCGs {@anim@ocgs}
-        /D <<
-          /BaseState/OFF /ON {@anim@posterocgs}
-        >>
+        /OCGs @anim@ocgs
+        /D <</BaseState/OFF /ON @anim@posterocgs>>
       >>
-    >> /PUT pdfmark
-  }
+    >>}
+    \def\@anim@fields{}
+    \def\@anim@ocgs{}
+    \def\@anim@posterocgs{}
+    \AtEndDocument{%
+      \ifx\@anim@fields\@empty\else
+        \special{pdf:put @anim@fields \@anim@fields}%
+      \fi
+      \ifx\@anim@ocgs\@empty\else
+        \special{pdf:put @anim@ocgs \@anim@ocgs}%
+      \fi
+      \ifx\@anim@posterocgs\@empty\else
+        \special{pdf:put @anim@posterocgs \@anim@posterocgs}%
+      \fi
+    }%
+  \else
+    \special{ps:
+      mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
+      mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
+      mark /_objdef {@anim@posterocgs} /type/array /OBJ pdfmark
+      mark {Catalog} <<
+        /AcroForm <</Fields {@anim@fields}>>
+        /OCProperties <<
+          /OCGs {@anim@ocgs}
+          /D <</BaseState/OFF /ON {@anim@posterocgs}>>
+        >>
+      >> /PUT pdfmark
+    }
+  \fi
 \fi
 
 \newbox\@anim@box %stores animation frames
@@ -256,25 +312,45 @@
     }%
   }
 }{
-  \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
-    %#4: not used
-    \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
-      \@anim@filebox{#3}{}% store file in a box                       animation
-      \@anim@getsize{\@anim@box}%
-      \ifnum#2=0
-        \@anim@scale%
-      \fi%
-      \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-      \@anim@makefileknown{#3}{#1}{\@anim@lastxform}% keep form xobject ref
-    }{%file already used in the current animation, re-use existing form xobject
-      \ifnum#2=0
-        \@anim@filebox{#3}{}% for size determination of first frame
+  \if@anim@@dvipdfmx
+    \def\@anim@ximage#1#2#3#4{% #4: not used
+      \ifthenelse{\equal{\@anim@fileknown{#3}{1}}{!}}{% new file to be embedded
+        \@anim@filebox{#3}{}%
         \@anim@getsize{\@anim@box}%
-        \@anim@scale%
-      \fi%
-      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
-    }%
-  }
+        \ifnum#2=0
+          \@anim@scale%
+        \fi%
+        \@anim@xinline{#1}{#2}{\@anim@box}{!}%
+        \@anim@makefileknown{#3}{1}{\@anim@lastxform}%
+      }{%
+        \ifnum#2=0
+          \@anim@filebox{#3}{}%
+          \@anim@getsize{\@anim@box}%
+          \@anim@scale%
+        \fi%
+        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{1}}%
+      }%
+    }
+  \else
+    \def\@anim@ximage#1#2#3#4{% #4: not used
+      \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
+        \@anim@filebox{#3}{}%
+        \@anim@getsize{\@anim@box}%
+        \ifnum#2=0
+          \@anim@scale%
+        \fi%
+        \@anim@xinline{#1}{#2}{\@anim@box}{!}%
+        \@anim@makefileknown{#3}{#1}{\@anim@lastxform}%
+      }{%file already used in the current animation, re-use existing xobject
+        \ifnum#2=0
+          \@anim@filebox{#3}{}%
+          \@anim@getsize{\@anim@box}%
+          \@anim@scale%
+        \fi%
+        \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#1}}%
+      }%
+    }
+  \fi
 }
 
 %creates Form XObject from box contents
@@ -301,91 +377,110 @@
     \fi%
   }
 \else
-  \def\@anim@xinline#1#2#3#4{%
-    \ifthenelse{\equal{#4}{!}}{%
-      \begingroup%
-        \setlength{\unitlength}{1pt}%
-        \begin{picture}(0,0)%
-        %mark BBox of the graphics
-        \put(0,-\@anim@framedepth){%
-          \special{ps:
-            currentpoint /frame@lly exch def /frame@llx exch def
-          }%
-        }%
-        \put(\@anim@framewidth,\@anim@frameheight){%
-          \special{ps:
-            currentpoint /frame@ury exch def /frame@urx exch def
-          }%
-        }%
-        %define some length values in current PS coordinate units
-        \put(0,0){%
-          \special{ps:
-            currentpoint /origin@y exch def /origin@x exch def
-          }%
-        }%
-        \put(72.27,72.27){%
-          \special{ps:
-            currentpoint origin@y exch sub /one@inch@y exch def
-            origin@x sub /one@inch@x exch def
-          }%
-        }%
-        \put(0,\strip@pt\paperheight){%
-          \special{ps:
-            currentpoint origin@y exch sub /paper@height exch def pop
-          }%
-        }%
-        \end{picture}%
-      \endgroup%
-      \special{ps:
-        gsave
-        %translate graphics to lower left page corner
-        frame@llx neg frame@lly neg translate
-        one@inch@x neg one@inch@y neg translate
-        0 paper@height translate
-        %distill graphics into XObject
-        mark
-          /_objdef {@anim@frm@#1@#2}
-          /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /BP pdfmark
-        {%
-          isls{%landscape mode (powerdot, geometry /w landscape option)
-            /frame@dxdy {%
-              frame@urx frame@llx sub abs
-              frame@ury frame@lly sub abs div%
-            } bind def
-            /frame@dydx {1 frame@dxdy div} bind def
-            /frame@cx {frame@urx frame@llx add 2 div} bind def
-            /frame@cy {frame@ury frame@lly add 2 div} bind def
-            % graphics needs to be rescaled for some reason ...
-            [frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
-              1 frame@dydx sub frame@cy mul] concat
-            %... rotated by 270 degrees ...
-            [0 -1 1 0 frame@cx frame@cy sub frame@cx frame@cy add] concat
-            %... and flipped around vertical axis
-            [-1 0 0 1 frame@llx frame@urx add 0] concat%
-          }{% flip around horizontal axis in portrait mode
-            [1 0 0 -1 0 frame@lly frame@ury add] concat%
-          }ifelse
-        }?pdfmark
+  \if@anim@@dvipdfmx
+    \def\@anim@xinline#1#2#3#4{%
+      \ifthenelse{\equal{#4}{!}}{%
+        %put graphics into XObject
+        \special{pdf:bxobj @anim@frm@#1@#2 width \@anim@framewidth pt
+          height \@anim@frameheight pt depth \@anim@framedepth pt}%
+        \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
+        \special{pdf:exobj}%
+        \xdef\@anim@lastxform{@anim@frm@#1@#2}%
+        \@anim@newkey{img@#2}{\@anim@lastxform}%
+      }{%
+        \@anim@newkey{img@#2}{#4}%
       }%
-      \begin{picture}(0,0)%
-        \put(0,0){\box#3}%
-      \end{picture}%
-      \special{ps:
-        mark /EP pdfmark
-        grestore
+      \if@anim@timeline\else%
+        \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+        \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
+        \@anim@makeframe{#1}{#2}%
+      \fi%
+    }
+  \else
+    \def\@anim@xinline#1#2#3#4{%
+      \ifthenelse{\equal{#4}{!}}{%
+        \begingroup%
+          \setlength{\unitlength}{1pt}%
+          \begin{picture}(0,0)%
+          %mark BBox of the graphics
+          \put(0,-\@anim@framedepth){%
+            \special{ps:
+              currentpoint /frame@lly exch def /frame@llx exch def
+            }%
+          }%
+          \put(\@anim@framewidth,\@anim@frameheight){%
+            \special{ps:
+              currentpoint /frame@ury exch def /frame@urx exch def
+            }%
+          }%
+          %define some length values in current PS coordinate units
+          \put(0,0){%
+            \special{ps:
+              currentpoint /origin@y exch def /origin@x exch def
+            }%
+          }%
+          \put(72.27,72.27){%
+            \special{ps:
+              currentpoint origin@y exch sub /one@inch@y exch def
+              origin@x sub /one@inch@x exch def
+            }%
+          }%
+          \put(0,\strip@pt\paperheight){%
+            \special{ps:
+              currentpoint origin@y exch sub /paper@height exch def pop
+            }%
+          }%
+          \end{picture}%
+        \endgroup%
+        \special{ps:
+          gsave
+          %translate graphics to lower left page corner
+          frame@llx neg frame@lly neg translate
+          one@inch@x neg one@inch@y neg translate
+          0 paper@height translate
+          %distill graphics into XObject
+          mark
+            /_objdef {@anim@frm@#1@#2}
+            /BBox [frame@llx frame@lly frame@urx frame@ury]
+          /BP pdfmark
+          {%
+            isls{%landscape mode (powerdot, geometry /w landscape option)
+              /frame@dxdy {%
+                frame@urx frame@llx sub abs
+                frame@ury frame@lly sub abs div%
+              } bind def
+              /frame@dydx {1 frame@dxdy div} bind def
+              /frame@cx {frame@urx frame@llx add 2 div} bind def
+              /frame@cy {frame@ury frame@lly add 2 div} bind def
+              % graphics needs to be rescaled for some reason ...
+              [frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
+                1 frame@dydx sub frame@cy mul] concat
+              %... rotated by 270 degrees ...
+              [0 -1 1 0 frame@cx frame@cy sub frame@cx frame@cy add] concat
+              %... and flipped around vertical axis
+              [-1 0 0 1 frame@llx frame@urx add 0] concat%
+            }{% flip around horizontal axis in portrait mode
+              [1 0 0 -1 0 frame@lly frame@ury add] concat%
+            }ifelse
+          }?pdfmark
+        }%
+        \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
+        \special{ps:
+          mark /EP pdfmark
+          grestore
+        }%
+        \xdef\@anim@lastxform{@anim@frm@#1@#2}%
+        \@anim@newkey{img@#2}{{@anim@frm@#1@#2}}%
+      }{%
+        \@anim@newkey{img@#2}{{#4}}%
       }%
-      \xdef\@anim@lastxform{@anim@frm@#1@#2}%
-      \@anim@newkey{img@#2}{{@anim@frm@#1@#2}}%
-    }{%
-      \@anim@newkey{img@#2}{{#4}}%
-    }%
-    \if@anim@timeline\else%
-      \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
-      \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
-      \@anim@makeframe{#1}{#2}%
-    \fi%
-  }
+      \if@anim@timeline\else%
+        \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+        \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
+        \@anim@makeframe{#1}{#2}%
+      \fi%
+    }
+  \fi
 \fi
 
 \def\@anim@posterlast{last}% helper macros
@@ -412,25 +507,40 @@
     \fi%
   }
 \else
-  \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
-    \special{ps:
-      mark /_objdef {@anim@ocg@#1@#2} /type/dict /OBJ pdfmark %new ocg
-      mark {@anim@ocg@#1@#2} <<
-        /Type/OCG /Name (#1.#2)
-      >> /PUT pdfmark
-      mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
-    }%
-    \ifx\@anim@poster\@anim@posternone\else%
-      \ifnum#2=0
-        \ifx\@anim@poster\@anim@posterfirst%
+  \if@anim@@dvipdfmx
+    \def\@anim@newocg#1#2{%
+      \special{pdf:obj @anim@ocg@#1@#2 <</Type/OCG /Name (#1.#2)>>}%
+      \xdef\@anim@ocgs{\@anim@ocgs\space @anim@ocg@#1@#2}%
+      \ifx\@anim@poster\@anim@posternone\else%
+        \ifnum#2=0
+          \ifx\@anim@poster\@anim@posterfirst%
+            \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+          \fi%
+        \fi%
+        \ifx\@anim@poster\@anim@posterlast%
+          \xdef\@anim@posterocg{\@anim@curocg}%
+        \fi%
+      \fi%
+    }
+  \else
+    \def\@anim@newocg#1#2{%
+      \special{ps:
+        mark /_objdef {@anim@ocg@#1@#2} /type/dict /OBJ pdfmark
+        mark {@anim@ocg@#1@#2} <</Type/OCG /Name (#1.#2)>> /PUT pdfmark
+        mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
+      }%
+      \ifx\@anim@poster\@anim@posternone\else%
+        \ifnum#2=0
+          \ifx\@anim@poster\@anim@posterfirst%
+            \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+          \fi%
+        \fi%
+        \ifx\@anim@poster\@anim@posterlast%
           \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
         \fi%
       \fi%
-      \ifx\@anim@poster\@anim@posterlast%
-        \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
-      \fi%
-    \fi%
-  }
+    }
+  \fi
 \fi
 
 %non-interactive Widget annotation, representing one frame of the animation
@@ -484,69 +594,118 @@
     \xdef\@anim@fields{\@anim@fields\space\the\pdflastannot\space 0 R}%
   }
 \else
-  \def\@anim@makeframe#1#2{%
-    %container XObject
-    \special{ps:
-      mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
-      mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
-        pdfmark
-      mark {@anim@anmfrm@#1@#2} <<
-        /Type/XObject/Subtype/Form/FormType 1
-        /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
-      >> /PUT pdfmark
-    }%
-    \if@anim@useocg%
-      \@anim@newocg{#1}{#2}%
-      \def\@anim@annotflag{/F 4}%, print, visibility set by OCG
-    \else%
-      \def\@anim@annotflag{/F 2}%
-      \ifx\@anim@poster\@anim@posternone\else%
-        \ifnum#2=0
-          \ifx\@anim@poster\@anim@posterfirst%
-            \def\@anim@annotflag{/F 4}% visible, print
+  \if@anim@@dvipdfmx
+    \def\@anim@makeframe#1#2{%
+      \setlength{\unitlength}{1pt}%
+      %container XObject
+      \global\setbox\@anim@box=\hbox{%
+        \special{pdf:content \@anim@getkeyval{frmcontent@#2}}%
+      }%
+      \special{pdf:bxobj @anim@anmfrm@#1@#2 width \@anim@framewidth pt
+        height \@anim@frameheight pt depth \@anim@framedepth pt}%
+      \begin{picture}(0,0)\put(0,0){\box\@anim@box}\end{picture}%
+      \special{pdf:put @resources <<
+        /XObject <<\@anim@getkeyval{frmxobject@#2}>>%
+      >>}%
+      \special{pdf:exobj}%
+      \if@anim@useocg%
+        \@anim@newocg{#1}{#2}%
+        \def\@anim@annotflag{/F 4}%
+      \else%
+        \def\@anim@annotflag{/F 2}%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \ifnum#2=0
+            \ifx\@anim@poster\@anim@posterfirst%
+              \def\@anim@annotflag{/F 4}%
+            \fi%
+          \fi%
+          \ifx\@anim@poster\@anim@posterlast%
+            \@anim@keytoaux{a#1.poster}{#2}%
+            \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
+              \def\@anim@annotflag{/F 4}%
+            }{}%
           \fi%
         \fi%
-        \ifx\@anim@poster\@anim@posterlast%
-          \@anim@keytoaux{a#1.poster}{#2}%
-          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
-            \def\@anim@annotflag{/F 4}% visible, print
-          }{}%
+      \fi%
+      %frame widget
+      \special{pdf:annot @annot@\the\@anim@fieldnum\space
+        width \@anim@animwidth pt height \@anim@animheight pt
+        depth \@anim@animdepth pt <<%
+          /Subtype/Widget%
+          \@anim@annotflag
+          \if@anim@useocg/OC @anim@ocg@#1@#2\fi%
+          /FT/Btn/Ff 65537%
+          /BS <</W 0>>%
+          /AP <</N @anim@anmfrm@#1@#2>>%
+          /T (#1.#2)%
+        >>%
+      }%
+      \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+      \global\advance\@anim@fieldnum by \@ne%
+    }
+  \else
+    \def\@anim@makeframe#1#2{%
+      %container XObject
+      \special{ps:
+        mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
+        mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
+          pdfmark
+        mark {@anim@anmfrm@#1@#2} <<
+          /Type/XObject/Subtype/Form/FormType 1
+          /BBox [frame@llx frame@lly frame@urx frame@ury]
+          /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
+        >> /PUT pdfmark
+      }%
+      \if@anim@useocg%
+        \@anim@newocg{#1}{#2}%
+        \def\@anim@annotflag{/F 4}%
+      \else%
+        \def\@anim@annotflag{/F 2}%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \ifnum#2=0
+            \ifx\@anim@poster\@anim@posterfirst%
+              \def\@anim@annotflag{/F 4}%
+            \fi%
+          \fi%
+          \ifx\@anim@poster\@anim@posterlast%
+            \@anim@keytoaux{a#1.poster}{#2}%
+            \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
+              \def\@anim@annotflag{/F 4}%
+            }{}%
+          \fi%
         \fi%
       \fi%
-    \fi%
-    %frame widget
-    \setlength{\unitlength}{1pt}%
-    \begin{picture}(0,0)% mark annotation rectangle
-      \put(0,-\@anim@animdepth){%
-      \special{ps:
-        currentpoint /wid@lly exch def /wid@llx exch def
+      %frame widget
+      \setlength{\unitlength}{1pt}%
+      \begin{picture}(0,0)% mark annotation rectangle
+        \put(0,-\@anim@animdepth){%
+        \special{ps:
+          currentpoint /wid@lly exch def /wid@llx exch def
+        }%
       }%
-    }%
-    \put(\@anim@animwidth,\@anim@animheight){%
-      \special{ps:
-        currentpoint /wid@ury exch def /wid@urx exch def
+      \put(\@anim@animwidth,\@anim@animheight){%
+        \special{ps:
+          currentpoint /wid@ury exch def /wid@urx exch def
+        }%
       }%
-    }%
-    \end{picture}%
-    \special{ps:
-      mark
-        /_objdef {annot@\the\@anim@fieldnum}%
-        /Rect [wid@llx wid@lly wid@urx wid@ury]%
-        /Subtype/Widget%
-        \@anim@annotflag
-        \if@anim@useocg%
-          /OC {@anim@ocg@#1@#2}
-        \fi%
-        /FT/Btn/Ff 65537
-        /BS <</W 0>>%
-        /AP <</N {@anim@anmfrm@#1@#2}>>%
-        /T (#1.#2)%
-      /ANN pdfmark
-      mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
-    }%
-    \global\advance\@anim@fieldnum by \@ne%
-  }
+      \end{picture}%
+      \special{ps:
+        mark
+          /_objdef {annot@\the\@anim@fieldnum}%
+          /Rect [wid@llx wid@lly wid@urx wid@ury]%
+          /Subtype/Widget%
+          \@anim@annotflag
+          \if@anim@useocg/OC {@anim@ocg@#1@#2}\fi%
+          /FT/Btn/Ff 65537
+          /BS <</W 0>>%
+          /AP <</N {@anim@anmfrm@#1@#2}>>%
+          /T (#1.#2)%
+        /ANN pdfmark
+        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+      }%
+      \global\advance\@anim@fieldnum by \@ne%
+    }
+  \fi
 \fi
 
 %create container XObjects for play & pause button faces
@@ -577,220 +736,63 @@
     \@anim@newkey{btn#1.PlayPause#2}{\the\pdflastobj\space 0 R}%
   }
 \else
-  \def\@anim@makeppcontainer#1#2#3{%
-    \special{ps:
-      %OCGs
-      mark /_objdef {#1.Play#2} /type/dict /OBJ pdfmark
-      mark {#1.Play#2} <<
-        /Type/OCG /Name (#1.Play#2)
-      >> /PUT pdfmark
-      mark /_objdef {#1.Pause#2} /type/dict /OBJ pdfmark
-      mark {#1.Pause#2} <<
-        /Type/OCG /Name (#1.Pause#2)
-      >> /PUT pdfmark
-      %append to ocg array
-      mark {@anim@ocgs} {#1.Play#2} /APPEND pdfmark
-      mark {@anim@ocgs} {#1.Pause#2} /APPEND pdfmark
-      %append play button ocg to posterocg array
-      mark {@anim@posterocgs} {#1.Play#2} /APPEND pdfmark
-      %new container XObject
-      mark  /_objdef {btn#1.PlayPause#2} /type/stream /OBJ pdfmark
-      mark {btn#1.PlayPause#2} (%
-        /OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC%
-      ) /PUT pdfmark
-      mark {btn#1.PlayPause#2} <<
-        /Type/XObject/Subtype/Form/FormType 1
-        /BBox [0 0 15 15]
-        /Resources <<%
-          /Properties <</oc0 {#1.Play#2} /oc1 {#1.Pause#2}>>%
-          /XObject <<%
-            /im0 {btnPlay#2:#3}
-            /im1 {btnPause#2:#3}%
+  \if@anim@@dvipdfmx
+    \def\@anim@makeppcontainer#1#2#3{%
+      \special{pdf:obj @#1.Play#2 <</Type/OCG /Name (#1.Play#2)>>}%
+      \special{pdf:obj @#1.Pause#2 << /Type/OCG /Name (#1.Pause#2)>>}%
+      \xdef\@anim@ocgs{\@anim@ocgs\space @#1.Play#2 @#1.Pause#2}%
+      \xdef\@anim@posterocgs{\@anim@posterocgs\space @#1.Play#2}%
+      \special{pdf:stream @btn#1.PlayPause#2\space
+        (/OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC) <<%
+          /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
+          /Resources <<%
+            /Properties <</oc0 @#1.Play#2 /oc1 @#1.Pause#2>>%
+            /XObject <<%
+              /im0 @btnPlay#2:#3
+              /im1 @btnPause#2:#3%
+            >>%
           >>%
         >>%
-      >> /PUT pdfmark
-    }%
-  }
+      }%
+      \@anim@newkey{btn#1.PlayPause#2}{@btn#1.PlayPause#2}%
+    }
+  \else
+    \def\@anim@makeppcontainer#1#2#3{%
+      \special{ps:
+        %OCGs
+        mark /_objdef {#1.Play#2} /type/dict /OBJ pdfmark
+        mark {#1.Play#2} <<
+          /Type/OCG /Name (#1.Play#2)
+        >> /PUT pdfmark
+        mark /_objdef {#1.Pause#2} /type/dict /OBJ pdfmark
+        mark {#1.Pause#2} <<
+          /Type/OCG /Name (#1.Pause#2)
+        >> /PUT pdfmark
+        mark {@anim@ocgs} {#1.Play#2} /APPEND pdfmark
+        mark {@anim@ocgs} {#1.Pause#2} /APPEND pdfmark
+        mark {@anim@posterocgs} {#1.Play#2} /APPEND pdfmark
+        mark  /_objdef {btn#1.PlayPause#2} /type/stream /OBJ pdfmark
+        mark {btn#1.PlayPause#2} (%
+          /OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC%
+        ) /PUT pdfmark
+        mark {btn#1.PlayPause#2} <<
+          /Type/XObject/Subtype/Form/FormType 1
+          /BBox [0 0 15 15]
+          /Resources <<%
+            /Properties <</oc0 {#1.Play#2} /oc1 {#1.Pause#2}>>%
+            /XObject <<%
+              /im0 {btnPlay#2:#3}
+              /im1 {btnPause#2:#3}%
+            >>%
+          >>%
+        >> /PUT pdfmark
+      }%
+    }
+  \fi
 \fi
 
 %create XObjects of all button faces
-\ifpdf
-  %stroking commands
-  \def\@anim@btnend{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    45 40 m
-    95 75 l
-    45 110 l
-    S
-    0 j
-    105 44 m
-    105 106 l
-    S
-  }
-  \def\@anim@btnstep{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    50 40 m
-    100 75 l
-    50 110 l
-    S
-  }
-  \def\@anim@btnplay{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    50 40 m
-    50 110 l
-    100 75 l
-    h
-    S
-  }
-  \def\@anim@btnpause{%
-    \@anim@bg\space
-    2.5 w
-    1 j
-    \@anim@fg\space
-    0 10 m
-    140 10 l
-    140 140 l
-    0 140 l
-    S
-    20 w
-    22 40 m
-    22 110 l
-    S
-  }
-  \def\@anim@btnminus{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    0 J
-    40 75 m
-    110 75 l
-    S
-  }
-  \def\@anim@btnplus{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    0 J
-    40 75 m
-    110 75 l
-    75 40 m
-    75 110 l
-    S
-  }
-  \def\@anim@btnreset{%
-    \@anim@bg\space
-    2.5 w
-    1 J
-    1 j
-    \@anim@fg\space
-    10 10 130 130 re
-    S
-    10 w
-    75 40 m
-    75 110 l
-    S
-    \@anim@@@fg\space
-    35 50 m
-    70 75 l
-    35 100 l
-    f
-    115 50 m
-    80 75 l
-    115 100 l
-    f
-    2 J
-    0 j
-    30 75 m
-    35 75 l
-    120 75 m
-    115 75 l
-    S
-  }
-  \def\@anim@makebuttons#1{%
-    \@anim@xbutton{EndLeft}{%
-      q -0.1 0 0 0.1 15 0 cm
-      \@anim@btnend\space Q%
-    }{#1}%
-    \@anim@xbutton{EndRight}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnend\space Q%
-    }{#1}%
-    \@anim@xbutton{Minus}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnminus\space Q%
-    }{#1}%
-    \@anim@xbutton{PauseLeft}{%
-      q -0.1 0 0 0.1 15 0 cm
-      \@anim@btnpause\space Q%
-    }{#1}%
-    \@anim@xbutton{PauseRight}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnpause\space Q%
-    }{#1}%
-    \@anim@xbutton{PlayLeft}{%
-      q -0.1 0 0 0.1 15 0 cm
-      \@anim@btnplay\space Q%
-    }{#1}%
-    \@anim@xbutton{PlayRight}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnplay\space Q%
-    }{#1}%
-    \@anim@xbutton{Plus}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnplus\space Q%
-    }{#1}%
-    \@anim@xbutton{Reset}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnreset\space Q%
-    }{#1}%
-    \@anim@xbutton{StepLeft}{%
-      q -0.1 0 0 0.1 15 0 cm
-      \@anim@btnstep\space Q%
-    }{#1}%
-    \@anim@xbutton{StepRight}{%
-      q 0.1 0 0 0.1 0 0 cm
-      \@anim@btnstep\space Q%
-    }{#1}%
-  }
-  %XObject creation
-  \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
-    \immediate\pdfobj stream attr{%
-      /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
-    }{#2}%
-    \@anim@newkey{btn#1:#3}{\the\pdflastobj\space 0 R}%
-  }
-\else
+\if@anim@@dvips
   \def\@anim@btnend{%
     \@anim@bg\space
     \@anim@fg\space
@@ -996,6 +998,190 @@
       grestore
     }%
   }
+\else
+  %stroking commands
+  \def\@anim@btnend{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    45 40 m
+    95 75 l
+    45 110 l
+    S
+    0 j
+    105 44 m
+    105 106 l
+    S
+  }
+  \def\@anim@btnstep{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    50 40 m
+    100 75 l
+    50 110 l
+    S
+  }
+  \def\@anim@btnplay{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    50 40 m
+    50 110 l
+    100 75 l
+    h
+    S
+  }
+  \def\@anim@btnpause{%
+    \@anim@bg\space
+    2.5 w
+    1 j
+    \@anim@fg\space
+    0 10 m
+    140 10 l
+    140 140 l
+    0 140 l
+    S
+    20 w
+    22 40 m
+    22 110 l
+    S
+  }
+  \def\@anim@btnminus{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    0 J
+    40 75 m
+    110 75 l
+    S
+  }
+  \def\@anim@btnplus{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    0 J
+    40 75 m
+    110 75 l
+    75 40 m
+    75 110 l
+    S
+  }
+  \def\@anim@btnreset{%
+    \@anim@bg\space
+    2.5 w
+    1 J
+    1 j
+    \@anim@fg\space
+    10 10 130 130 re
+    S
+    10 w
+    75 40 m
+    75 110 l
+    S
+    \@anim@@@fg\space
+    35 50 m
+    70 75 l
+    35 100 l
+    f
+    115 50 m
+    80 75 l
+    115 100 l
+    f
+    2 J
+    0 j
+    30 75 m
+    35 75 l
+    120 75 m
+    115 75 l
+    S
+  }
+  \def\@anim@makebuttons#1{%
+    \@anim@xbutton{EndLeft}{%
+      q -0.1 0 0 0.1 15 0 cm
+      \@anim@btnend\space Q%
+    }{#1}%
+    \@anim@xbutton{EndRight}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnend\space Q%
+    }{#1}%
+    \@anim@xbutton{Minus}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnminus\space Q%
+    }{#1}%
+    \@anim@xbutton{PauseLeft}{%
+      q -0.1 0 0 0.1 15 0 cm
+      \@anim@btnpause\space Q%
+    }{#1}%
+    \@anim@xbutton{PauseRight}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnpause\space Q%
+    }{#1}%
+    \@anim@xbutton{PlayLeft}{%
+      q -0.1 0 0 0.1 15 0 cm
+      \@anim@btnplay\space Q%
+    }{#1}%
+    \@anim@xbutton{PlayRight}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnplay\space Q%
+    }{#1}%
+    \@anim@xbutton{Plus}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnplus\space Q%
+    }{#1}%
+    \@anim@xbutton{Reset}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnreset\space Q%
+    }{#1}%
+    \@anim@xbutton{StepLeft}{%
+      q -0.1 0 0 0.1 15 0 cm
+      \@anim@btnstep\space Q%
+    }{#1}%
+    \@anim@xbutton{StepRight}{%
+      q 0.1 0 0 0.1 0 0 cm
+      \@anim@btnstep\space Q%
+    }{#1}%
+  }
+  %XObject creation
+  \ifpdf
+    \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
+      \immediate\pdfobj stream attr{%
+        /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
+      }{#2}%
+      \@anim@newkey{btn#1:#3}{\the\pdflastobj\space 0 R}%
+    }
+  \else% dvipdfmx
+    \def\@anim@xbutton#1#2#3{%
+      \special{pdf:stream @btn#1:#3\space (#2) <<%
+        /Type/XObject/Subtype/Form/BBox [0 0 15 15] >>%
+      }%
+    }
+  \fi
 \fi
 
 %determines file type of the sequence
@@ -1039,23 +1225,111 @@
     }}}}}}}}}}%
   }%
 \else
-  \def\@anim@getext#1{%
-    \gdef\@anim@ext{.eps}% we start with `eps'
-    \IfFileExists{#1\@anim@ext}{}{%
-    \gdef\@anim@ext{.mps}%
-    \IfFileExists{#1\@anim@ext}{}{%
-    \gdef\@anim@ext{.ps}%
-    \IfFileExists{#1\@anim@ext}{}{%
-      \PackageError{animate}{%
-        Neither of the files\MessageBreak%
-        `#1.eps',\MessageBreak%
-        `#1.mps' or\MessageBreak%
-        `#1.ps'\MessageBreak%
-        could be found.\MessageBreak%
-        Wrong file type? Mis-spelled file name?%
-      }{}%
-    }}}%
-  }%
+  \ifcsname XeTeXrevision\endcsname
+    \def\@anim@getext#1{%
+      \gdef\@anim@ext{.pdf}% we start with `pdf'
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.mps}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.eps}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.ps}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.png}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.jpg}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.jpeg}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.tif}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.tga}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.sgi}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.psd}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.pict}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.mac}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.gif}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.bmp}%
+      \IfFileExists{#1\@anim@ext}{}{%
+        \PackageError{animate}{%
+          Neither of the files\MessageBreak%
+          `#1.pdf',\MessageBreak%
+          `#1.mps',\MessageBreak%
+          `#1.eps',\MessageBreak%
+          `#1.ps',\MessageBreak%
+          `#1.png',\MessageBreak%
+          `#1.jpg',\MessageBreak%
+          `#1.jpeg',\MessageBreak%
+          `#1.tif',\MessageBreak%
+          `#1.tga',\MessageBreak%
+          `#1.sgi',\MessageBreak%
+          `#1.psd',\MessageBreak%
+          `#1.pict',\MessageBreak%
+          `#1.mac',\MessageBreak%
+          `#1.gif' or\MessageBreak%
+          `#1.bmp'\MessageBreak%
+          could be found.\MessageBreak%
+          Wrong file type? Mis-spelled file name?%
+        }{}%
+      }}}}}}}}}}}}}}}%
+    }%
+  \else
+    \if@anim@@dvipdfmx
+      \def\@anim@getext#1{%
+        \gdef\@anim@ext{.pdf}% we start with `pdf'
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.mps}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.eps}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.ps}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.png}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.jpg}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.jpeg}%
+        \IfFileExists{#1\@anim@ext}{}{%
+          \PackageError{animate}{%
+            Neither of the files\MessageBreak%
+            `#1.pdf',\MessageBreak%
+            `#1.mps',\MessageBreak%
+            `#1.eps',\MessageBreak%
+            `#1.ps',\MessageBreak%
+            `#1.png',\MessageBreak%
+            `#1.jpg' or\MessageBreak%
+            `#1.jpeg'\MessageBreak%
+            could be found.\MessageBreak%
+            Wrong file type? Mis-spelled file name?%
+          }{}%
+        }}}}}}}%
+      }%
+    \else
+      \def\@anim@getext#1{%
+        \gdef\@anim@ext{.eps}% we start with `eps'
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.mps}%
+        \IfFileExists{#1\@anim@ext}{}{%
+        \gdef\@anim@ext{.ps}%
+        \IfFileExists{#1\@anim@ext}{}{%
+          \PackageError{animate}{%
+            Neither of the files\MessageBreak%
+            `#1.eps',\MessageBreak%
+            `#1.mps' or\MessageBreak%
+            `#1.ps'\MessageBreak%
+            could be found.\MessageBreak%
+            Wrong file type? Mis-spelled file name?%
+          }{}%
+        }}}%
+      }%
+    \fi
+  \fi
 \fi
 
 %counts embedded animations
@@ -1176,7 +1450,7 @@
     \fi%
   }%
 \else
-  \def\@anim@checkmultipage#1{}% no-op in dvi mode
+  \def\@anim@checkmultipage#1{}% no-op in dvips & dvipdfmx mode
 \fi
 
 %user command for embedding animation sequence
@@ -1189,7 +1463,21 @@
   \leavevmode%
   \begingroup%
   \ifpdf\else%
-    \ifx\includegraphics\@undefined\@anim@missing{graphics}\fi%
+    \ifcsname includegraphics\endcsname%
+      \ifcsname XeTeXrevision\endcsname%
+        \DeclareGraphicsRule{.mps}{eps}{*}{}%
+      \fi%
+    \else%
+      \ifcsname XeTeXrevision\endcsname%
+        \@anim@missing[xetex]{graphics}%
+      \else%
+        \if@anim@@dvipdfmx%
+          \@anim@missing[dvipdfm]{graphics}%
+        \else%
+          \@anim@missing{graphics}%
+        \fi%
+      \fi%
+    \fi%
   \fi%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
@@ -1451,54 +1739,88 @@
     }%
   }%
 \else
-  \def\@anim@animwidget#1{%
-    \setlength{\unitlength}{1pt}%
-    %mark annotation rectangle
-    \begin{picture}(0,0)%
-      \put(0,-\@anim@animdepth){%
-      \special{ps:
-        currentpoint /wid@lly exch def /wid@llx exch def
-      }%
-    }%
-    \put(\@anim@animwidth,\@anim@animheight){%
-      \special{ps:
-        currentpoint /wid@ury exch def /wid@urx exch def
-      }%
-    }%
-    \end{picture}%
-    \@anim@pojscript{#1}%
-    \@anim@otherjscript{#1}%
-    \if@anim@useocg%
-      \ifx\@anim@poster\@anim@posternone\else%
-        \special{ps:
-          mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
-        }%
+  \if@anim@@dvipdfmx
+    \def\@anim@animwidget#1{%
+      \@anim@pojscript{#1}%
+      \@anim@otherjscript{#1}%
+      \if@anim@useocg%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
+        \fi%
       \fi%
-    \fi%
-    \special{ps:
-      mark
-        /_objdef {annot@\the\@anim@fieldnum}%
-        /Rect [wid@llx wid@lly wid@urx wid@ury]%
-        /Subtype/Widget%
-        /FT/Btn/Ff 65536%
-        /BS <</W 0>>%
-        /H/N%
-        /T (anm#1)%
-        /AA <<% bind actions to trigger events
-          /PO <<%
-            /S/JavaScript/JS {a#1@pojscript}%
-          >>%
-          \@anim@otherjscriptkey%
+      \special{pdf:annot @annot@\the\@anim@fieldnum\space
+        width \@anim@animwidth pt height \@anim@animheight pt
+        depth \@anim@animdepth pt <<%
+          /Subtype/Widget%
+          /FT/Btn/Ff 65536%
+          /BS <</W 0>>%
+          /H/N%
+          /T (anm#1)%
+          /AA <<%
+            /PO <<%
+              /S/JavaScript/JS @a#1@pojscript%
+            >>%
+            \@anim@otherjscriptkey%
+          >>
         >>%
-      /ANN pdfmark
-      mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+      }%
+      \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+      \global\advance\@anim@fieldnum by \@ne%
+      \hbox to \@anim@animwidth\p@ {%
+        \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
+        \hss%
+      }%
     }%
-    \global\advance\@anim@fieldnum by \@ne%
-    \hbox to \@anim@animwidth\p@ {%
-      \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
-      \hss%
-    }%
-  }
+  \else
+    \def\@anim@animwidget#1{%
+      \setlength{\unitlength}{1pt}%
+      %mark annotation rectangle
+      \begin{picture}(0,0)%
+        \put(0,-\@anim@animdepth){%
+        \special{ps:
+          currentpoint /wid@lly exch def /wid@llx exch def
+        }%
+      }%
+      \put(\@anim@animwidth,\@anim@animheight){%
+        \special{ps:
+          currentpoint /wid@ury exch def /wid@urx exch def
+        }%
+      }%
+      \end{picture}%
+      \@anim@pojscript{#1}%
+      \@anim@otherjscript{#1}%
+      \if@anim@useocg%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \special{ps:
+            mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
+          }%
+        \fi%
+      \fi%
+      \special{ps:
+        mark
+          /_objdef {annot@\the\@anim@fieldnum}%
+          /Rect [wid@llx wid@lly wid@urx wid@ury]%
+          /Subtype/Widget%
+          /FT/Btn/Ff 65536%
+          /BS <</W 0>>%
+          /H/N%
+          /T (anm#1)%
+          /AA <<%
+            /PO <<%
+              /S/JavaScript/JS {a#1@pojscript}%
+            >>%
+            \@anim@otherjscriptkey%
+          >>%
+        /ANN pdfmark
+        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+      }%
+      \global\advance\@anim@fieldnum by \@ne%
+      \hbox to \@anim@animwidth\p@ {%
+        \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
+        \hss%
+      }%
+    }
+  \fi
 \fi
 
 %creates control button widget
@@ -1527,42 +1849,67 @@
     }%
   }%
 \else
-  \def\@anim@buttonwidget#1#2#3{%
-    \@anim@upjscript{#1}{#2}%
-    \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-    \setlength{\unitlength}{1pt}%
-    \begin{picture}(0,0)%
-      \put(0,0){%
-      \special{ps:
-        currentpoint /wid@lly exch def /wid@llx exch def
-      }%
-    }%
-    \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdima){%
-      \special{ps:
-        currentpoint /wid@ury exch def /wid@urx exch def
-      }%
-    }%
-    \end{picture}%
-    \special{ps:
-      mark
-        /_objdef {annot@\the\@anim@fieldnum}
-        /Rect [wid@llx wid@lly wid@urx wid@ury]
-        /Subtype/Widget
-        /FT/Btn/Ff 65536
-        /BS <</W 0>>
-        /H/I
-        /AP <</N {btn#3}>>%
-        /T (btn@#1@#2)%
-        /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
-      /ANN pdfmark
-      mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
-    }%
-    \global\advance\@anim@fieldnum by \@ne%
-    \hbox to \the\@anim@tmpdima {%
-      \vrule width 0pt height \the\@anim@tmpdima\space depth 0pt%
+  \if@anim@@dvipdfmx
+    \def\@anim@buttonwidget#1#2#3{%
+      \@anim@upjscript{#1}{#2}%
+      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \hbox to \@anim@tmpdima {%
+        \special{pdf:annot @annot@\the\@anim@fieldnum\space
+          width \the\@anim@tmpdima\space height \the\@anim@tmpdima\space
+          depth 0pt <<%
+            /Subtype/Widget%
+            /FT/Btn/Ff 65536%
+            /BS <</W 0>>%
+            /H/I%
+            /AP <</N @btn#3>>%
+            /T (btn@#1@#2)%
+            /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
+          >>%
+        }%
+        \xdef\@anim@fields{\@anim@fields\space @annot@\the\@anim@fieldnum}%
+        \global\advance\@anim@fieldnum by \@ne%
+        \vrule width 0pt height \@anim@tmpdima depth 0pt%
         \hss%
+      }%
     }%
-  }
+  \else
+    \def\@anim@buttonwidget#1#2#3{%
+      \@anim@upjscript{#1}{#2}%
+      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \setlength{\unitlength}{1pt}%
+      \begin{picture}(0,0)%
+        \put(0,0){%
+        \special{ps:
+          currentpoint /wid@lly exch def /wid@llx exch def
+        }%
+      }%
+      \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdima){%
+        \special{ps:
+          currentpoint /wid@ury exch def /wid@urx exch def
+        }%
+      }%
+      \end{picture}%
+      \special{ps:
+        mark
+          /_objdef {annot@\the\@anim@fieldnum}
+          /Rect [wid@llx wid@lly wid@urx wid@ury]
+          /Subtype/Widget
+          /FT/Btn/Ff 65536
+          /BS <</W 0>>
+          /H/I
+          /AP <</N {btn#3}>>%
+          /T (btn@#1@#2)%
+          /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
+        /ANN pdfmark
+        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+      }%
+      \global\advance\@anim@fieldnum by \@ne%
+      \hbox to \the\@anim@tmpdima {%
+        \vrule width 0pt height \the\@anim@tmpdima\space depth 0pt%
+          \hss%
+      }%
+    }
+  \fi
 \fi
 
 \newboolean{@anim@inside} % for checking whether we are inside the
@@ -1887,9 +2234,9 @@
       \PackageWarning{animate}{%
         Transparency \the\@anim@tmpcnt\space has never been used\MessageBreak%
         in the current animation.\MessageBreak%
-        Timeline \@anim@tmlnfile,\MessageBreak\jobname.tex%
+        Timeline ``\@anim@tmlnfile'',\MessageBreak\jobname.tex%
       }%
-      \ifx\@anim@nusewarned\@undefined%
+      \ifcsname @anim@nusewarned\endcsname\else%
         \AtEndDocument{%
           \PackageWarningNoLine{animate}{%
             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
@@ -2025,10 +2372,10 @@
       \PackageWarning{animate}{%
         Transparency #2 multiply included in frame #1.%
         \MessageBreak%
-        Timeline \@anim@tmlnfile\space on input line \the\@anim@lineno,%
+        Timeline ``\@anim@tmlnfile'' on input line \the\@anim@lineno,%
         \MessageBreak\jobname.tex%
       }%
-      \ifx\@anim@multwarned\@undefined%
+      \ifcsname @anim@multwarned\endcsname\else%
         \AtEndDocument{%
           \PackageWarningNoLine{animate}{%
             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
@@ -2100,13 +2447,7 @@
     \@anim@colours#2\@nil%
   }%
 }
-\ifpdf %background frame of buttons
-  \def\@anim@@@bg{%
-    0 j
-    0 0 150 150 re
-    f%
-  }
-\else
+\if@anim@@dvips %background frame of buttons
   \def\@anim@@@bg{%
     0 setlinejoin
     0 0 moveto
@@ -2116,25 +2457,19 @@
     closepath
     fill%
   }
+\else% pdftex and dvipdfmx
+  \def\@anim@@@bg{%
+    0 j
+    0 0 150 150 re
+    f%
+  }
 \fi
 \define@key{anim@user}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!\@nil%
   \xdef\@anim@bgcolour{\@anim@colour}%
-  \ifpdf%
-    \ifnum\@anim@tmpcnt=\@ne
-      \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
-    \else%
-      \ifnum\@anim@tmpcnt=3
-        \xdef\@anim@bg{\@anim@colour\space rg\space\@anim@@@bg}%
-      \else%
-        \ifnum\@anim@tmpcnt=4
-          \xdef\@anim@bg{\@anim@colour\space k\space\@anim@@@bg}%
-        \fi%
-      \fi%
-    \fi%
-  \else%
+  \if@anim@@dvips
     \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
@@ -2146,6 +2481,18 @@
         \fi%
       \fi%
     \fi%
+  \else% pdftex and dvipdfmx
+    \ifnum\@anim@tmpcnt=\@ne
+      \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@bg{\@anim@colour\space k\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
   \fi%
 }
 \define@key{anim@user}{buttonfg}{%stroking colour of buttons
@@ -2153,7 +2500,19 @@
   \gdef\@anim@colour{}%
   \@anim@colours#1:!\@nil%
   \xdef\@anim@fgcolour{\@anim@colour}%
-  \ifpdf%
+  \if@anim@@dvips
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+      \xdef\@anim@fg{\@anim@colour\space setgray}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@fg{\@anim@colour\space setrgbcolor}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@fg{\@anim@colour\space setcmykcolor}%
+        }{}%
+      }%
+    }%
+  \else% pdftex and dvipdfmx
     \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@fg{\@anim@colour\space G}%
       \xdef\@anim@@@fg{\@anim@colour\space g}%
@@ -2165,18 +2524,6 @@
         \ifthenelse{\the\@anim@tmpcnt=4}{%
           \xdef\@anim@fg{\@anim@colour\space K}%
           \xdef\@anim@@@fg{\@anim@colour\space k}%
-        }{}%
-      }%
-    }%
-  \else%
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
-      \xdef\@anim@fg{\@anim@colour\space setgray}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
-        \xdef\@anim@fg{\@anim@colour\space setrgbcolor}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
-          \xdef\@anim@fg{\@anim@colour\space setcmykcolor}%
         }{}%
       }%
     }%
@@ -2295,7 +2642,7 @@
   \gdef\@anim@boxwidth{}%
   \xdef\@anim@bg{\@anim@@bg}%
   \xdef\@anim@fg{\@anim@@fg}%
-  \ifpdf\xdef\@anim@@@fg{\@anim@@@@fg}\fi%
+  \if@anim@@dvips\else\xdef\@anim@@@fg{\@anim@@@@fg}\fi%
   \xdef\@anim@bgcolour{\@anim@@bgcolour}% default button colours
   \xdef\@anim@fgcolour{\@anim@@fgcolour}%
   \xdef\@anim@btnsize{\@anim@@btnsize}%
@@ -2329,6 +2676,27 @@
 }
 
 %package options
+\define@key{anim@pkg}{dvips}[]{%
+  \ifthenelse{\equal{#1}{}}{}{%
+    \PackageError{animate}{%
+      Package option `dvips' does not accept arguments%
+    }{}%
+  }%
+}%
+\define@key{anim@pkg}{dvipdfmx}[]{
+  \ifthenelse{\equal{#1}{}}{}{%
+    \PackageError{animate}{%
+      Package option `dvipdfmx' does not accept arguments%
+    }{}%
+  }%
+}%
+\define@key{anim@pkg}{xetex}[]{
+  \ifthenelse{\equal{#1}{}}{}{%
+    \PackageError{animate}{%
+      Package option `xetex' does not accept arguments%
+    }{}%
+  }%
+}%
 \def\@anim@@bg{}
 \def\@anim@@bgcolour{}
 \define@key{anim@pkg}{buttonbg}{%background colour of buttons
@@ -2336,19 +2704,7 @@
   \gdef\@anim@colour{}%
   \@anim@colours#1:!\@nil%
   \xdef\@anim@@bgcolour{\@anim@colour}%
-  \ifpdf%
-    \ifnum\@anim@tmpcnt=\@ne
-      \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
-    \else%
-      \ifnum\@anim@tmpcnt=3
-        \xdef\@anim@@bg{\@anim@colour\space rg\space\@anim@@@bg}%
-      \else%
-        \ifnum\@anim@tmpcnt=4
-          \xdef\@anim@@bg{\@anim@colour\space k\space\@anim@@@bg}%
-        \fi%
-      \fi%
-    \fi%
-  \else%
+  \if@anim@@dvips
     \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
@@ -2360,16 +2716,44 @@
         \fi%
       \fi%
     \fi%
+  \else% pdftex and dvipdfmx
+    \ifnum\@anim@tmpcnt=\@ne
+      \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@@bg{\@anim@colour\space k\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
   \fi%
 }
-\ifpdf\def\@anim@@fg{0 G}\def\@anim@@@@fg{0 g}\else\def\@anim@@fg{0 setgray}\fi
+\if@anim@@dvips
+  \def\@anim@@fg{0 setgray}%
+\else% pdftex and dvipdfmx
+  \def\@anim@@fg{0 G}\def\@anim@@@@fg{0 g}%
+\fi
 \def\@anim@@fgcolour{}
 \define@key{anim@pkg}{buttonfg}{%stroking colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!\@nil%
   \xdef\@anim@@fgcolour{\@anim@colour}%
-  \ifpdf%
+  \if@anim@@dvips%
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+      \xdef\@anim@@fg{\@anim@colour\space setgray}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@@fg{\@anim@colour\space setrgbcolor}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@@fg{\@anim@colour\space setcmykcolor}%
+        }{}%
+      }%
+    }%
+  \else% pdftex and dvipdfmx
     \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@@fg{\@anim@colour\space G}%
       \xdef\@anim@@@@fg{\@anim@colour\space g}%
@@ -2381,18 +2765,6 @@
         \ifthenelse{\the\@anim@tmpcnt=4}{%
           \xdef\@anim@@fg{\@anim@colour\space K}%
           \xdef\@anim@@@@fg{\@anim@colour\space k}%
-        }{}%
-      }%
-    }%
-  \else%
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
-      \xdef\@anim@@fg{\@anim@colour\space setgray}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
-        \xdef\@anim@@fg{\@anim@colour\space setrgbcolor}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
-          \xdef\@anim@@fg{\@anim@colour\space setcmykcolor}%
         }{}%
       }%
     }%
@@ -2485,12 +2857,18 @@
     \xdef\@anim@pojscriptobj{\the\pdflastobj\space 0 R}%
   }
 \else
-  \def\@anim@pojscript#1{%
-    \special{ps:
-      mark /_objdef {a#1@pojscript} /type/stream /OBJ pdfmark
-      mark {a#1@pojscript} (\@anim@@pojscript{#1}) /PUT pdfmark
-    }%
-  }
+  \if@anim@@dvipdfmx
+    \def\@anim@pojscript#1{%
+      \special{pdf:stream @a#1@pojscript (\@anim@@pojscript{#1})}%
+    }
+  \else
+    \def\@anim@pojscript#1{%
+      \special{ps:
+        mark /_objdef {a#1@pojscript} /type/stream /OBJ pdfmark
+        mark {a#1@pojscript} (\@anim@@pojscript{#1}) /PUT pdfmark
+      }%
+    }
+  \fi
 \fi
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%

@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/07/04}
+\def\@anim@version{2008/07/15}
 \ProvidesPackage{animate}[\@anim@version]
 
 %test for e-TeX
@@ -30,6 +30,7 @@
 \RequirePackage{ifpdf}
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
+\RequirePackage{animfp}
 
 %driver options (the only package options we process immediately)
 \newboolean{@anim@@dvips}
@@ -2108,6 +2109,117 @@
     \global\@anim@skipfram=0%
   \fi%
 }
+
+%user command for building loops around parameterized frame content, just like
+%\multido (package multido) with embedded \newframe
+\newcount\@anim@mulframecnt %takes current loop No. of \multiframe
+\newboolean{@anim@insidemulti} % for checking whether we are inside \multiframe
+\setboolean{@anim@insidemulti}{false}
+\newcommand{\multiframe}[3]{% #1: #repetitions, #2: vars, #3: frame content
+  \unskip%
+  \if@anim@inside\else%
+    \PackageError{animate}{%
+      \protect\multiframe\space cannot be used outside `animateinline'%
+      \MessageBreak environment%
+    }{}%
+  \fi%
+  \if@anim@insidemulti%
+    \PackageError{animate}{\protect\multiframe\space cannot be nested}{}%
+  \fi%
+  \setboolean{@anim@insidemulti}{true}%
+  %reset macro for updating variables
+  \gdef\@anim@updatevars{}%
+  %reset loop counter
+  \global\@anim@mulframecnt=\z@%
+  %remove spaces from variable declaration list (2nd arg)
+  \xdef\@anim@vardecls{#2\space}%
+  \xdef\@anim@vardecls{\expandafter\zap@space\@anim@vardecls\@empty}%
+  %parse list of variable declarations and build macro for updating them
+  \expandafter\@anim@parsevars\@anim@vardecls,!\@nil%
+  \whiledo{\@anim@mulframecnt<#1}{%
+    \ifnum\@anim@mulframecnt>0
+      \newframe%
+      \@anim@updatevars% update variables
+    \fi%
+    \global\advance\@anim@mulframecnt by \@ne%
+    \ignorespaces
+    #3% execute loop body
+    \unskip%
+  }%
+  \setboolean{@anim@insidemulti}{false}%
+  \ignorespaces%
+}
+
+%splits list of variable declarations
+\def\@anim@parsevars#1,#2\@nil{%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@parsedecl#1\@nil}%
+  \ifthenelse{\equal{#2}{!}}{}{\@anim@parsevars#2\@nil}%
+}
+%parser for single variable declaration
+\def\@anim@parsedecl#1=#2+#3\@nil{%
+  \edef\@anim@vartype{\@anim@getvartype#1\@nil}%
+  \ifthenelse{\equal{\@anim@vartype}{d}\OR\equal{\@anim@vartype}{D}}{%
+    % dimensions, prefix d, D
+    %initialize variable
+    \setlength{\@anim@tmpdima}{#2}%
+    \expandafter\edef\csname#1\endcsname{\number\@anim@tmpdima sp}%
+    %global copy that saves current variable value between loops
+    \expandafter\gdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
+    %append script for updating variable to \@anim@updatevars macro
+    \g@addto@macro\@anim@updatevars{%
+      %new value
+      \setlength{\@anim@tmpdima}{\csname#1@old\endcsname}%
+      \addtolength{\@anim@tmpdima}{#3}%
+      \expandafter\edef\csname#1\endcsname{\number\@anim@tmpdima sp}%
+      %global copy
+      \expandafter\xdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
+    }%
+  }{%
+    \ifthenelse{%
+      \equal{\@anim@vartype}{n}\OR\equal{\@anim@vartype}{N}%
+      \OR\equal{\@anim@vartype}{r}\OR\equal{\@anim@vartype}{R}%
+    }{% real numbers, prefix n, N, r, R
+      %initialize variable
+      \expandafter\@anim@add\csname#1\endcsname{#2}{0.0}%
+      %global copy that saves current variable value between loops
+      \expandafter\gdef\csname#1@old\endcsname{#2}%
+      %append script for updating variable to \@anim@updatevars macro
+      \g@addto@macro\@anim@updatevars{%
+        %new value
+        \expandafter\@anim@add\csname#1\endcsname{\csname#1@old\endcsname}{#3}%
+        %global copy
+        \expandafter\xdef\csname#1@old\endcsname{\csname#1\endcsname}%
+      }%
+    }{%
+      \ifthenelse{\equal{\@anim@vartype}{i}\OR\equal{\@anim@vartype}{I}}{%
+        % integers, prefix i, I
+        %initialize variable
+        \expandafter\edef\csname#1\endcsname{#2}%
+        %global copy that saves current variable value between loops
+        \expandafter\gdef\csname#1@old\endcsname{#2}%
+        %append script for updating variable to \@anim@updatevars macro
+        \g@addto@macro\@anim@updatevars{%
+          %new value
+          \expandafter\global\expandafter\@anim@tmpcnt\csname#1@old\endcsname%
+          \global\advance\@anim@tmpcnt by #3%
+          \expandafter\edef\csname#1\endcsname{\the\@anim@tmpcnt}%
+          %global copy
+          \expandafter\xdef\csname#1@old\endcsname{\the\@anim@tmpcnt}%
+        }%
+      }{%
+        \PackageError{animate}{%
+          \protect\multiframe: wrong name prefix `\@anim@vartype' in%
+          \MessageBreak variable `#1'.\MessageBreak%
+          Use any of d, D (dimensions), i, I (integer numbers)\MessageBreak%
+          or n, N, r, R (real numbers) as the first letter to\MessageBreak%
+          specify the variable type.%
+        }{}%
+      }%
+    }%
+  }%
+}
+%get initial letter from variable name (the variable type, as with \multido)
+\def\@anim@getvartype#1#2\@nil{#1}%
 
 %prints zero padded integers
 % #1: arbitrary integer number as template specifying the

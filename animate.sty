@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/08/26}
+\def\@anim@version{2016/08/31}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2935,21 +2935,21 @@
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%
-  curdoc=this;%
+  var curdoc=this,a#1_idx\if@anim@step\else,a#1_int\fi;%
   if(typeof a#1==='undefined'){% initialize animation
-    a#1={};%
+    var a#1={};%
     %takes references to frame ocgs/Field objects belonging to the current
     %animation
-    a#1_fr=new Array();%
+    var a#1_fr=new Array();%
     %initialize fr properties
     \ifcase\@anim@method %icon based
-      a#1_wid=this.getField('anm#1');%reference to interactive widget
+      var a#1_wid=this.getField('anm#1');%reference to interactive widget
       for(i=0;i<=\@anim@maxframe;i++){%
         a#1_fr[i]=this.getField('#1.'+i).buttonGetIcon();%
       }%
       \ifnum\@anim@poster=\@anim@mtwo
         if(typeof blnk==='undefined'){% blank poster
-          blnk=this.getField('0000').buttonGetIcon();%
+          var blnk=this.getField('0000').buttonGetIcon();%
         }%
       \fi%
     \or %widget based
@@ -2971,31 +2971,32 @@
       }%
     \fi%
     \if@anim@controls\if@anim@step\else
-      a#1_btnPauseLeft=this.getField('#1.PauseLeft');%
-      a#1_btnPlayLeft=this.getField('#1.PlayLeft');%
-      a#1_btnPauseRight=this.getField('#1.PauseRight');%
-      a#1_btnPlayRight=this.getField('#1.PlayRight');%
+      var a#1_btnPauseLeft=this.getField('#1.PauseLeft');%
+      var a#1_btnPlayLeft=this.getField('#1.PlayLeft');%
+      var a#1_btnPauseRight=this.getField('#1.PauseRight');%
+      var a#1_btnPlayRight=this.getField('#1.PlayRight');%
     \fi\fi%
     %playing state and direction
-    \if@anim@step
-      \if@anim@palindrome a#1_playsRight=true;\fi%
+    \if@anim@step%
+      \if@anim@palindrome var a#1_playsRight=true;\fi%
     \else
       a#1_playsRight=true;%
-    \fi%
-    a#1_isPaused=false;%
+    \fi
+    var a#1_isPaused=false;%
     \if@anim@step\else
-      a#1_playing=false;%
+      var a#1_playing=false;%
       \if@anim@pauseframes
         %this array takes the frame numbers at which to pause playback
-        a#1_pauseAt=new Array();%
+        var a#1_pauseAt=new Array();%
         \@anim@pauseat%
       \fi%
       \if@anim@chfps
         %arrays that take frame numbers (array index) and fps values
-        a#1_nFpsAt=new Array(\@anim@nfpsat);%
+        var a#1_nFpsAt=new Array(\@anim@nfpsat);%
       \fi
-      a#1_fps=\@anim@fps==0?1e-6:\@anim@fps;a#1_sm=1;%
-      a#1_setFps=function(f){%
+      var a#1_fps=\@anim@fps==0?1e-6:\@anim@fps;%
+      var a#1_sm=1;%
+      var a#1_setFps=function(f){%
         a#1_fps=f==0?1e-6:f;%
         if(a#1_playing){%
           if(a#1_playsRight){a#1_playRight();}else{a#1_playLeft();}%
@@ -3004,11 +3005,11 @@
     \fi%
     \if@anim@usrjs
       %array to take frame numbers (array index) and user provided JavaScript
-      a#1_usrJSat=new Array();%
+      var a#1_usrJSat=new Array();%
       \@anim@usrjsat%
     \fi%
     %actions
-    a#1_seekFrame=function(f){%
+    var a#1_seekFrame=function(f){%
       \ifnum\@anim@poster=\@anim@mtwo
         if(f<-1){%
           \ifcase\@anim@method %icon based
@@ -3029,8 +3030,8 @@
       a#1_idx=f;%
       \if@anim@usrjs
         if(a#1_usrJSat[f]){%
-          var cmd='try{a#1_usrJSat['+f+']();}catch(e){console.println(e);}';%
-          var ret=app.setTimeOut(cmd,1);%
+          cmd='try{a#1_usrJSat['+f+']();}catch(e){console.println(e);}';%
+          ret=app.setTimeOut(cmd,1);%
         }%
       \fi%
       \ifcase\@anim@method %icon based
@@ -3056,7 +3057,7 @@
       \if@anim@step\else\if@anim@meas a#1_frcnt++;\fi\fi%
       return 0;%
     };%
-    a#1_stopFirst=function(){%
+    var a#1_stopFirst=function(){%
       \if@anim@step
         a#1_isPaused=false;% stop
       \else
@@ -3064,7 +3065,7 @@
       \fi
       a#1_seekFrame(0);%
     };%
-    a#1_stopLast=function(){%
+    var a#1_stopLast=function(){%
       \if@anim@step
         a#1_isPaused=false;% stop
       \else
@@ -3072,7 +3073,7 @@
       \fi
       a#1_seekFrame(\@anim@maxframe);%
     };%
-    a#1_gotoNext=function(){%
+    var a#1_gotoNext=function(){%
       if(a#1_seekFrame(a#1_idx+1)<0){%
         \if@anim@step\else\if@anim@meas a#1_stopMeas();\fi\fi%
         \if@anim@palindrome%
@@ -3107,7 +3108,7 @@
         \fi%
       \fi%
     };%
-    a#1_gotoPrev=function(){%
+    var a#1_gotoPrev=function(){%
       if(a#1_seekFrame(a#1_idx-1)<0){%
         \if@anim@step\else\if@anim@meas a#1_stopMeas();\fi\fi%
         \if@anim@palindrome%
@@ -3142,7 +3143,7 @@
       \fi%
     };%
     \if@anim@step\else
-      a#1_pause=function(stop){%
+      var a#1_pause=function(stop){%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_playing=false;%
         a#1_isPaused=!stop;%
@@ -3154,9 +3155,9 @@
           curdoc.dirty=false;%
         \fi%
       };%
-      a#1_playRight=function(){%
+      var a#1_playRight=function(){%
         \if@anim@meas a#1_startMeas();\fi
-        try{var tmp_int=app.setInterval('a#1_gotoNext()',%
+        try{tmp_int=app.setInterval('a#1_gotoNext()',%
           1000/a#1_fps/a#1_sm);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_int=tmp_int;%
@@ -3171,9 +3172,9 @@
           curdoc.dirty=false;%
         \fi%
       };%
-      a#1_playLeft=function(){%
+      var a#1_playLeft=function(){%
         \if@anim@meas a#1_startMeas();\fi
-        try{var tmp_int=app.setInterval('a#1_gotoPrev()',%
+        try{tmp_int=app.setInterval('a#1_gotoPrev()',%
           1000/a#1_fps/a#1_sm);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_int=tmp_int;%
@@ -3189,29 +3190,29 @@
         \fi%
       };%
       \if@anim@controls
-        a#1_fpsIncr=function(){% speed up animation
+        var a#1_fpsIncr=function(){% speed up animation
           a#1_sm*=1.1;%
           a#1_setFps(a#1_fps);%
         };%
-        a#1_fpsDecr=function(){% slow down animation
+        var a#1_fpsDecr=function(){% slow down animation
           a#1_sm/=1.1;%
           a#1_setFps(a#1_fps);%
         };%
-        a#1_fpsReset=function(){% reset to default speed
+        var a#1_fpsReset=function(){% reset to default speed
           a#1_sm=1;%
           a#1_setFps(a#1_fps);%
         };%
       \fi%
       \if@anim@meas
         spc=String.fromCharCode(32);%
-        a#1_frcnt=1;% frame counter for speed measurements
-        a#1_msStart=0;% takes start time (in millisecs)
-        a#1_msEnd=0;% takes end time (in millisecs)
-        a#1_startMeas=function(){%
+        var a#1_frcnt,% frame counter for speed measurements
+            a#1_msStart,% takes start time (in millisecs)
+            a#1_msEnd;% takes end time (in millisecs)
+        var a#1_startMeas=function(){%
           a#1_frcnt=1;% reset frame counter
           a#1_msStart=(new Date()).getTime();%
         };%
-        a#1_stopMeas=function(){%
+        var a#1_stopMeas=function(){%
           a#1_msEnd=(new Date()).getTime();%
           console.show();console.println(%
             'av.'+spc+'frame'+spc+'rate:'+spc+%
@@ -3221,35 +3222,35 @@
       \fi%
     \fi%
     \if@anim@step
-      a#1_stepBwd=function(){%
+      var a#1_stepBwd=function(){%
         a#1_seekFrame(a#1_idx-1);%
         a#1_isPaused=true;%
       };%
-      a#1_stepFwd=function(){%
+      var a#1_stepFwd=function(){%
         a#1_seekFrame(a#1_idx+1);%
         a#1_isPaused=true;%
       };%
     \else
-      a#1_stepBwd=function(){if(!a#1_playing){%
+      var a#1_stepBwd=function(){if(!a#1_playing){%
         a#1_seekFrame(a#1_idx-1);%
         a#1_isPaused=true;%
       }};%
-      a#1_stepFwd=function(){if(!a#1_playing){%
+      var a#1_stepFwd=function(){if(!a#1_playing){%
         a#1_seekFrame(a#1_idx+1);%
         a#1_isPaused=true;%
       }};%
-      a#1_playBwd=function(){%
+      var a#1_playBwd=function(){%
         if(a#1_idx==0||!a#1_isPaused){a#1_stopLast();}%
         a#1_playLeft();%
       };%
-      a#1_playFwd=function(){%
+      var a#1_playFwd=function(){%
         if(a#1_idx==\@anim@maxframe||!a#1_isPaused){a#1_stopFirst();}%
         a#1_playRight();%
       };%
     \fi%
     %animation API for labelled anims
     \ifx\empty\@anim@label\empty\else
-      if(typeof anim==='undefined'){anim=new Array();}%
+      if(typeof anim==='undefined'){var anim=new Array();}%
       if(typeof anim['\@anim@label']==='undefined'){%
         anim['\@anim@label']={%
           \if@anim@step\else
@@ -3287,7 +3288,7 @@
         };%
       }%
     \fi%
-    \ifnum\@anim@method>\z@ a#1_on=0;\fi% just initialize a#1_on
+    \ifnum\@anim@method>\z@ var a#1_on=0;\fi%initialize a#1_on here!!!
     \ifnum\@anim@poster=\@anim@mtwo %poster=none
       ret=app.setTimeOut('a#1_seekFrame(-2)',1);%
     \fi%

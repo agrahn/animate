@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/03]
+\ProvidesPackage{animate}[2008/06/09]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -29,7 +29,7 @@
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
 
-\DeclareOption*{}\ProcessOptions*\relax %allow anything as option
+\DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
 %(package options will be processed near end of this file)
 
 \ifpdf
@@ -126,6 +126,9 @@
 \newboolean{@anim@autoplayorresume}
 % true if any of `controls' or `palindrome' options is set
 \newboolean{@anim@ctrlorplndrm}
+\newboolean{@anim@timeline} %true if `timeline' option is set
+\newboolean{@anim@multipage} % multipage document?
+
 
 %add AcroForm and OCProperties entries to Catalog
 \ifpdf
@@ -274,8 +277,6 @@
   }
 }
 
-\newboolean{@anim@timeline} %true if `timeline' option is set
-
 %creates Form XObject from box contents
 \ifpdf%
   %#1: @anim@num, #2:@anim@curframe@zb, #3: empty (`') or box number,
@@ -317,14 +318,20 @@
           }%
         }%
         %define some length values in current PS coordinate units
-        \put(72.27,-\@anim@framedepth){%
+        \put(0,0){%
           \special{ps:
-            /one@inch currentpoint pop frame@llx sub def
+            currentpoint /origin@y exch def /origin@x exch def
           }%
         }%
-        \put(\strip@pt\paperheight,-\@anim@framedepth){%
+        \put(72.27,72.27){%
           \special{ps:
-            /paper@height currentpoint pop frame@llx sub def
+            currentpoint origin@y exch sub /one@inch@y exch def
+            origin@x sub /one@inch@x exch def
+          }%
+        }%
+        \put(0,\strip@pt\paperheight){%
+          \special{ps:
+            currentpoint origin@y exch sub /paper@height exch def pop
           }%
         }%
         \end{picture}%
@@ -333,7 +340,7 @@
         gsave
         %translate graphics to lower left page corner
         frame@llx neg frame@lly neg translate
-        one@inch neg dup translate
+        one@inch@x neg one@inch@y neg translate
         0 paper@height translate
         %distill graphics into XObject
         mark
@@ -1120,8 +1127,6 @@
   }%
 }
 
-\newboolean{@anim@multipage} % multipage document?
-
 \ifpdf
   %detects multipage PDF and corrects user supplied page range
   \def\@anim@checkmultipage#1{% #1: file base name
@@ -1790,6 +1795,7 @@
 \newboolean{@anim@eof}
 \newcount\@anim@tmpcnt %scratch counter for different uses
 \newcount\@anim@curlayer %takes the number of the current layer being processed
+\newcount\@anim@lineno %current input line No.
 
 \def\@anim@buildtmln#1{% #1:@anim@num
   \endlinechar=-1% suppress trailing space at input line end
@@ -1826,6 +1832,7 @@
   \gdef\@anim@maxlayer{0}% highest layer index
   %reopen timeline file and build timeline
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
+  \global\@anim@lineno=0%
   \read\@anim@@tmlnfile to \@anim@inputline%
   \edef\@anim@inputline{\@anim@inputline\space}%
   \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
@@ -1833,6 +1840,7 @@
     \setboolean{@anim@eof}{false}\fi%
   \message{<building timeline a#1:}%
   \whiledo{\NOT\boolean{@anim@eof}}{%
+    \global\advance\@anim@lineno by \@ne%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
       %process input line
       \expandafter\@anim@parseline\@anim@inputline\@nil%
@@ -1879,7 +1887,7 @@
       \PackageWarning{animate}{%
         Transparency \the\@anim@tmpcnt\space has never been used\MessageBreak%
         in the current animation.\MessageBreak%
-        File \jobname.tex%
+        Timeline \@anim@tmlnfile,\MessageBreak\jobname.tex%
       }%
       \ifx\@anim@nusewarned\@undefined%
         \AtEndDocument{%
@@ -2017,7 +2025,8 @@
       \PackageWarning{animate}{%
         Transparency #2 multiply included in frame #1.%
         \MessageBreak%
-        File \jobname.tex%
+        Timeline \@anim@tmlnfile\space on input line \the\@anim@lineno,%
+        \MessageBreak\jobname.tex%
       }%
       \ifx\@anim@multwarned\@undefined%
         \AtEndDocument{%

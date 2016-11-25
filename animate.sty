@@ -248,6 +248,10 @@
 \newbox\@anim@box %stores animation frames
 \newdimen\@anim@tmpdima %length registers for occasional use
 \newdimen\@anim@tmpdimb
+\newdimen\@anim@tmpdimc
+\newdimen\@anim@tmpdimd
+\newdimen\@anim@tmpdime
+\newdimen\@anim@tmpdimf
 
 %tests whether file is already known (and embedded), if so it returns identifier
 %of xobj, otherwise returns `!'
@@ -1199,7 +1203,7 @@
     }}}}}}}}}}%
   }%
 \else
-  \if@anim@xetex
+  \if@anim@@dvipdfmx %XeLaTeX, dvipdfmx
     \def\@anim@getext#1{%
       \gdef\@anim@ext{.pdf}% we start with `pdf'
       \IfFileExists{#1\@anim@ext}{}{%
@@ -1232,56 +1236,24 @@
         }{}%
       }}}}}}}}%
     }%
-  \else
-    \if@anim@@dvipdfmx
-      \def\@anim@getext#1{%
-        \gdef\@anim@ext{.pdf}% we start with `pdf'
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.mps}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.eps}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.ps}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.png}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.jpg}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.jpeg}%
-        \IfFileExists{#1\@anim@ext}{}{%
-          \PackageError{animate}{%
-            Neither of the files\MessageBreak%
-            `#1.pdf',\MessageBreak%
-            `#1.mps',\MessageBreak%
-            `#1.eps',\MessageBreak%
-            `#1.ps',\MessageBreak%
-            `#1.png',\MessageBreak%
-            `#1.jpg' or\MessageBreak%
-            `#1.jpeg'\MessageBreak%
-            could be found.\MessageBreak%
-            Wrong file type? Mis-spelled file name?%
-          }{}%
-        }}}}}}}%
-      }%
-    \else
-      \def\@anim@getext#1{%
-        \gdef\@anim@ext{.eps}% we start with `eps'
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.mps}%
-        \IfFileExists{#1\@anim@ext}{}{%
-        \gdef\@anim@ext{.ps}%
-        \IfFileExists{#1\@anim@ext}{}{%
-          \PackageError{animate}{%
-            Neither of the files\MessageBreak%
-            `#1.eps',\MessageBreak%
-            `#1.mps' or\MessageBreak%
-            `#1.ps'\MessageBreak%
-            could be found.\MessageBreak%
-            Wrong file type? Mis-spelled file name?%
-          }{}%
-        }}}%
-      }%
-    \fi
+  \else %dvips
+    \def\@anim@getext#1{%
+      \gdef\@anim@ext{.eps}% we start with `eps'
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.mps}%
+      \IfFileExists{#1\@anim@ext}{}{%
+      \gdef\@anim@ext{.ps}%
+      \IfFileExists{#1\@anim@ext}{}{%
+        \PackageError{animate}{%
+          Neither of the files\MessageBreak%
+          `#1.eps',\MessageBreak%
+          `#1.mps' or\MessageBreak%
+          `#1.ps'\MessageBreak%
+          could be found.\MessageBreak%
+          Wrong file type? Mis-spelled file name?%
+        }{}%
+      }}}%
+    }%
   \fi
 \fi
 
@@ -1623,66 +1595,80 @@
 %calculates widget dimensions from natural ones, taking resizing options
 %into account
 \def\@anim@scale{%
-  %initial widget dimensions
-  \xdef\@anim@animwidth{\@anim@framewidth}%
-  \xdef\@anim@animheight{\@anim@frameheight}%
-  \xdef\@anim@animdepth{\@anim@framedepth}%
-  \xdef\@anim@animtotalheight{\@anim@frametotalheight}%
+  %natural dimensions \width, \height, \depth, \totalheight
+  \setlength{\@anim@tmpdimc}{\@anim@framewidth\p@}%
+  \let\width\@anim@tmpdimc%
+  \setlength{\@anim@tmpdimd}{\@anim@frameheight\p@}%
+  \let\height\@anim@tmpdimd%
+  \setlength{\@anim@tmpdime}{\@anim@framedepth\p@}%
+  \let\depth\@anim@tmpdime%
+  \setlength{\@anim@tmpdimf}{\@anim@frametotalheight\p@}%
+  \let\totalheight\@anim@tmpdimf%
+  \xdef\@anim@animwidth{\strip@pt\width}%
+  \xdef\@anim@animheight{\strip@pt\height}%
+  \xdef\@anim@animdepth{\strip@pt\depth}%
+  \xdef\@anim@animtotalheight{\strip@pt\totalheight}%
   %rescale height & depth
   \ifthenelse{%
-    \NOT\equal{\@anim@boxheight}{}\AND\NOT\equal{\@anim@boxdepth}{}%
+    \boolean{@anim@heightarg}\AND\boolean{@anim@deptharg}%
   }{%
-    \xdef\@anim@animheight{\@anim@boxheight}%
-    \xdef\@anim@animdepth{\@anim@boxdepth}%
+    \@anim@tmpdima=\@anim@heightarg%
+    \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
+    \@anim@tmpdima=\@anim@deptharg%
+    \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
   }{%
-    \ifthenelse{\NOT\equal{\@anim@boxheight}{}}{%
-      \xdef\@anim@animheight{\@anim@boxheight}%
+    \ifthenelse{\boolean{@anim@heightarg}}{%
+      \@anim@tmpdima=\@anim@heightarg%
+      \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
     }{%
-      \ifthenelse{\NOT\equal{\@anim@boxdepth}{}}{%
-        \xdef\@anim@animdepth{\@anim@boxdepth}%
+      \ifthenelse{\boolean{@anim@deptharg}}{%
+        \@anim@tmpdima=\@anim@deptharg%
+        \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
       }{%if neither height nor depth are given but width is, rescale
         %ht & dp to keep aspect ratio
-        \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%
+        \ifthenelse{\boolean{@anim@widtharg}}{%
           \setlength{\@anim@tmpdima}{%
             \@anim@animheight\p@%
-            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
+            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
           }\xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
           \setlength{\@anim@tmpdima}{%
             \@anim@animdepth\p@%
-            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
+            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
           }\xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
         }{}%
       }%
     }%
   }%
-  \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%rescale width
-    \ifthenelse{% depth missing
-      \NOT\equal{\@anim@boxheight}{}\AND\equal{\@anim@boxdepth}{}%
+  \ifthenelse{\boolean{@anim@widtharg}}{%rescale width
+    \ifthenelse{% if no depth option given, rescale depth only of <> 0
+      \boolean{@anim@heightarg}\AND\NOT\boolean{@anim@deptharg}%
+	  \AND\NOT\lengthtest{\@anim@animdepth\p@=\z@}%
     }{%
       \setlength{\@anim@tmpdima}{%
         \@anim@animtotalheight\p@%
-          *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
+          *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
       }%
-      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxheight\p@}%
+      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@heightarg}%
       \xdef\@anim@animdepth{\strip@pt\@anim@tmpdimb}%
     }{%
       \ifthenelse{% height missing
-        \equal{\@anim@boxheight}{}\AND\NOT\equal{\@anim@boxdepth}{}%
+        \NOT\boolean{@anim@heightarg}\AND\boolean{@anim@deptharg}%
       }{%
         \setlength{\@anim@tmpdima}{%
           \@anim@animtotalheight\p@%
-            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
+            *\ratio{\@anim@widtharg}{\@anim@animwidth\p@}%
         }%
-        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxdepth\p@}%
+        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@deptharg}%
         \xdef\@anim@animheight{\strip@pt\@anim@tmpdimb}%
       }{}%
     }%
-    \xdef\@anim@animwidth{\@anim@boxwidth}%
+    \@anim@tmpdima=\@anim@widtharg%
+    \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
   }{%
     %if width is not given, but either height or depth are, scale
     %width to keep aspect ratio
     \ifthenelse{%
-      \NOT\equal{\@anim@boxheight}{}\OR\NOT\equal{\@anim@boxdepth}{}%
+      \boolean{@anim@heightarg}\OR\boolean{@anim@deptharg}%
     }{%
       \setlength{\@anim@tmpdima}{%
         \@anim@animwidth\p@%
@@ -2569,17 +2555,23 @@
 
 %command options
 %setting the widget size
+\newboolean{@anim@widtharg}
+\setboolean{@anim@widtharg}{false}
 \define@key{anim@user}{width}{%
-  \setlength{\@anim@tmpdima}{#1}%
-  \xdef\@anim@boxwidth{\strip@pt\@anim@tmpdima}%
+  \gdef\@anim@widtharg{#1}%
+  \setboolean{@anim@widtharg}{true}%
 }
+\newboolean{@anim@heightarg}
+\setboolean{@anim@heightarg}{false}
 \define@key{anim@user}{height}{%
-  \setlength{\@anim@tmpdima}{#1}%
-  \xdef\@anim@boxheight{\strip@pt\@anim@tmpdima}%
+  \gdef\@anim@heightarg{#1}%
+  \setboolean{@anim@heightarg}{true}%
 }
+\newboolean{@anim@deptharg}
+\setboolean{@anim@deptharg}{false}
 \define@key{anim@user}{depth}{%
-  \setlength{\@anim@tmpdima}{#1}%
-  \xdef\@anim@boxdepth{\strip@pt\@anim@tmpdima}%
+  \gdef\@anim@deptharg{#1}%
+  \setboolean{@anim@deptharg}{true}
 }
 \define@key{anim@user}{scale}{%
   \gdef\@anim@boxscale{#1}%
@@ -2783,9 +2775,12 @@
 %macro to reset macros and booleans
 \def\@anim@reset{%
   \gdef\@anim@boxscale{1.0}%
-  \gdef\@anim@boxdepth{}%
-  \gdef\@anim@boxheight{}%
-  \gdef\@anim@boxwidth{}%
+%  \gdef\@anim@boxdepth{}%
+%  \gdef\@anim@boxheight{}%
+%  \gdef\@anim@boxwidth{}%
+  \setboolean{@anim@widtharg}{false}
+  \setboolean{@anim@heightarg}{false}
+  \setboolean{@anim@deptharg}{false}
   \xdef\@anim@bg{\@anim@@bg}%
   \xdef\@anim@fg{\@anim@@fg}%
   \if@anim@@dvips\else\xdef\@anim@@@fg{\@anim@@@@fg}\fi%

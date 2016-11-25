@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/01/22}
+\def\@anim@version{2010/03/04}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -188,6 +188,10 @@
     to the preamble of your document%
   }{}%
 }
+
+\newboolean{@anim@powerdot} %to cope with some powerdot oddity
+\setboolean{@anim@powerdot}{false}
+\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
 
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
@@ -457,20 +461,17 @@
               origin@x sub /one@inch@x exch def
             }%
           }%
-          \put(0,\strip@pt\paperheight){%
-            \special{ps:
-              currentpoint origin@y exch sub /paper@height exch def pop
-            }%
-          }%
           \end{picture}%
         \endgroup%
         \special{ps:
           gsave
           %translate graphics to upper left page corner
+          \if@anim@powerdot\else%
           {%
             frame@llx neg frame@ury neg translate
             one@inch@x DVImag div neg one@inch@y DVImag div neg translate%
           }?pdfmark
+          \fi%
           %distill graphics into XObject
           mark
             /_objdef {@anim@frm@#1@#2}
@@ -2370,6 +2371,7 @@
       \@anim@newkey{trlst@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
+      \message{.}%
       \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
@@ -2377,8 +2379,8 @@
     \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
     \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
       \setboolean{@anim@eof}{false}\fi%
-    \message{.}%
   }%
+  \message{\the\@anim@curframe@zb\space frames built}%
   \closein\@anim@@tmlnfile%
   %check for unused transparencies
   \global\@anim@tmpcnt=\z@%

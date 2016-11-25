@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/11/11}
+\def\@anim@version{2014/11/14}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -3007,6 +3007,7 @@
       \fi%
       \ifcase\@anim@method %icon based
         a#1.wid.buttonSetIcon(a#1.fr[f]);%
+        curdoc.dirty=false;%
       \or %widget based
         a#1.fr[a#1.on].display=display.hidden;%
         a#1.fr[f].display=display.visible;%
@@ -3196,11 +3197,11 @@
         a#1.stepBwd=function(){if(!a#1.playing){a#1.seekFrame(a#1.idx-1);}};%
         a#1.stepFwd=function(){if(!a#1.playing){a#1.seekFrame(a#1.idx+1);}};%
         a#1.playBwd=function(){%
-          if(a#1.idx==0||!a#1.isPaused)a#1.stopLast();%
+          if(a#1.idx==0){a#1.stopLast();}%
           a#1.playLeft();%
         };%
         a#1.playFwd=function(){%
-          if(a#1.idx==\@anim@maxframe||!a#1.isPaused)a#1.stopFirst();%
+          if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
           a#1.playRight();%
         };%
       \fi%

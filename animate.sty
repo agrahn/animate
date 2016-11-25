@@ -78,6 +78,9 @@
   }%
 }
 
+\newcount\@anim@resnum % counter for content resources
+\global\@anim@resnum=0
+
 %add OCProperties dict to Catalog
 \ifpdf
   \newcount\@anim@@ocgs
@@ -89,7 +92,8 @@
   \pdfcatalog{
     /OCProperties <<
         /OCGs \the\@anim@@ocgs\space 0 R
-        /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R /Order \the\@anim@@ocgs\space 0 R>>
+        /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
+		/Order \the\@anim@@ocgs\space 0 R>>
     >>
   }
   \def\@anim@ocgs{}
@@ -103,6 +107,8 @@
     }%
   }%
 \else
+  \newcount\@anim@occnt % counter for optional content groups
+  \global\@anim@occnt=0
   \special{ps:
     % array which takes all ocgs (one per animation frame)
     mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
@@ -115,13 +121,9 @@
       >>
     >> /PUT pdfmark
   }
-  \newcount\@anim@occnt % counter for optional content groups
-  \global\@anim@occnt=0
-  \newcount\@anim@resnum % counter for content resources
-  \global\@anim@resnum=0
 \fi
 
-\newbox\@anim@@box %stores single frame
+\newbox\@anim@box %stores animation frames
 \newdimen\@anim@tmpdima %length register for occasional use
 
 %creates Form XObject from graphics file
@@ -134,13 +136,13 @@
     %store file in a box
     \def\@anim@mps{.mps}%
     \ifx\@anim@ext\@anim@mps%
-      \global\setbox\@anim@@box=\hbox{\convertMPtoPDF{#3}{1}{1}}%
+      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#3}{1}{1}}%
     \else%
       \immediate\pdfximage{#3}%
-      \global\setbox\@anim@@box=\hbox{\pdfrefximage\pdflastximage}%
+      \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
     \fi
     %delegate Form XObject creation
-    \@anim@xinline{#1}{#2}{\@anim@@box}%
+    \@anim@xinline{#1}{#2}{\@anim@box}%
   }
 \else
   \def\@anim@ximage#1#2#3{%
@@ -149,16 +151,15 @@
     }%
     %store file in a box
     \edef\@anim@curfile{{#3}}%
-    \global\setbox\@anim@@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
+    \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
     %delegate Form XObject creation
-    \@anim@xinline{#1}{#2}{\@anim@@box}%
+    \@anim@xinline{#1}{#2}{\@anim@box}%
   }
 \fi
 
 %creates Form XObject from box contents and associates it with a newly created
 %OCG
 \ifpdf
-  \newbox\@anim@box %stores all graphics of a sequence
   \def\@anim@xinline#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:box number
     %new ocg
     \immediate\pdfobj{<</Type/OCG /Name (#1.#2)>>}%
@@ -174,34 +175,33 @@
     \ifx\@anim@poster\@anim@posterframe%
       \xdef\@anim@posterocg{\@anim@curocg}%
     \fi%
-    %new XObject
-    \immediate\pdfxform attr {%
-        /OC <</Type/OCMD /OCGs \@anim@curocg>>%
-    }#3%
-    \ifnum#2=0%
-      \global\setbox\@anim@box=\hbox{\pdfrefxform\pdflastxform}%
-      % size (measuring the first frame only)
-      \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
-      \xdef\@anim@animheight{\strip@pt\ht\@anim@box}%
-      \xdef\@anim@animdepth{\strip@pt\dp\@anim@box}%
-      \setlength{\@anim@tmpdima}{\ht\@anim@box}%
-      \addtolength{\@anim@tmpdima}{\dp\@anim@box}%
+    \ifnum#2=0% measuring the size of the box (first frame only)
+      \xdef\@anim@animwidth{\strip@pt\wd#3}%
+      \xdef\@anim@animheight{\strip@pt\ht#3}%
+      \xdef\@anim@animdepth{\strip@pt\dp#3}%
+      \setlength{\@anim@tmpdima}{\ht#3}%
+      \addtolength{\@anim@tmpdima}{\dp#3}%
       \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
-    \else% overlay current XObject over previous content
-      \def\@anim@oldunitlength{\the\unitlength}% make backup
-      \setlength{\unitlength}{1pt}%
-      \global\setbox\@anim@box=\hbox{%
-        \begin{picture}(%
-          \@anim@animwidth,\@anim@animtotalheight%
-        )(%
-          0,-\@anim@animdepth%
-        )%
-          \put(0,0){\box\@anim@box}%
-          \put(0,0){\pdfrefxform\pdflastxform}%
-        \end{picture}%
-      }%
-      \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlen
+      \gdef\@anim@properties{}%
+      \gdef\@anim@xobject{}%
+      \gdef\@anim@content{}%
     \fi%
+    %put graphics into XObject
+    \immediate\pdfxform #3%
+    %compose resources for use in container XObject
+    \xdef\@anim@properties{%
+      \@anim@properties\space/oc\the\@anim@resnum\space\@anim@curocg
+    }%
+    \xdef\@anim@xobject{%
+      \@anim@xobject\space/im\the\@anim@resnum\space\the\pdflastxform\space 0 R%
+    }%
+    %compose content stream of container XObject
+    \xdef\@anim@content{%
+      \@anim@content\space
+      /OC/oc\the\@anim@resnum\space
+      BDC q /im\the\@anim@resnum\space Do Q EMC%
+    }%
+    \global\advance\@anim@resnum by 1% increment resource number
   }
 \else
   \def\@anim@xinline#1#2#3{%
@@ -234,7 +234,7 @@
       \gdef\@anim@xobject{}%
       \gdef\@anim@content{}%
     \fi%
-    \def\@anim@oldunitlength{\the\unitlength}% make backup
+    \edef\@anim@oldunitlength{\the\unitlength}% make backup
     \setlength{\unitlength}{1pt}%
     %mark BBox of the graphics
     \begin{picture}(0,0)%
@@ -290,8 +290,25 @@
 %create XObject which contains all frames of the sequence
 \ifpdf
   \def\@anim@makecontainer#1{%
-    \immediate\pdfxform\@anim@box% make it from box
+    \edef\@anim@oldunitlength{\the\unitlength}% make backup
+    \setlength{\unitlength}{1pt}%
+    \global\setbox\@anim@box=\hbox{%
+	  \pdfliteral{q}%
+      \begin{picture}(%
+        \@anim@animwidth,\@anim@animtotalheight%
+      )(%
+        0,-\@anim@animdepth%
+      )%
+      \end{picture}%
+	  \pdfliteral{Q\@anim@content}%
+    }%
+    \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlen
+    \immediate\pdfxform resources {%
+        /Properties <<\@anim@properties>>
+        /XObject <<\@anim@xobject>>
+	}\@anim@box%
     \xdef\@anim@container{\the\pdflastxform\space 0 R}%
+    \global\@anim@resnum=0% reset resource number
   }
 \else
   \def\@anim@makecontainer#1{%
@@ -990,7 +1007,7 @@
 \else
   \def\@anim@animwidget#1{%
     \@anim@rescale%
-    \def\@anim@oldunitlength{\the\unitlength}%
+    \edef\@anim@oldunitlength{\the\unitlength}%
     \setlength{\unitlength}{1pt}%
     %mark annotation rectangle
     \begin{picture}(0,0)%
@@ -1076,7 +1093,7 @@
   \def\@anim@buttonwidget#1#2#3{%
     \@anim@upjscript{#1}{#2}%
     \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-    \def\@anim@oldunitlength{\the\unitlength}%
+    \edef\@anim@oldunitlength{\the\unitlength}%
     \setlength{\unitlength}{1pt}%
     \begin{picture}(0,0)%
       \put(0,0){%
@@ -1256,7 +1273,7 @@
 
 %starts a new frame
 \def\@anim@beginframe{%
-  \begin{lrbox}{\@anim@@box}% store the graphics in a box
+  \begin{lrbox}{\@anim@box}% store the graphics in a box
 }
 
 %terminates current frame
@@ -1265,8 +1282,8 @@
   \message{< a#1, fr#2}%
   %determine size of graphics
   \ifnum #2=0%
-    \xdef\@anim@animwidth{\strip@pt\wd\@anim@@box}%
-    \ifdim\wd\@anim@@box=0pt%
+    \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
+    \ifdim\wd\@anim@box=0pt%
       \PackageError{animate}{%
         Contents of first frame must not have zero width%
       }{%
@@ -1274,10 +1291,10 @@
         immediately followed by \protect\newframe%
       }%
     \fi%
-    \xdef\@anim@animheight{\strip@pt\ht\@anim@@box}%
-    \xdef\@anim@animdepth{\strip@pt\dp\@anim@@box}%
-    \ifdim\ht\@anim@@box=0pt%
-      \ifdim\dp\@anim@@box=0pt%
+    \xdef\@anim@animheight{\strip@pt\ht\@anim@box}%
+    \xdef\@anim@animdepth{\strip@pt\dp\@anim@box}%
+    \ifdim\ht\@anim@box=0pt%
+      \ifdim\dp\@anim@box=0pt%
         \PackageError{animate}{%
           Contents of first frame must not have zero height%
         }{}%
@@ -1285,7 +1302,7 @@
     \fi%
   \fi%
   %now create Form XObject of box contents
-  \@anim@xinline{#1}{#2}{\@anim@@box}%
+  \@anim@xinline{#1}{#2}{\@anim@box}%
   \message{>}%
 }
 

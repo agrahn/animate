@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2015/07/18}
+\def\@anim@version{2016/01/19}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -30,7 +30,6 @@
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
-\RequirePackage{atbegshi}
 \RequirePackage{ifluatex}
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
@@ -57,10 +56,12 @@
   \DeclareOption{dvipdfmx}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
+    \PassOptionsToPackage{dvipdfmx}{ocgbase}
   }
   \DeclareOption{xetex}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
+    \PassOptionsToPackage{xetex}{ocgbase}
   }
 \fi
 \newboolean{@anim@xetex}
@@ -73,6 +74,8 @@
 
 \DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
 %(remaining package options will be processed near end of this file)
+
+\RequirePackage{ocgbase} %OCG generating and configuration macros
 
 \ifpdf
   %test for correct pdfTeX version
@@ -189,22 +192,35 @@
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
 \def\@anim@getkeyval#1{\ifcsname#1\endcsname\csname#1\endcsname\fi}
 
+\def\@animate@rerunwarn{%
+  \ifcsname @anim@rerunwarned\endcsname\else%
+    \gdef\@anim@rerunwarned{}%
+      \PackageWarningNoLine{animate}{%
+      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+      @@ Rerun to get internal references right! @@\MessageBreak
+      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+  \fi%
+}
+
 %macro for writing global defs to external *.aux file
 \def\@anim@keytoaux#1#2{%
-  \@bsphack\protected@write\@auxout{}{%
+  \@bsphack\protected@write\@mainaux{}{%
     \string\@anim@newkey{#1}{#2}%
   }\@esphack%
-  \ifcsname#1\endcsname\else%
-    \ifcsname @anim@rerunwarned\endcsname\else%
-      \gdef\@anim@rerunwarned{}%
-      \AtEndDocument{%
-        \PackageWarningNoLine{animate}{%
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
-        @@ Rerun to get internal references right! @@\MessageBreak
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
-      }%
+  \ifthenelse{\equal{\@anim@getkeyval{#1}}{#2}}{}{%
+    \AtEndDocument{\@animate@rerunwarn}}%
+}
+
+\let\AtEndDvi@CheckImpl@Orig\AtEndDvi@CheckImpl%
+\def\AtEndDvi@CheckImpl{%
+  \AtEndDvi@CheckImpl@Orig%
+  \@ifundefined{AtEndDvi@LastPage}{%
+    \@animate@rerunwarn%
+  }{%
+    \ifnum\AtEndDvi@LastPage=\value{abspage}\else%
+      \@animate@rerunwarn%
     \fi%
-  \fi%
+  }%
 }
 
 %missing package error message
@@ -235,13 +251,9 @@
   }{}%
 }
 
-%macros for adding Appearances name tree / AcroForm / OCProperties dicts to
-%PDF Catalog
+%macros for adding Appearances name tree / AcroForm dicts to PDF Catalog
 \def\@anim@appearances{}
 \ifdefined\@anim@fields\else\def\@anim@fields{}\fi %takes Field object refs
-\ifdefined\@ocgbase@ocgs\else\def\@ocgbase@ocgs{}\fi %takes ocg object refs
-\ifdefined\@ocgbase@offocgs\else\def\@ocgbase@offocgs{}\fi
-\ifdefined\@ocgbase@ocgorder\else\def\@ocgbase@ocgorder{}\fi
 \ifpdf
   %Appearance name tree
   \AtEndDvi{%
@@ -263,34 +275,6 @@
       \fi%
     }%
     \gdef\Acro@Form@added{}%
-  \fi%
-  %OCProperties dict
-  \ifdefined\oc@props@added\else%
-    \AtEndDvi{%
-      \ifx\empty\@ocgbase@ocgs\empty\else%
-        \immediate\pdfobj{[\@ocgbase@ocgs]}%
-        \edef\@ocgbase@@ocgs{\the\pdflastobj}%
-        \immediate\pdfobj{[\@ocgbase@offocgs]}%
-        \edef\@ocgbase@@offocgs{\the\pdflastobj}%
-        \immediate\pdfobj{[\@ocgbase@ocgorder]}%
-        \edef\@ocgbase@@ocgorder{\the\pdflastobj}%
-        \pdfcatalog{%
-          /OCProperties <<%
-            /OCGs \@ocgbase@@ocgs\space 0 R%
-            /D <<%
-              /BaseState/ON /OFF \@ocgbase@@offocgs\space 0 R%
-              /Order \@ocgbase@@ocgorder\space 0 R/ListMode/VisiblePages%
-              /AS [%
-                <</Event/View  /Category[/View]  /OCGs \@ocgbase@@ocgs\space 0 R>>%
-                <</Event/Print /Category[/Print] /OCGs \@ocgbase@@ocgs\space 0 R>>%
-                <</Event/Export/Category[/Export]/OCGs \@ocgbase@@ocgs\space 0 R>>%
-              ]%
-            >>%
-          >>%
-        }%
-      \fi%
-    }%
-    \gdef\oc@props@added{}%
   \fi%
 \else
   %counts inserted widget annots
@@ -314,43 +298,6 @@
         \fi%
       }%
       \gdef\Acro@Form@added{}%
-    \fi%
-    \ifdefined\oc@props@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@ocgbase@ocgs\empty\else%
-          \special{pdf:obj @ocgbase@ocgs []}%
-          \special{pdf:put @ocgbase@ocgs \@ocgbase@ocgs}%
-          \ifx\empty\@ocgbase@offocgs\empty
-            \gdef\@anim@offocgentry{}
-          \else%
-            \special{pdf:obj @ocgbase@offocgs []}%
-            \special{pdf:put @ocgbase@offocgs \@ocgbase@offocgs}%
-            \gdef\@anim@offocgentry{/OFF @ocgbase@offocgs}
-          \fi%
-          \ifx\empty\@ocgbase@ocgorder\empty
-            \gdef\@anim@ocgorderentry{}
-          \else%
-            \special{pdf:obj @ocgbase@ocgorder []}%
-            \special{pdf:put @ocgbase@ocgorder \@ocgbase@ocgorder}%
-            \gdef\@anim@ocgorderentry{/Order @ocgbase@ocgorder}
-          \fi%
-          \special{pdf:put @catalog <<%
-            /OCProperties <<%
-              /OCGs @ocgbase@ocgs%
-              /D <<%
-                /BaseState/ON \@anim@offocgentry%
-                \@anim@ocgorderentry/ListMode/VisiblePages%
-                /AS[%
-                  <</Event/View  /Category[/View]  /OCGs @ocgbase@ocgs>>%
-                  <</Event/Print /Category[/Print] /OCGs @ocgbase@ocgs>>%
-                  <</Event/Export/Category[/Export]/OCGs @ocgbase@ocgs>>%
-                ]%
-              >>%
-            >>%
-          >>}%
-        \fi%
-      }%
-      \gdef\oc@props@added{}%
     \fi%
   \else
     \AtEndDvi{%
@@ -377,35 +324,6 @@
         \fi%
       }%
       \gdef\Acro@Form@added{}%
-    \fi%
-    \ifdefined\oc@props@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@ocgbase@ocgs\empty\else%
-          \special{ps:
-            mark /_objdef {@ocgbase@ocgs} /type/array /OBJ pdfmark
-            mark {@ocgbase@ocgs} 0 [\@ocgbase@ocgs] /PUTINTERVAL pdfmark
-            mark /_objdef {@ocgbase@offocgs} /type/array /OBJ pdfmark
-            mark {@ocgbase@offocgs} 0 [\@ocgbase@offocgs] /PUTINTERVAL pdfmark
-            mark /_objdef {@ocgbase@ocgorder} /type/array /OBJ pdfmark
-            mark {@ocgbase@ocgorder} 0 [\@ocgbase@ocgorder] /PUTINTERVAL pdfmark
-            mark {Catalog} <<%
-              /OCProperties <<%
-                /OCGs {@ocgbase@ocgs}%
-                /D <<%
-                  /BaseState/ON /OFF {@ocgbase@offocgs}%
-                  /Order {@ocgbase@ocgorder} /ListMode/VisiblePages%
-                  /AS[%
-                    <</Event/View  /Category[/View]  /OCGs {@ocgbase@ocgs}>>%
-                    <</Event/Print /Category[/Print] /OCGs {@ocgbase@ocgs}>>%
-                    <</Event/Export/Category[/Export]/OCGs {@ocgbase@ocgs}>>%
-                  ]%
-                >>%
-              >>%
-            >> /PUT pdfmark
-          }%
-        \fi%
-      }%
-      \gdef\oc@props@added{}%
     \fi%
   \fi
 \fi
@@ -553,29 +471,8 @@
     \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
   }
 
-  %marked content BDC/EMC operators
-  \newcount\@anim@ocnum
-  \def\@anim@bdc#1#2{% #1: tag, #2 prop. dict obj ID
-    \pdfliteral direct {#1/a@oc\the\@anim@ocnum\space BDC}%
-    \ifx\@empty\@anim@ocmap\@empty%
-      \xdef\@anim@ocmap{/a@oc\the\@anim@ocnum\space#2}%
-    \else%
-      \xdef\@anim@ocmap{\@anim@ocmap\space/a@oc\the\@anim@ocnum\space#2}%
-    \fi%
-    \begingroup%
-    \edef\x{\endgroup% /Properties dict must be added manually to page resources
-      \global\pdfpageresources{\the\pdfpageresources%
-        /Properties<<\@anim@ocmap>>%
-      }%
-    }\x%
-    \global\advance\@anim@ocnum by \@ne%
-  }
-  \ifdefined\@anim@ocmap\else
-    \gdef\@anim@ocmap{}
-    \AtBeginShipout{\gdef\@anim@ocmap{}}
-  \fi
-  \def\@anim@emc{\pdfliteral direct {EMC}}%
 \else
+
   \newcount\@anim@objnum
   \if@anim@dvipdfmx
     \def\@anim@dictobj#1{%
@@ -631,16 +528,6 @@
       \global\advance\@anim@objnum by \@ne%
     }
 
-    %marked content BDC/EMC operators
-    \newcount\@anim@ocnum
-    \def\@anim@bdc#1#2{% #1: tag, #2 prop. dict obj ID
-      \special{pdf:code #1/a@oc\the\@anim@ocnum\space BDC}%
-      %Properties must be added manually
-      \special{pdf:put @resources
-        <</Properties <</a@oc\the\@anim@ocnum\space#2>>>>}%
-      \global\advance\@anim@ocnum by \@ne%
-    }
-    \def\@anim@emc{\special{pdf:code EMC}}%
   \else % dvips
     \def\@anim@dictobj#1{%
       \special{ps:
@@ -792,9 +679,6 @@
       \xdef\@anim@fields{\@anim@fields{@anm@obj\the\@anim@objnum}\space}%
       \global\advance\@anim@objnum by \@ne%
     }
-
-    \def\@anim@bdc#1#2{\special{ps: mark #1 #2 /BDC pdfmark}}%
-    \def\@anim@emc{\special{ps: mark /EMC pdfmark}}%
   \fi
 \fi
 
@@ -856,12 +740,10 @@
   \fi%
 }
 
-%creates OCG
+%creates OCG (ocgbase.sty)
 \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
-  \@anim@dictobj{/Type/OCG /Name (#1.#2)}%
-  \xdef\@anim@curocg{\@anim@lastobj}%
-  %append to ocg array
-  \xdef\@ocgbase@ocgs{\@ocgbase@ocgs\space\@anim@curocg}%
+  \ocgbase@new@ocg{#1.#2}{}{1}%
+  \xdef\@anim@curocg{\ocgbase@last@ocg}%
 }
 
 %inserts one animation frame into the output acc. to
@@ -903,7 +785,6 @@
         \def\@anim@annotflag{/F 4}% not hidden + print (4)
       \else%
         \ifnum\@anim@poster=\@anim@mone% use last frame as poster
-          \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
             \def\@anim@annotflag{/F 4}%
           }{}%
@@ -920,19 +801,18 @@
       /AP <</N \@anim@refobj{\@anim@lastxform}>>%
       /MK <</TP 1/I \@anim@refobj{\@anim@lastxform}/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
-      \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
+      \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
     }%
   \or% ocg based
     \@anim@newocg{#1}{#2}%
     %initial visibility
     \ifnum\@anim@poster=\@anim@mone% use last frame as poster
-      \@anim@keytoaux{a#1.poster}{#2}%
       \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-        \xdef\@ocgbase@offocgs{\@ocgbase@offocgs\space\@anim@curocg}%
+        \ocgbase@add@to@off@list{\@anim@curocg}%
       }%
     \else%
       \ifnum#2=\@anim@poster\else%
-        \xdef\@ocgbase@offocgs{\@ocgbase@offocgs\space\@anim@curocg}%
+        \ocgbase@add@to@off@list{\@anim@curocg}%
       \fi%
     \fi%
     \def\@anim@needresize{0}%
@@ -953,9 +833,9 @@
     \fi%
     %frame insertion
     \@anim@xform{0}{0}{\@anim@box}%
-    \@anim@bdc{/OC}{\@anim@curocg}%
+    \ocgbase@oc@bdc{\@anim@curocg}%
     \@anim@refxform{\@anim@lastxform}%
-    \@anim@emc%
+    \ocgbase@oc@emc%
   \fi%
 }
 
@@ -963,57 +843,78 @@
 \if@anim@dvips
   %stroking commands
   \def\@anim@btnend{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
+    6.5 1 moveto
+    1 1 1 6.5 2 arct
+    1 6.5 lineto
+    1 14 6.5 14 2 arct
+    6.5 14 lineto
+    14 14 14 6.5 2 arct
+    14 6.5 lineto
+    14 1 6.5 1 2 arct
     closepath
+    \ifx\empty\@anim@bg\empty\else
+      gsave \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
     1 setlinewidth
-    4.5 4 moveto
-    9.5 7.5 lineto
-    4.5 11 lineto
+    4.5 4.7 moveto
+    8.6 7.5 lineto
+    4.5 10.3 lineto
     stroke
     0 setlinejoin
-    10.5 4.4 moveto
-    10.5 10.6 lineto
+    10.0 4.7 moveto
+    10.0 10.3 lineto
     stroke
   }
   \def\@anim@btnstep{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
+    6.5 1 moveto
+    1 1 1 6.5 2 arct
+    1 6.5 lineto
+    1 14 6.5 14 2 arct
+    6.5 14 lineto
+    14 14 14 6.5 2 arct
+    14 6.5 lineto
+    14 1 6.5 1 2 arct
     closepath
+    \ifx\empty\@anim@bg\empty\else
+      gsave \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
     1 setlinewidth
-    5 4 moveto
-    10 7.5 lineto
-    5 11 lineto
+    5.5 4.7 moveto
+    9.6 7.5 lineto
+    5.5 10.3 lineto
     stroke
   }
   \def\@anim@btnplay{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
-    closepath
+    0 1 moveto
+    14 1 14 6.5 2 arct
+    14 6.5 lineto
+    14 14 1 14 2 arct
+    0 14 lineto
+    \ifx\empty\@anim@bg\empty\else
+      gsave closepath \@anim@bg\space fill grestore
+    \fi
     stroke
+    0.1 setlinewidth
+    0 14 moveto
+    0 1 lineto
+    stroke
+    %
     1 setlinewidth
     5 4 moveto
     5 11 lineto
@@ -1022,74 +923,100 @@
     stroke
   }
   \def\@anim@btnpause{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
-    0 setlinecap
+    0.5 setlinewidth
+    1 setlinecap
     1 setlinejoin
     0 1 moveto
-    14 1 lineto
-    14 14 lineto
+    14 1 14 6.5 2 arct
+    14 6.5 lineto
+    14 14 1 14 2 arct
     0 14 lineto
+    \ifx\empty\@anim@bg\empty\else
+      gsave closepath \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
+    0 setlinecap
     2 setlinewidth
     2.2 4 moveto
     2.2 11 lineto
     stroke
   }
   \def\@anim@btnminus{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
+    6.5 1 moveto
+    1 1 1 6.5 2 arct
+    1 6.5 lineto
+    1 14 6.5 14 2 arct
+    6.5 14 lineto
+    14 14 14 6.5 2 arct
+    14 6.5 lineto
+    14 1 6.5 1 2 arct
     closepath
+    \ifx\empty\@anim@bg\empty\else
+      gsave \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
     1.0 setlinewidth
     0 setlinecap
-    4 7.5 moveto
-    11 7.5 lineto
+    4.7 7.5 moveto
+    10.3 7.5 lineto
     stroke
   }
   \def\@anim@btnplus{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
+    6.5 1 moveto
+    1 1 1 6.5 2 arct
+    1 6.5 lineto
+    1 14 6.5 14 2 arct
+    6.5 14 lineto
+    14 14 14 6.5 2 arct
+    14 6.5 lineto
+    14 1 6.5 1 2 arct
     closepath
+    \ifx\empty\@anim@bg\empty\else
+      gsave \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
     1.0 setlinewidth
     0 setlinecap
-    4 7.5 moveto
-    11 7.5 lineto
-    7.5 4  moveto
-    7.5 11 lineto
+    4.7 7.5 moveto
+    10.3 7.5 lineto
+    7.5 4.7  moveto
+    7.5 10.3 lineto
     stroke
   }
   \def\@anim@btnreset{%
-    \@anim@bg\space
     \@anim@fg\space
-    0.25 setlinewidth
+    0.5 setlinewidth
     1 setlinecap
     1 setlinejoin
-    1 1 moveto
-    14 1 lineto
-    14 14 lineto
-    1 14 lineto
+    6.5 1 moveto
+    1 1 1 6.5 2 arct
+    1 6.5 lineto
+    1 14 6.5 14 2 arct
+    6.5 14 lineto
+    14 14 14 6.5 2 arct
+    14 6.5 lineto
+    14 1 6.5 1 2 arct
     closepath
+    \ifx\empty\@anim@bg\empty\else
+      gsave \@anim@bg\space fill grestore
+    \fi
     stroke
+    %
     1 setlinewidth
-    7.5 4 moveto
-    7.5 11 lineto
+    7.5 4.7 moveto
+    7.5 10.3 lineto
     stroke
     0 setlinejoin
     3.5 5 moveto
@@ -1147,108 +1074,167 @@
 \else %pdftex/dvipdfmx/xetex
   %stroking commands
   \def\@anim@btnend{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
-    S
+    65 10 m
+    30 10 l
+    18.957 10 10 18.957 10 30 c
+    10 120 l
+    10 131.043 18.957 140 30 140 c
+    120 140 l
+    131.043 140 140 131.043 140 120 c
+    140 30 l
+    140 18.957 131.043 10 120 10 c
+    \ifx\empty\@anim@bg\empty s
+    \else\@anim@bg\space b \fi
+    %
     10 w
-    45 40 m
-    95 75 l
-    45 110 l
+    45 47 m
+    86 75 l
+    45 103 l
     S
     0 j
-    105 44 m
-    105 106 l
+    100 47 m
+    100 103 l
     S
   }
   \def\@anim@btnstep{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
-    S
+    65 10 m
+    30 10 l
+    18.957 10 10 18.957 10 30 c
+    10 120 l
+    10 131.043 18.957 140 30 140 c
+    120 140 l
+    131.043 140 140 131.043 140 120 c
+    140 30 l
+    140 18.957 131.043 10 120 10 c
+    \ifx\empty\@anim@bg\empty s
+    \else\@anim@bg\space b \fi
+    %
     10 w
-    50 40 m
-    100 75 l
-    50 110 l
+    55 47 m
+    96 75 l
+    55 103 l
     S
   }
   \def\@anim@btnplay{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
+    0 10 m
+    120 10 l
+    131.043 10 140 18.957 140 30 c
+    140 120 l
+    140 131.043 131.043 140 120 140 c
+    0 140 l
+    \ifx\empty\@anim@bg\empty S
+    \else\@anim@bg\space B \fi
+    1 w
+    0 140 m
+    0 10 l
     S
+    %
     10 w
     50 40 m
     50 110 l
     100 75 l
-    h
-    S
+    s
   }
   \def\@anim@btnpause{%
-    \@anim@bg\space
-    2.5 w
+    5 w
+    1 J
     1 j
     \@anim@fg\space
     0 10 m
-    140 10 l
-    140 140 l
+    120 10 l
+    131.043 10 140 18.957 140 30 c
+    140 120 l
+    140 131.043 131.043 140 120 140 c
     0 140 l
-    S
+    \ifx\empty\@anim@bg\empty S
+    \else\@anim@bg\space B \fi
+    %
+    0 J
     20 w
     22 40 m
     22 110 l
     S
   }
   \def\@anim@btnminus{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
-    S
+    65 10 m
+    30 10 l
+    18.957 10 10 18.957 10 30 c
+    10 120 l
+    10 131.043 18.957 140 30 140 c
+    120 140 l
+    131.043 140 140 131.043 140 120 c
+    140 30 l
+    140 18.957 131.043 10 120 10 c
+    \ifx\empty\@anim@bg\empty s
+    \else\@anim@bg\space b \fi
+    %
     10 w
     0 J
-    40 75 m
-    110 75 l
+    47 75 m
+    103 75 l
     S
   }
   \def\@anim@btnplus{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
-    S
+    65 10 m
+    30 10 l
+    18.957 10 10 18.957 10 30 c
+    10 120 l
+    10 131.043 18.957 140 30 140 c
+    120 140 l
+    131.043 140 140 131.043 140 120 c
+    140 30 l
+    140 18.957 131.043 10 120 10 c
+    \ifx\empty\@anim@bg\empty s
+    \else\@anim@bg\space b \fi
+    %
     10 w
     0 J
-    40 75 m
-    110 75 l
-    75 40 m
-    75 110 l
+    47 75 m
+    103 75 l
+    75 47 m
+    75 103 l
     S
   }
   \def\@anim@btnreset{%
-    \@anim@bg\space
-    2.5 w
+    5 w
     1 J
     1 j
     \@anim@fg\space
-    10 10 130 130 re
-    S
+    65 10 m
+    30 10 l
+    18.957 10 10 18.957 10 30 c
+    10 120 l
+    10 131.043 18.957 140 30 140 c
+    120 140 l
+    131.043 140 140 131.043 140 120 c
+    140 30 l
+    140 18.957 131.043 10 120 10 c
+    \ifx\empty\@anim@bg\empty s
+    \else\@anim@bg\space b \fi
+    %
     10 w
-    75 40 m
-    75 110 l
+    75 47 m
+    75 103 l
     S
     \@anim@@@fg\space
     35 50 m
@@ -1750,6 +1736,10 @@
     %build timeline from optional timeline file
     \@anim@sanitizeJS%
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
+    % if last frame used as poster, write frame num to aux file
+    \ifnum\@anim@poster=\@anim@mone%
+      \@anim@keytoaux{a\the\@anim@num.poster}{\@anim@maxframe}%
+    \fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
@@ -1915,11 +1905,11 @@
     \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
   \fi%
   %With icon and ocg method, we put one dummy widget below; this seems to be
-  %necessary for the OCG visibility referenced by the /OC entry to work
-  %as expected (if we place the animation on a PDF layer using fixocgx.sty).
+  %necessary for the OCG visibility referenced by the /OC entry to work as
+  %expected (if we place the animation on a PDF layer using ocgx2.sty).
   \ifnum\@anim@method=\@ne\else%
-    \ifdefined\fxocg@insert@OC%
-      \ifthenelse{\equal{\fxocg@insert@OC}{}}{}{%
+    \ifdefined\ocgxii@insert@OC%
+      \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
         \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
           /Subtype/Widget/F 2%
         }%
@@ -1942,7 +1932,7 @@
     >>%
     /AP <</N \@anim@apmk>>%
     /MK <</TP 1/I \@anim@apmk/IF<</S/A/FB true>>>>%
-    \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
+    \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
   }%
   \hbox to \@anim@animwidth\p@ {%
     \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1977,8 +1967,8 @@
   \fi%
   \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-  \ifdefined\fxocg@insert@OC% put dummy widget below (for fixocgx compatibility)
-    \ifthenelse{\equal{\fxocg@insert@OC}{}}{}{%
+  \ifdefined\ocgxii@insert@OC% put dummy widget below (for ocgx2 compatibility)
+    \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
       \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
         /Subtype/Widget/F 2%
       }%
@@ -2000,7 +1990,7 @@
     /T (#1.#2)%
     \@anim@tooltip%
     \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
-    \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
+    \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
   }%
   \if@anim@js%
     \hbox to \@anim@tmpdima {%
@@ -2010,8 +2000,6 @@
   \fi%
 }
 
-\newboolean{@anim@inside} % for checking whether we are inside the
-\setboolean{@anim@inside}{false} %  `animateinline' environment
 \newboolean{@anim@pauseframes} % true if \newframe* is being used
 \newboolean{@anim@chfps} % true if \newframe or \newframe* is being used
                          % with optional `new frame rate' argument
@@ -2025,7 +2013,6 @@
 \newenvironment{animateinline}[2][]{%
   \@anim@endsanitize%
   \leavevmode%
-  \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
   \begingroup%
   % make use of graphic[xs] search path
@@ -2062,6 +2049,8 @@
     \fi%
   \fi%
   \ifdefined\NoHyper\NoHyper\fi% silently suppress any hyperref specials
+  \let\newframe\@anim@@newframe%
+  \let\multiframe\@anim@multiframe%
   \@anim@beginframe%
   \ignorespaces%
 }{%
@@ -2081,24 +2070,21 @@
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
     \@anim@endsanitize%
+    % if last frame used as poster, write frame num to aux file
+    \ifnum\@anim@poster=\@anim@mone%
+      \@anim@keytoaux{a\the\@anim@num.poster}{\@anim@maxframe}%
+    \fi%
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
-  \setboolean{@anim@inside}{false}%
 }
 \let\@anim@animateinline\animateinline
 \def\animateinline{\@anim@sanitizeColon\@anim@animateinline}
 
 %usercommand for use within `animateinline' environment;
 %terminates the current frame and starts a new one
-\def\newframe{%
+\def\@anim@@newframe{% aliased to \newframe inside `animateinline'
   \unskip%
-  \if@anim@inside\else%
-    \PackageError{animate}{%
-      \protect\newframe\space cannot be used outside `animateinline'%
-      \MessageBreak environment%
-    }{}%
-  \fi%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
   \@ifstar\@anim@newframestar\@anim@newframe%
 }
@@ -2220,14 +2206,10 @@
 \newcount\@anim@mulframecnt %takes current loop No. of \multiframe
 \newboolean{@anim@insidemulti} % for checking whether we are inside \multiframe
 \setboolean{@anim@insidemulti}{false}
-\newcommand{\multiframe}[3]{% #1: #repetitions, #2: vars, #3: frame content
+\newcommand{\@anim@multiframe}[3]{%
+  % aliased to \multiframe inside `animateinline'
+  % #1: #repetitions, #2: vars, #3: frame content
   \unskip%
-  \if@anim@inside\else%
-    \PackageError{animate}{%
-      \protect\multiframe\space cannot be used outside `animateinline'%
-      \MessageBreak environment%
-    }{}%
-  \fi%
   \if@anim@insidemulti%
     \PackageError{animate}{\protect\multiframe\space cannot be nested}{}%
   \fi%
@@ -2248,7 +2230,7 @@
   \expandafter\@anim@parsevars\@anim@vardecls,\@nil%
   \whiledo{\@anim@mulframecnt<#1}{%
     \ifnum\@anim@mulframecnt>\z@%
-      \newframe%
+      \@anim@@newframe%
       \@anim@updatevars% update variables
     \fi%
     \global\advance\@anim@mulframecnt by \@ne%
@@ -2764,23 +2746,6 @@
     \@anim@colours#2\@nil%
   }%
 }
-\if@anim@dvips %background frame of buttons
-  \def\@anim@@@bg{%
-    0 setlinejoin
-    0 0 moveto
-    15 0 lineto
-    15 15 lineto
-    0 15 lineto
-    closepath
-    fill%
-  }
-\else% pdftex and dvipdfmx
-  \def\@anim@@@bg{%
-    0 j
-    0 0 150 150 re
-    f%
-  }
-\fi
 \define@key{anim@user}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
@@ -2788,25 +2753,25 @@
   \xdef\@anim@bgcolour{\@anim@colour}%
   \if@anim@dvips
     \ifnum\@anim@tmpcnt=\@ne%
-      \xdef\@anim@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
+      \xdef\@anim@bg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
-        \xdef\@anim@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
+        \xdef\@anim@bg{\@anim@colour\space setrgbcolor}%
       \else%
         \ifnum\@anim@tmpcnt=4\relax%
-          \xdef\@anim@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
+          \xdef\@anim@bg{\@anim@colour\space setcmykcolor}%
         \fi%
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
     \ifnum\@anim@tmpcnt=\@ne%
-      \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
+      \xdef\@anim@bg{\@anim@colour\space g}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
-        \xdef\@anim@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+        \xdef\@anim@bg{\@anim@colour\space rg}%
       \else%
         \ifnum\@anim@tmpcnt=4\relax%
-          \xdef\@anim@bg{\@anim@colour\space k\space\@anim@@@bg}%
+          \xdef\@anim@bg{\@anim@colour\space k}%
         \fi%
       \fi%
     \fi%
@@ -3068,25 +3033,25 @@
   \xdef\@anim@@bgcolour{\@anim@colour}%
   \if@anim@dvips
     \ifnum\@anim@tmpcnt=\@ne%
-      \xdef\@anim@@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
+      \xdef\@anim@@bg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
-        \xdef\@anim@@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
+        \xdef\@anim@@bg{\@anim@colour\space setrgbcolor}%
       \else%
         \ifnum\@anim@tmpcnt=4\relax%
-          \xdef\@anim@@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
+          \xdef\@anim@@bg{\@anim@colour\space setcmykcolor}%
         \fi%
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
     \ifnum\@anim@tmpcnt=\@ne%
-      \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
+      \xdef\@anim@@bg{\@anim@colour\space g}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
-        \xdef\@anim@@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+        \xdef\@anim@@bg{\@anim@colour\space rg}%
       \else%
         \ifnum\@anim@tmpcnt=4\relax%
-          \xdef\@anim@@bg{\@anim@colour\space k\space\@anim@@@bg}%
+          \xdef\@anim@@bg{\@anim@colour\space k}%
         \fi%
       \fi%
     \fi%

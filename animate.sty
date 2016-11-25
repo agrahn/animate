@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2009/08/17}
+\def\@anim@version{2009/08/31}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -3004,8 +3004,10 @@
 %  console.show();%
 %  console.clear();%
   \if@anim@useocg\else
-    if(typeof(curdoc)=='undefined'){curdoc=this;}% ref to the Doc object
+    var curdoc=this;%
+    var a#1_intd;%
   \fi
+  var a#1,a#1_int;%
   if(typeof(a#1)=='undefined'){% initialize animation
     a#1=new Object();%
     %takes references to frame ocgs/Field objects belonging to the current
@@ -3019,7 +3021,7 @@
     \if@anim@useocg
       %get array of ocgs of current page
       var ocg=this.getOCGs(this.pageNum);%
-      for(var i=0;i<ocg.length;i++){%
+      for(var i in ocg){%
         var ocgName=ocg[i].name.split('.');%
         if(ocgName[0]==#1){%
           \if@anim@controls
@@ -3049,7 +3051,7 @@
         \if@anim@step\else
           %get array of ocgs of current page
           var ocg=this.getOCGs(this.pageNum);%
-          for(var i=0;i<ocg.length;i++){%
+          for(var i in ocg){%
             var ocgName=ocg[i].name.split('.');%
             if(ocgName[0]==#1){%
               a#1.btn[ocgName[1]]=ocg[i];%

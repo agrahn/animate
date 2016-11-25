@@ -12,13 +12,14 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/07/18}
-\ProvidesPackage{animate}[\@anim@version]
+\def\@anim@version{2008/08/20}
+\ProvidesPackage{animate}
+[\@anim@version\space PDF animations from files and inline graphics]
 
 %test for e-TeX
 \expandafter\ifx\csname eTeXversion\endcsname\relax
   \PackageError{animate}{%
-    Missing support for e-TeX; abandoning...%
+    Missing support for e-TeX; aborting...%
   }{%
     Use a TeX compiler that supports e-TeX and enable e-TeX %
     in the format.%
@@ -66,7 +67,7 @@
 
 \ifpdf
   %test for correct pdfTeX version
-  \ifnum\pdftexversion<120
+  \ifnum\pdftexversion<120\relax%
     \PackageError{animate}{%
       pdfTeX, version >= 1.20, required%
     }{%
@@ -144,20 +145,16 @@
 %missing package error message
 \newcommand{\@anim@missing}[2][]{%
   \ifthenelse{\equal{#1}{}}{%
-    \PackageError{animate}{%
-      Package `#2' has not been loaded yet.\MessageBreak%
-      Put the line\MessageBreak%
-      `\protect\usepackage{#2}'\MessageBreak%
-      to the preamble of your document!%
-    }{}%
+    \def\@anim@pkgopt{}%
   }{%
-    \PackageError{animate}{%
-      Package `#2' has not been loaded yet.\MessageBreak%
-      Put the line\MessageBreak%
-      `\protect\usepackage[#1]{#2}'\MessageBreak%
-      to the preamble of your document!%
-    }{}%
+    \def\@anim@pkgopt{[#1]}%
   }%
+  \PackageError{animate}{%
+    Package `#2' has not been loaded yet.\MessageBreak%
+    Put the line\MessageBreak%
+    `\protect\usepackage\@anim@pkgopt{#2}'\MessageBreak%
+    to the preamble of your document%
+  }{}%
 }
 
 \newboolean{@anim@powerdot} %to cope with some powerdot oddity
@@ -275,20 +272,29 @@
         \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
       \fi%
     \else%
-      \edef\@anim@curfile{[clip,page=#2\@anim@gropts]{#1}}%
+      \edef\@anim@curfile{[clip\@anim@gropts,page=#2]{#1}}%
       \global\setbox\@anim@box=\hbox{%
         \expandafter\includegraphics\@anim@curfile}%
     \fi%
   }
 \else
-  \def\@anim@filebox#1#2{% #1 filename, #2 ignored
-    \edef\@anim@curfile{[clip\@anim@gropts]{#1}}%
-    \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
-  }
+  \if@anim@xetex
+    \def\@anim@filebox#1#2{%
+      \edef\@anim@curfile{[clip\@anim@gropts,page=#2]{#1}}%
+      \global\setbox\@anim@box=\hbox{%
+        \expandafter\includegraphics\@anim@curfile}%
+    }
+  \else
+    \def\@anim@filebox#1#2{% #2 ignored
+      \edef\@anim@curfile{[clip\@anim@gropts]{#1}}%
+      \global\setbox\@anim@box=\hbox{%
+        \expandafter\includegraphics\@anim@curfile}%
+    }
+  \fi
 \fi
 
 %create Form XObject from graphics file
-\ifpdf
+\ifthenelse{\boolean{pdf}\OR\boolean{@anim@xetex}}{
   \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
     %#4: page number of multipage file
     \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
@@ -309,10 +315,10 @@
       \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
     }%
   }
-\else
+}{
   \if@anim@@dvipdfmx
     \def\@anim@ximage#1#2#3#4{% #4: not used
-      \ifthenelse{\equal{\@anim@fileknown{#3}{1}}{!}}{% new file to be embedded
+      \ifthenelse{\equal{\@anim@fileknown{#3}{1}}{!}}{%new file to be embedded
         \@anim@filebox{#3}{}%
         \@anim@getsize{\@anim@box}%
         \ifnum#2=\z@%
@@ -332,7 +338,7 @@
   \else
     \def\@anim@ximage#1#2#3#4{% #4: not used
       \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
-        \@anim@filebox{#3}{}%
+        \@anim@filebox{#3}{}%                           animation
         \@anim@getsize{\@anim@box}%
         \ifnum#2=\z@%
           \@anim@scale%
@@ -349,7 +355,7 @@
       }%
     }
   \fi
-\fi
+}
 
 %creates Form XObject from box contents
 \ifpdf%
@@ -718,7 +724,7 @@
     % #3: index of existing button face colour combination
     \immediate\pdfobj{<</Type/OCG /Name (#1.Play#2)>>}%
     \edef\@anim@playocg{\the\pdflastobj\space 0 R}%
-    \immediate\pdfobj{<< /Type/OCG /Name (#1.Pause#2)>>}%
+    \immediate\pdfobj{<</Type/OCG /Name (#1.Pause#2)>>}%
     \edef\@anim@pauseocg{\the\pdflastobj\space 0 R}%
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@playocg\space\@anim@pauseocg}%
@@ -743,7 +749,7 @@
   \if@anim@@dvipdfmx
     \def\@anim@makeppcontainer#1#2#3{%
       \special{pdf:obj @#1.Play#2 <</Type/OCG /Name (#1.Play#2)>>}%
-      \special{pdf:obj @#1.Pause#2 << /Type/OCG /Name (#1.Pause#2)>>}%
+      \special{pdf:obj @#1.Pause#2 <</Type/OCG /Name (#1.Pause#2)>>}%
       \special{pdf:put @anim@ocgs @#1.Play#2 @#1.Pause#2}%
       \special{pdf:put @anim@posterocgs @#1.Play#2}%
       \special{pdf:stream @btn#1.PlayPause#2\space
@@ -1209,20 +1215,6 @@
       \IfFileExists{#1\@anim@ext}{}{%
       \gdef\@anim@ext{.jpeg}%
       \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.tif}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.tga}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.sgi}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.psd}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.pict}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.mac}%
-      \IfFileExists{#1\@anim@ext}{}{%
-      \gdef\@anim@ext{.gif}%
-      \IfFileExists{#1\@anim@ext}{}{%
       \gdef\@anim@ext{.bmp}%
       \IfFileExists{#1\@anim@ext}{}{%
         \PackageError{animate}{%
@@ -1233,19 +1225,12 @@
           `#1.ps',\MessageBreak%
           `#1.png',\MessageBreak%
           `#1.jpg',\MessageBreak%
-          `#1.jpeg',\MessageBreak%
-          `#1.tif',\MessageBreak%
-          `#1.tga',\MessageBreak%
-          `#1.sgi',\MessageBreak%
-          `#1.psd',\MessageBreak%
-          `#1.pict',\MessageBreak%
-          `#1.mac',\MessageBreak%
-          `#1.gif' or\MessageBreak%
+          `#1.jpeg' or\MessageBreak%
           `#1.bmp'\MessageBreak%
           could be found.\MessageBreak%
           Wrong file type? Mis-spelled file name?%
         }{}%
-      }}}}}}}}}}}}}}}%
+      }}}}}}}}%
     }%
   \else
     \if@anim@@dvipdfmx
@@ -1393,10 +1378,10 @@
       \ifx\@anim@first\@empty%
         \global\@anim@curframe=\@ne%
       \else%
-        \ifnum\@anim@first<0 \gdef\@anim@first{0}\fi%
+        \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
         \global\@anim@curframe=\@anim@first%
         \global\advance\@anim@curframe by \@ne%since pdfximage pages are 1-based
-        \ifnum\@anim@curframe>\pdflastximagepages
+        \ifnum\@anim@curframe>\pdflastximagepages%
           \global\@anim@curframe=\pdflastximagepages% correct wrong user input
         \fi%
       \fi%
@@ -1404,14 +1389,14 @@
       \ifx\@anim@last\@empty%
         \global\@anim@curframe=\pdflastximagepages%
       \else%
-        \ifnum\@anim@last<0 \gdef\@anim@last{0}\fi%
+        \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
         \global\@anim@curframe=\@anim@last%
         \global\advance\@anim@curframe by \@ne%
-        \ifnum\@anim@curframe>\pdflastximagepages
+        \ifnum\@anim@curframe>\pdflastximagepages%
           \global\@anim@curframe=\pdflastximagepages%
         \fi%
       \fi%
-      \ifnum\@anim@first>\@anim@curframe
+      \ifnum\@anim@first>\@anim@curframe%
         \xdef\@anim@last{\@anim@first}%
         \xdef\@anim@first{\the\@anim@curframe}%
       \else%
@@ -1420,7 +1405,45 @@
     \fi%
   }%
 \else
-  \def\@anim@checkmultipage#1{}% no-op in dvips & dvipdfmx mode
+  \if@anim@xetex
+    \def\@anim@checkmultipage#1{% #1: file base name
+      \IfFileExists{#1.pdf}{%
+        \setboolean{@anim@multipage}{true}%
+        \gdef\@anim@ext{.pdf}%
+      }{}%
+      \if@anim@multipage%
+        \ifx\@anim@first\@empty%
+          \global\@anim@curframe=\@ne%
+        \else%
+          \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
+          \global\@anim@curframe=\@anim@first%
+          \global\advance\@anim@curframe by \@ne%\XeTeXpdfpagecount is 1-based
+          \ifnum\@anim@curframe>\XeTeXpdfpagecount "#1.pdf"\relax%
+            \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+          \fi%
+        \fi%
+        \xdef\@anim@first{\the\@anim@curframe}%
+        \ifx\@anim@last\@empty%
+          \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+        \else%
+          \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
+          \global\@anim@curframe=\@anim@last%
+          \global\advance\@anim@curframe by \@ne%
+          \ifnum\@anim@curframe>\XeTeXpdfpagecount "#1.pdf"\relax%
+            \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+          \fi%
+        \fi%
+        \ifnum\@anim@first>\@anim@curframe%
+          \xdef\@anim@last{\@anim@first}%
+          \xdef\@anim@first{\the\@anim@curframe}%
+        \else%
+          \xdef\@anim@last{\the\@anim@curframe}%
+        \fi%
+      \fi%
+    }%
+  \else
+    \def\@anim@checkmultipage#1{}% no-op in dvips & dvipdfmx mode
+  \fi
 \fi
 
 %user command for embedding animation sequence
@@ -1470,11 +1493,11 @@
         Missing frame number in \protect\animategraphics\space command%
       }{}%
     }{}%
-    \ifnum\@anim@first>\@anim@last
+    \ifnum\@anim@first>\@anim@last%
       \edef\@anim@temp{\@anim@first}\edef\@anim@first{\@anim@last}%
       \edef\@anim@last{\@anim@temp}%
     \fi%
-    \ifthenelse{\@anim@first<0\OR\@anim@last<0}{%
+    \ifthenelse{\@anim@first<\z@\OR\@anim@last<\z@}{%
       \PackageError{animate}{%
         Negative frame numbers not allowed%
       }{}%
@@ -1607,8 +1630,7 @@
   \xdef\@anim@animtotalheight{\@anim@frametotalheight}%
   %rescale height & depth
   \ifthenelse{%
-    \NOT\equal{\@anim@boxheight}{}\AND%
-    \NOT\equal{\@anim@boxdepth}{}%
+    \NOT\equal{\@anim@boxheight}{}\AND\NOT\equal{\@anim@boxdepth}{}%
   }{%
     \xdef\@anim@animheight{\@anim@boxheight}%
     \xdef\@anim@animdepth{\@anim@boxdepth}%
@@ -1635,8 +1657,7 @@
   }%
   \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%rescale width
     \ifthenelse{% depth missing
-      \NOT\equal{\@anim@boxheight}{}\AND%
-      \equal{\@anim@boxdepth}{}%
+      \NOT\equal{\@anim@boxheight}{}\AND\equal{\@anim@boxdepth}{}%
     }{%
       \setlength{\@anim@tmpdima}{%
         \@anim@animtotalheight\p@%
@@ -1646,8 +1667,7 @@
       \xdef\@anim@animdepth{\strip@pt\@anim@tmpdimb}%
     }{%
       \ifthenelse{% height missing
-        \equal{\@anim@boxheight}{}\AND%
-        \NOT\equal{\@anim@boxdepth}{}%
+        \equal{\@anim@boxheight}{}\AND\NOT\equal{\@anim@boxdepth}{}%
       }{%
         \setlength{\@anim@tmpdima}{%
           \@anim@animtotalheight\p@%
@@ -1662,8 +1682,7 @@
     %if width is not given, but either height or depth are, scale
     %width to keep aspect ratio
     \ifthenelse{%
-      \NOT\equal{\@anim@boxheight}{}\OR%
-      \NOT\equal{\@anim@boxdepth}{}%
+      \NOT\equal{\@anim@boxheight}{}\OR\NOT\equal{\@anim@boxdepth}{}%
     }{%
       \setlength{\@anim@tmpdima}{%
         \@anim@animwidth\p@%
@@ -2111,7 +2130,7 @@
     \fi%
   \fi%
   \global\advance\@anim@skipfram by \@ne%
-  \ifnum\@anim@skipfram=\@anim@every
+  \ifnum\@anim@skipfram=\@anim@every%
     \global\@anim@skipfram=\z@%
   \fi%
 }
@@ -2140,10 +2159,15 @@
   %remove spaces from variable declaration list (2nd arg)
   \xdef\@anim@vardecls{#2\space}%
   \xdef\@anim@vardecls{\expandafter\zap@space\@anim@vardecls\@empty}%
+  \ifnum#1<\z@%
+    \PackageError{animate}{%
+      \protect\multiframe: first argument must be greater than zero%
+    }{}%
+  \fi%
   %parse list of variable declarations and build macro for updating them
-  \expandafter\@anim@parsevars\@anim@vardecls,!\@nil%
+  \expandafter\@anim@parsevars\@anim@vardecls,\@nil%
   \whiledo{\@anim@mulframecnt<#1}{%
-    \ifnum\@anim@mulframecnt>0
+    \ifnum\@anim@mulframecnt>\z@%
       \newframe%
       \@anim@updatevars% update variables
     \fi%
@@ -2159,7 +2183,7 @@
 %splits list of variable declarations
 \def\@anim@parsevars#1,#2\@nil{%
   \ifthenelse{\equal{#1}{}}{}{\@anim@parsedecl#1\@nil=+\@nil\relax}%
-  \ifthenelse{\equal{#2}{!}}{}{\@anim@parsevars#2\@nil}%
+  \ifthenelse{\equal{#2}{}}{}{\@anim@parsevars#2\@nil}%
 }
 %parser for single variable declaration
 \def\@anim@parsedecl#1=#2+#3\@nil#4\relax{%
@@ -2329,11 +2353,11 @@
       %detect multiple inclusion of the same transp. in the current frame
       \edef\@anim@trlst{%
         \the\@anim@curframe@zb.\@anim@getkeyval{trlst@\the\@anim@curframe@zb}}%
-      \expandafter\@anim@findmult\@anim@trlst,:\@nil%
+      \expandafter\@anim@findmult\@anim@trlst,\@nil%
       %insert frame Widget
       \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
       %clean-up
-      \expandafter\@anim@resetmult\@anim@trlst,:\@nil%
+      \expandafter\@anim@resetmult\@anim@trlst,\@nil%
       \@anim@newkey{trlst@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
@@ -2349,7 +2373,7 @@
   \closein\@anim@@tmlnfile%
   %check for unused transparencies
   \global\@anim@tmpcnt=\z@%
-  \loop\ifnum\@anim@transp>\@anim@tmpcnt
+  \loop\ifnum\@anim@transp>\@anim@tmpcnt%
     \ifcsname u@tr\the\@anim@tmpcnt\endcsname%
       {\expandafter\global\expandafter\let\csname
          u@tr\the\@anim@tmpcnt\endcsname\@undefined}%
@@ -2419,16 +2443,16 @@
   \fi%
   %parse the third field (list of layer specifications)
   \global\@anim@curlayer=\z@%
-  \@anim@parsethird#3;:\@nil%
+  \@anim@parsethird#3;\@nil%
 }
 
 %parses frame contents specification (semicolon separated list of layer
 %specifications)
 \def\@anim@parsethird#1;#2\@nil{%
-  \ifthenelse{\equal{#1}{}}{}{\@anim@parselayer#1,:\@nil}%process one layer spec
-  \ifthenelse{\equal{#2}{:}}{}{%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@parselayer#1,\@nil}%process one layer spec
+  \ifthenelse{\equal{#2}{}}{}{%
     \global\advance\@anim@curlayer by \@ne%
-    \ifnum\@anim@curlayer>\@anim@maxlayer
+    \ifnum\@anim@curlayer>\@anim@maxlayer%
       \xdef\@anim@maxlayer{\the\@anim@curlayer}%
     \fi%
     \@anim@parsethird#2\@nil%
@@ -2438,24 +2462,24 @@
 %parses contents of one layer specification (comma separated list of transp.
 %specs)
 \def\@anim@parselayer#1,#2\@nil{%
-  \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x:\@nil}%process one transp spec
-  \ifthenelse{\equal{#2}{:}}{}{\@anim@parselayer#2\@nil}%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x\@nil}%process one transp spec
+  \ifthenelse{\equal{#2}{}}{}{\@anim@parselayer#2\@nil}%
 }
 
 %process transparency spec, such as 123 or 456x78 or 9x0
 \def\@anim@process#1x#2\@nil{%
   %determine number of repetitions of current transparency
-  \ifthenelse{\equal{#2}{:}}{%
+  \ifthenelse{\equal{#2}{}}{%
     \gdef\@anim@repeats{1}%
   }{%
     \@anim@getrepetitions#2\@nil%
   }%
-  \ifnum\@anim@repeats=\z@% %0= means: repeat until end of timeline
+  \ifnum\@anim@repeats=\z@% =0 means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
   \else%
     \global\@anim@tmpcnt=\@anim@curframe@zb%
     \global\advance\@anim@tmpcnt by \@anim@repeats%
-    \ifnum\@anim@frames<\@anim@tmpcnt
+    \ifnum\@anim@frames<\@anim@tmpcnt%
       \edef\@anim@repeatuntil{\@anim@frames}%
     \else%
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
@@ -2467,7 +2491,7 @@
     \ifnum\@anim@transp=#1\else% transparencies
       \@anim@newkey{u@tr#1}{}% mark current transp. as used within the animation
       \global\@anim@tmpcnt=\@anim@curframe@zb%
-      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
+      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
         %ressource list
         \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
           \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
@@ -2524,7 +2548,7 @@
       {\expandafter\xdef\csname m@tr#2\endcsname{}}%
     \fi%
   }%
-  \ifthenelse{\equal{#3}{:}}{}{%
+  \ifthenelse{\equal{#3}{}}{}{%
     \@anim@findmult#1.#3\@nil%
   }%
 }
@@ -2533,13 +2557,13 @@
   \ifthenelse{\equal{#2}{}}{}{%
     {\expandafter\global\expandafter\let\csname m@tr#2\endcsname\@undefined}%
   }%
-  \ifthenelse{\equal{#3}{:}}{}{%
+  \ifthenelse{\equal{#3}{}}{}{%
     \@anim@resetmult#1.#3\@nil%
   }%
 }
 
 %get number of repetitions of frame
-\def\@anim@getrepetitions#1x:\@nil{%
+\def\@anim@getrepetitions#1x\@nil{%
   \gdef\@anim@repeats{#1}%
 }
 
@@ -2565,7 +2589,7 @@
 }
 \def\@anim@colours#1:#2\@nil{% helper macro to get number of colour components
   \xdef\@anim@colour{\@anim@colour\space #1}% and to replace : by ` ' in the arg
-  \ifthenelse{\equal{#2}{!}}{}{%
+  \ifthenelse{\equal{#2}{}}{}{%
     \global\advance\@anim@tmpcnt by \@ne%
     \@anim@colours#2\@nil%
   }%
@@ -2590,28 +2614,28 @@
 \define@key{anim@user}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!\@nil%
+  \@anim@colours#1:\@nil%
   \xdef\@anim@bgcolour{\@anim@colour}%
   \if@anim@@dvips
-    \ifnum\@anim@tmpcnt=\@ne
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
-      \ifnum\@anim@tmpcnt=3
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
       \else%
-        \ifnum\@anim@tmpcnt=4
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
         \fi%
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
     \else%
-      \ifnum\@anim@tmpcnt=3
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@bg{\@anim@colour\space rg\space\@anim@@@bg}%
       \else%
-        \ifnum\@anim@tmpcnt=4
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@bg{\@anim@colour\space k\space\@anim@@@bg}%
         \fi%
       \fi%
@@ -2621,35 +2645,35 @@
 \define@key{anim@user}{buttonfg}{%stroking colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!\@nil%
+  \@anim@colours#1:\@nil%
   \xdef\@anim@fgcolour{\@anim@colour}%
   \if@anim@@dvips
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@fg{\@anim@colour\space setgray}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
+    \else%
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@fg{\@anim@colour\space setrgbcolor}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
+      \else%
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@fg{\@anim@colour\space setcmykcolor}%
-        }{}%
-      }%
-    }%
+        \fi%
+      \fi%
+    \fi%
   \else% pdftex and dvipdfmx
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@fg{\@anim@colour\space G}%
       \xdef\@anim@@@fg{\@anim@colour\space g}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
+    \else%
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@fg{\@anim@colour\space RG}%
         \xdef\@anim@@@fg{\@anim@colour\space rg}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
+      \else%
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@fg{\@anim@colour\space K}%
           \xdef\@anim@@@fg{\@anim@colour\space k}%
-        }{}%
-      }%
-    }%
+        \fi%
+      \fi%
+    \fi%
   \fi%
 }
 \newboolean{@anim@controls}
@@ -2690,8 +2714,7 @@
 }
 \define@key{anim@user}{poster}[first]{% | none | last
   \ifthenelse{% correct wrong input to `none'
-    \equal{#1}{first}\OR%
-    \equal{#1}{last}%
+    \equal{#1}{first}\OR\equal{#1}{last}%
   }{%
     \gdef\@anim@poster{#1}%
   }{%
@@ -2825,28 +2848,28 @@
 \define@key{anim@pkg}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!\@nil%
+  \@anim@colours#1:\@nil%
   \xdef\@anim@@bgcolour{\@anim@colour}%
   \if@anim@@dvips
-    \ifnum\@anim@tmpcnt=\@ne
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
-      \ifnum\@anim@tmpcnt=3
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
       \else%
-        \ifnum\@anim@tmpcnt=4
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
         \fi%
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
     \else%
-      \ifnum\@anim@tmpcnt=3
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@@bg{\@anim@colour\space rg\space\@anim@@@bg}%
       \else%
-        \ifnum\@anim@tmpcnt=4
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@@bg{\@anim@colour\space k\space\@anim@@@bg}%
         \fi%
       \fi%
@@ -2862,35 +2885,35 @@
 \define@key{anim@pkg}{buttonfg}{%stroking colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!\@nil%
+  \@anim@colours#1:\@nil%
   \xdef\@anim@@fgcolour{\@anim@colour}%
   \if@anim@@dvips%
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@@fg{\@anim@colour\space setgray}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
+    \else%
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@@fg{\@anim@colour\space setrgbcolor}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
+      \else%
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@@fg{\@anim@colour\space setcmykcolor}%
-        }{}%
-      }%
-    }%
+        \fi%
+      \fi%
+    \fi%
   \else% pdftex and dvipdfmx
-    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
+    \ifnum\@anim@tmpcnt=\@ne%
       \xdef\@anim@@fg{\@anim@colour\space G}%
       \xdef\@anim@@@@fg{\@anim@colour\space g}%
-    }{%
-      \ifthenelse{\the\@anim@tmpcnt=3}{%
+    \else%
+      \ifnum\@anim@tmpcnt=3\relax%
         \xdef\@anim@@fg{\@anim@colour\space RG}%
         \xdef\@anim@@@@fg{\@anim@colour\space rg}%
-      }{%
-        \ifthenelse{\the\@anim@tmpcnt=4}{%
+      \else%
+        \ifnum\@anim@tmpcnt=4\relax%
           \xdef\@anim@@fg{\@anim@colour\space K}%
           \xdef\@anim@@@@fg{\@anim@colour\space k}%
-        }{}%
-      }%
-    }%
+        \fi%
+      \fi%
+    \fi%
   \fi%
 }
 \def\@anim@@btnsize{1.44em}%
@@ -2932,8 +2955,7 @@
 \gdef\@anim@@poster{first}%
 \define@key{anim@pkg}{poster}[first]{%
   \ifthenelse{%
-    \equal{#1}{first}\OR%
-    \equal{#1}{last}%
+    \equal{#1}{first}\OR\equal{#1}{last}%
   }{%
     \gdef\@anim@@poster{#1}%
   }{%

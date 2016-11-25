@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/02/04}
+\def\@anim@version{2016/03/22}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -35,11 +35,7 @@
 \RequirePackage{calc}
 \RequirePackage{atenddvi}%to really get certain \specials into the dvi
 \RequirePackage{animfp}
-\RequirePackage{graphics}
-
-\newboolean{@anim@powerdot} %to cope with some powerdot oddity
-\setboolean{@anim@powerdot}{false}
-\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
+\RequirePackage{graphics}%\scalebox, \resizebox
 
 %driver options (the only package options we process immediately)
 \newboolean{@anim@dvips}
@@ -56,12 +52,12 @@
   \DeclareOption{dvipdfmx}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
-    \PassOptionsToPackage{dvipdfmx}{ocgbase}
+    \PassOptionsToPackage{dvipdfmx}{pdfbase}
   }
   \DeclareOption{xetex}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
-    \PassOptionsToPackage{xetex}{ocgbase}
+    \PassOptionsToPackage{xetex}{pdfbase}
   }
 \fi
 \newboolean{@anim@xetex}
@@ -75,19 +71,54 @@
 \DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
 %(remaining package options will be processed near end of this file)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{pdfbase}%low level PDF operations
+\@ifpackagelater{pdfbase}{2016/03/11}{}{
+  \PackageError{animate}{%
+    Support package `pdfbase.sty' too old.%
+  }{%
+    Please install an up to date version of `pdfbase.sty'.\MessageBreak%
+    Aborting.%
+  }%
+}
+\ExplSyntaxOn
+  \def\@anim@dictobj#1{
+    \pbs_pdfobj:nnn{}{dict}{#1}
+    \xdef\@anim@lastobj{\pbs_pdflastobj:}
+  }
+  \def\@anim@arrayobj#1{
+    \pbs_pdfobj:nnn{}{array}{#1}
+    \xdef\@anim@lastobj{\pbs_pdflastobj:}
+  }
+  \def\@anim@streamobj#1#2{
+    \pbs_pdfobj:nnn{}{stream}{{#1}{#2}}
+    \xdef\@anim@lastobj{\pbs_pdflastobj:}
+  }
+
+  \def\@anim@xform#1#2#3{
+    \pbs_pdfxform:nnn{#1}{#2}{#3}
+    \xdef\@anim@lastxform{\pbs_pdflastxform:}
+  }
+
+  \let\@anim@refxform\pbs_pdfrefxform:n
+
+  \def\@anim@pdfannot#1#2#3#4{
+    \pbs_pdfannot:nnnn{#1}{#2}{#3}{#4}
+    %since all annots are Widgets
+    \pbs_appendtofields:n{\pbs_pdflastann:}
+  }
+
+  \let\@anim@pdfcatalog\pbs_pdfcatalog:n
+\ExplSyntaxOff
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \RequirePackage{ocgbase} %OCG generating and configuration macros
+\def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
+  \ocgbase@new@ocg{#1.#2}{}{1}%
+  \xdef\@anim@curocg{\ocgbase@last@ocg}%
+}
 
 \ifpdf
-  %test for correct pdfTeX version
-  \ifluatex\else
-    \ifnum\pdftexversion<120\relax
-      \PackageError{animate}{%
-        pdfTeX, version >= 1.20, required%
-      }{%
-        Install a newer version!%
-      }
-    \fi
-  \fi
   %load MP to PDF converter
   \InputIfFileExists{supp-pdf.mkii}{}{%
   \InputIfFileExists{supp-pdf}{}{%
@@ -127,52 +158,8 @@
         }%
       \fi%
     }
-    \AtEndDvi{\special{ps:\@anim@gsoldwarning}}%
   \fi
 \fi
-
-\begingroup
-\catcode`\_=13 \let_\space
-\xdef\@anim@dpiwarning{%
-  {Resolution 1200 gt VResolution 1200 gt or product (Ghostscript)
-  search {pop pop pop true}{pop false}ifelse and {%
-  (\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@____Warning:_DVI_resolution_greater_than_1200_dpi!_____@@\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@_Animation_frames_may_be_poorly_scaled,_clipped_or_____@@\string\n%
-   @@_invisible.____________________________________________@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@_Dvips_should_be_called_either_without_option_`-Ppdf':_@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@___dvips_\jobname\string\n
-   @@_______________________________________________________@@\string\n%
-   @@_or_with_a_different_resolution_setting:_______________@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@___dvips_-Ppdf_-D1200_\jobname\string\n
-   @@_______________________________________________________@@\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n)
-   print} if} ?pdfmark
-}
-\xdef\@anim@gsoldwarning{%
-  {product (Ghostscript) search {pop pop pop true}{pop false}ifelse
-   revision 915 lt and {%
-  (\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@____________Warning:_Ghostscript_too_old!______________@@\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@_Ghostscript_version_>=_9.15_required._________________@@\string\n%
-   @@_Otherwise,_animations_will_not_work.__________________@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@_Get_current_version_from______________________________@@\string\n%
-   @@_http://www.ghostscript.com/download___________________@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n)
-   print} if} ?pdfmark
-}
-\endgroup
 
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
@@ -196,9 +183,9 @@
   \ifcsname @anim@rerunwarned\endcsname\else%
     \gdef\@anim@rerunwarned{}%
       \PackageWarningNoLine{animate}{%
-      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
-      @@ Rerun to get internal references right! @@\MessageBreak
-      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+      @ Rerun to get internal references right! @\MessageBreak
+      @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
   \fi%
 }
 
@@ -240,91 +227,36 @@
 
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
-\newboolean{@anim@pgfloaded}
-\setboolean{@anim@pgfloaded}{false}
 \AtBeginDocument{%
-  \@ifpackageloaded{graphicx}{%
-    \setboolean{@anim@grxloaded}{true}%
-  }{}%
-  \@ifpackageloaded{pgf}{%
-    \setboolean{@anim@pgfloaded}{true}%
-  }{}%
+  \@ifpackageloaded{graphicx}{\setboolean{@anim@grxloaded}{true}}{}%
 }
 
-%macros for adding Appearances name tree / AcroForm dicts to PDF Catalog
+%add Appearances name tree to /Names dict of the PDF Catalog
 \def\@anim@appearances{}
-\ifdefined\@anim@fields\else\def\@anim@fields{}\fi %takes Field object refs
 \ifpdf
-  %Appearance name tree
   \AtEndDvi{%
     \ifx\empty\@anim@appearances\empty\else%
-      \immediate\pdfobj{[\@anim@appearances]}%
-      \pdfnames{%
-        /AP <</Names \the\pdflastobj\space 0 R>>%
-      }%
+      \@anim@arrayobj{\@anim@appearances}%
+      \pdfnames{/AP<</Names \@anim@lastobj>>}%
     \fi%
   }%
-  %AcroForm dict
-  \ifdefined\Acro@Form@added\else%
-    \AtEndDvi{%
-      \ifx\empty\@anim@fields\empty\else%
-        \immediate\pdfobj{[\@anim@fields]}%
-        \pdfcatalog{%
-          /AcroForm <</Fields \the\pdflastobj\space 0 R /NeedAppearances false>>%
-        }%
-      \fi%
-    }%
-    \gdef\Acro@Form@added{}%
-  \fi%
 \else
-  %counts inserted widget annots
-  \newcount\@anim@fieldnum\@anim@fieldnum=\z@
   \if@anim@dvipdfmx
     \AtEndDvi{%
       \ifx\empty\@anim@appearances\empty\else%
-        \special{pdf:obj @anim@appearances []}%
-        \special{pdf:put @anim@appearances \@anim@appearances}%
-        \special{pdf:put @names <</AP <</Names @anim@appearances>>>>}%
+        \@anim@arrayobj{\@anim@appearances}%
+        \special{pdf:put @names <</AP<</Names \@anim@lastobj>>>>}%
       \fi%
     }%
-    \ifdefined\Acro@Form@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@anim@fields\empty\else%
-          %array which takes refs to all widget annotations
-          \special{pdf:obj @anim@fields []}%
-          \special{pdf:put @anim@fields \@anim@fields}%
-          \special{pdf:put @catalog <<%
-            /AcroForm <</Fields @anim@fields /NeedAppearances false>>>>}%
-        \fi%
-      }%
-      \gdef\Acro@Form@added{}%
-    \fi%
   \else
     \AtEndDvi{%
       \ifx\empty\@anim@appearances\empty\else%
-        \special{ps:
-          mark /_objdef {@anim@appearances} /type/array /OBJ pdfmark
-          mark {@anim@appearances} 0 [\@anim@appearances] /PUTINTERVAL pdfmark
-          mark {Catalog} <<%
-            /Names <</AP <</Names {@anim@appearances}>> >>
-          >> /PUT pdfmark
-        }%
+        \@anim@arrayobj{\@anim@appearances}%
+        \PackageWarningNoLine{animate}{\@anim@icondvipswarning}%
+        %this deletes hyperref-inserted Dests!
+        \@anim@pdfcatalog{/Names<</AP<</Names \@anim@lastobj>>>>}%
       \fi%
     }%
-    \ifdefined\Acro@Form@added\else%
-      \AtEndDvi{%
-        \ifx\empty\@anim@fields\empty\else%
-          \special{ps:
-            mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
-            mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark
-            mark {Catalog} <<%
-              /AcroForm <</Fields {@anim@fields} /NeedAppearances false>>
-            >> /PUT pdfmark
-          }%
-        \fi%
-      }%
-      \gdef\Acro@Form@added{}%
-    \fi%
   \fi
 \fi
 
@@ -353,13 +285,13 @@
 }
 %retrieve nat. dimensions from XObjects
 \def\@anim@xobjnatwd#1{% #1 Form XObj ID
-  \@anim@getkeyval{natwidth:#1}\p@%
+  \@anim@getkeyval{natwidth:#1}%
 }
 \def\@anim@xobjnatht#1{% #1 Form XObj ID
-  \@anim@getkeyval{natheight:#1}\p@%
+  \@anim@getkeyval{natheight:#1}%
 }
 \def\@anim@xobjnatdp#1{% #1 Form XObj ID
-  \@anim@getkeyval{natdepth:#1}\p@%
+  \@anim@getkeyval{natdepth:#1}%
 }
 \def\@anim@xobjnatdims#1#2#3#4{% Form XObj ID, wd, ht, dp
   \@anim@newkey{natwidth:#1}{#2}%
@@ -422,273 +354,29 @@
 %create Form XObject from graphics file
 \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
   %#4: page number of multipage file
-  \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{%
+  \ifthenelse{\equal{\@anim@fileknown{#3}{#4.\@anim@gropts}}{!}}{%
     \@anim@filebox{#3}{#4}% store file in a box
     \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
     \ifx\@anim@gropts\@empty\if@anim@multipage\message{<#4>}\fi\fi%
-    \@anim@makefileknown{#3}{#4}{\@anim@@lastxform}%
+    \@anim@makefileknown{#3}{#4.\@anim@gropts}{\@anim@@lastxform}%
   }{% file known, re-use existing form xobject
     \setbox\@anim@box=%
-      \hbox to \@anim@xobjnatwd{\@anim@fileknown{#3}{#4}}{%
+      \hbox to \@anim@xobjnatwd{\@anim@fileknown{#3}{#4.\@anim@gropts}}{%
         \vrule width \z@
-          height \@anim@xobjnatht{\@anim@fileknown{#3}{#4}}
-          depth \@anim@xobjnatdp{\@anim@fileknown{#3}{#4}}%
+          height \@anim@xobjnatht{\@anim@fileknown{#3}{#4.\@anim@gropts}}
+          depth \@anim@xobjnatdp{\@anim@fileknown{#3}{#4.\@anim@gropts}}%
           \hss%
       }%
     \@anim@xinline{#1}{#2}{%
-      \@anim@box}{\@anim@fileknown{#3}{#4}}%
+      \@anim@box}{\@anim@fileknown{#3}{#4.\@anim@gropts}}%
   }%
 }
 
-%low level operations (driver level)
-\ifpdf
-  \def\@anim@dictobj#1{%
-    \immediate\pdfobj{<<#1>>}%
-    \xdef\@anim@lastobj{\the\pdflastobj\space 0 R}%
-  }
-
-  \def\@anim@streamobj#1#2{% #1: attrs, #2 content
-    \immediate\pdfobj stream attr {#1}{#2}%
-    \xdef\@anim@lastobj{\the\pdflastobj\space 0 R}%
-  }
-
-  \def\@anim@refobj#1{#1 0 R}
-
-  \def\@anim@xform#1#2#3{%#1: not used, #2: not used, #3 boxnum
-    \immediate\pdfxform resources {\the\pdfpageresources}#3%
-    \xdef\@anim@lastxform{\the\pdflastxform}%
-  }
-
-  \def\@anim@refxform#1{% #1: xform obj ID
-    \rlap{\vbox to \z@{\vss\pdfrefxform#1}}%
-  }
-
-  \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
-    \pdfannot width #1\p@ height #2\p@ depth #3\p@ {%
-      #4%
-    }%
-    %since all annots are Widgets
-    \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
-  }
-
-\else
-
-  \newcount\@anim@objnum
-  \if@anim@dvipdfmx
-    \def\@anim@dictobj#1{%
-      \special{pdf:obj @anm@obj\the\@anim@objnum <<#1>>}%
-      \xdef\@anim@lastobj{@anm@obj\the\@anim@objnum}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-
-    \def\@anim@streamobj#1#2{% #1 attrs, #2 content
-      \special{pdf:stream @anm@obj\the\@anim@objnum\space (#2) <<#1>>}%
-      \xdef\@anim@lastobj{@anm@obj\the\@anim@objnum}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-
-    \def\@anim@refobj#1{#1}
-
-    \def\@anim@xform#1#2#3{%#1 add. pgf resources ? 1:0, #2 not used, #3 boxnum
-      \special{pdf:bxobj @anm@obj\the\@anim@objnum\space width \strip@pt\wd#3pt
-        height \strip@pt\ht#3pt depth \strip@pt\dp#3pt}%
-      \rlap{\vbox to \z@{\vss\box#3}}%
-      \ifx1#1%
-        \ifthenelse{\boolean{@anim@pgfloaded}}{%
-          \def\@anim@resources{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@extgs@exists}}{%
-            \def\@anim@resources{/ExtGState @pgfextgs}}{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@patterns@exists}}{%
-            \edef\@anim@resources{\@anim@resources/Pattern @pgfpatterns}}{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@colorspaces@exists}}{%
-            \edef\@anim@resources{%
-              \@anim@resources/ColorSpace @pgfcolorspaces}}{}%
-          \ifthenelse{%
-            \boolean{pgf@sys@pdf@extgs@exists}%
-            \OR\boolean{pgf@sys@pdf@patterns@exists}%
-            \OR\boolean{pgf@sys@pdf@colorspaces@exists}%
-          }{%
-            \special{pdf:put @resources <<\@anim@resources>>}%
-          }{}%
-        }{}%
-      \fi%
-      \special{pdf:exobj}%
-      \xdef\@anim@lastxform{@anm@obj\the\@anim@objnum}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-    \def\@anim@refxform#1{\special{pdf:uxobj #1}}% #1: xform obj ID
-
-    \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
-      \special{pdf:annot @anm@obj\the\@anim@objnum\space
-        width #1pt height #2pt
-        depth #3pt <<%
-          #4%
-        >>}%
-      \xdef\@anim@fields{\@anim@fields @anm@obj\the\@anim@objnum\space}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-
-  \else % dvips
-    \def\@anim@dictobj#1{%
-      \special{ps:
-        mark /_objdef {@anm@obj\the\@anim@objnum} /type/dict /OBJ pdfmark
-        mark {@anm@obj\the\@anim@objnum} <<#1>> /PUT pdfmark
-      }%
-      \xdef\@anim@lastobj{{@anm@obj\the\@anim@objnum}}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-
-    \def\@anim@streamobj#1#2{%
-      \special{ps::[nobreak] %don't break long (strings) at embedded spaces
-        mark /_objdef {@anm@obj\the\@anim@objnum} /type/stream /OBJ pdfmark
-        mark {@anm@obj\the\@anim@objnum} (#2) /PUT pdfmark
-        mark {@anm@obj\the\@anim@objnum} <<#1>> /PUT pdfmark
-      }%
-      \xdef\@anim@lastobj{{@anm@obj\the\@anim@objnum}}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-
-    \def\@anim@refobj#1{#1}
-
-    \def\@anim@xform#1#2#3{%#1 not used, #2 used as appearance ? 1:0, #3 boxnum
-      \ifnum\@anim@method=\z@\relax% icon based && dvips kill links in document
-        \ifdefined\hypersetup%
-          \ifdefined\@anim@icondvipswarned\else%
-            \AtEndDocument{%
-              \PackageWarningNoLine{animate}{\@anim@icondvipswarning}%
-            }%
-            \gdef\@anim@icondvipswarned{}%
-          \fi%
-        \fi%
-      \fi%
-      \ifnum\@anim@method<\tw@\relax% icon based && widget based
-        \ifdefined\@anim@@dpiwarning\else%
-          %determine DVI resolution and output warning message if too high
-          \AtEndDvi{\special{ps:\@anim@dpiwarning}}%
-          \gdef\@anim@@dpiwarning{}%
-        \fi%
-      \fi%
-      \begingroup%
-        \setlength{\unitlength}{1pt}%
-        \begin{picture}(0,0)%
-        %mark BBox of the graphics
-        \put(0,-\strip@pt\dp#3){%
-          \special{ps:
-            currentpoint /frame@lly exch def /frame@llx exch def
-          }%
-        }%
-        \put(\strip@pt\wd#3,\strip@pt\ht#3){%
-          \special{ps:
-            currentpoint /frame@ury exch def /frame@urx exch def
-          }%
-        }%
-        %define some length values in current PS coordinate units
-        \put(0,0){%
-          \special{ps:
-            currentpoint /origin@y exch def /origin@x exch def
-          }%
-        }%
-        \put(72.27,72.27){%
-          \special{ps:
-            currentpoint origin@y exch sub /one@inch@y exch def
-            origin@x sub /one@inch@x exch def
-          }%
-        }%
-        \end{picture}%
-      \endgroup%
-      \@anim@newkey{origin:{@anm@obj\the\@anim@objnum}}{origin@\the\@anim@objnum}%
-      \special{ps:
-        gsave
-        %keep a record of lower left corner coordinates
-        true setglobal globaldict
-        /origin@\the\@anim@objnum [currentpoint] cvx put false setglobal
-        %translate graphics to upper left page corner
-        \if@anim@powerdot\else%
-        {%
-          frame@llx neg frame@ury neg translate
-          one@inch@x DVImag div neg one@inch@y DVImag div neg translate
-        }?pdfmark
-        \fi%
-        %distill graphics into XObject
-        mark
-          /_objdef {@anm@obj\the\@anim@objnum}
-          /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /BP pdfmark
-        \ifx1#2% operations needed if used as annotation appearance
-        {%
-          isls{%landscape mode (powerdot, geometry /w landscape option)
-            /frame@dxdy {%
-              frame@urx frame@llx sub abs
-              frame@ury frame@lly sub abs div%
-            } bind def
-            /frame@dydx {1 frame@dxdy div} bind def
-            /frame@cx {frame@urx frame@llx add 2 div} bind def
-            /frame@cy {frame@ury frame@lly add 2 div} bind def
-            % graphics needs to be rescaled for some reason ...
-            [frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
-              1 frame@dydx sub frame@cy mul] concat
-            %... rotated by 270 degrees ...
-            [0 -1 1 0 frame@cx frame@cy sub frame@cx frame@cy add] concat
-            %... and flipped around vertical axis
-            [-1 0 0 1 frame@llx frame@urx add 0] concat%
-          }{% flip around horizontal axis in portrait mode
-            [1 0 0 -1 0 frame@lly frame@ury add] concat%
-          }ifelse
-        }?pdfmark
-        \fi%
-      }%
-      \rlap{\vbox to \z@{\vss\box#3}}%
-      \special{ps:
-        mark /EP pdfmark
-        grestore%
-      }%
-      \xdef\@anim@lastxform{{@anm@obj\the\@anim@objnum}}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-    \def\@anim@refxform#1{% #1: xform obj ID
-      \special{ps:
-        gsave
-        currentpoint pop \@anim@getkeyval{origin:#1} pop sub
-        currentpoint exch pop \@anim@getkeyval{origin:#1} exch pop sub translate
-        mark #1 /SP pdfmark
-        grestore
-      }%
-    }
-
-    \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
-      \begingroup%
-        \setlength{\unitlength}{1pt}%
-        \begin{picture}(0,0)% mark annotation rectangle
-          \put(0,-#3){%
-          \special{ps:
-            currentpoint /wid@lly exch def /wid@llx exch def
-          }%
-        }%
-        \put(#1,#2){%
-          \special{ps:
-            currentpoint /wid@ury exch def /wid@urx exch def
-          }%
-        }%
-        \end{picture}%
-      \endgroup%
-      \special{ps:
-        mark
-          /_objdef {@anm@obj\the\@anim@objnum}%
-          /Rect [wid@llx wid@lly wid@urx wid@ury]%
-          #4%
-        /ANN pdfmark
-      }%
-      \xdef\@anim@fields{\@anim@fields{@anm@obj\the\@anim@objnum}\space}%
-      \global\advance\@anim@objnum by \@ne%
-    }
-  \fi
-\fi
-
 %creates Form XObject from box contents
 \def\@anim@xinline#1#2#3#4{%
-  \edef\@anim@curwd{\strip@pt\wd#3}%
-  \edef\@anim@curht{\strip@pt\ht#3}%
-  \edef\@anim@curdp{\strip@pt\dp#3}%
+  \edef\@anim@curwd{\the\wd#3}%
+  \edef\@anim@curht{\the\ht#3}%
+  \edef\@anim@curdp{\the\dp#3}%
   \ifnum#2=\z@\relax%
     %nat. dims of zeroth frame
     \xdef\@anim@zframewd{\@anim@curwd}%
@@ -699,10 +387,12 @@
       \vrule width \z@ height \ht#3 depth \dp#3\hss}%
     \@anim@scale{\@anim@measbox}%
   \else%
-    \def\@anim@needresize{0}%
-    \ifdim\wd#3=\@anim@zframewd\p@\else\def\@anim@needresize{1}\fi%
-    \ifdim\ht#3=\@anim@zframeht\p@\else\def\@anim@needresize{1}\fi%
-    \ifdim\dp#3=\@anim@zframedp\p@\else\def\@anim@needresize{1}\fi%
+    \def\@anim@needresize{0}% 
+    %test if natural dimensions of the current frame differ from those
+    %of the 0th frame
+    \ifdim\wd#3=\@anim@zframewd\else\def\@anim@needresize{1}\fi%
+    \ifdim\ht#3=\@anim@zframeht\else\def\@anim@needresize{1}\fi%
+    \ifdim\dp#3=\@anim@zframedp\else\def\@anim@needresize{1}\fi%
   \fi%
   %create form xobject from box argument
   \ifthenelse{\equal{#4}{!}}{% %%%% new graphics %%%%
@@ -717,15 +407,15 @@
   \ifnum#2>\z@\relax%
     %adjust size of current frame to zeroth frame's dims, if necessary
     \ifnum\@anim@needresize>\z@\relax%
-      \global\setbox#3=\hbox to \@anim@curwd\p@{%
-        \vrule width \z@ height \@anim@curht\p@ depth \@anim@curdp\p@%
-        \@anim@refxform{\@anim@lastxform}%
+      \global\setbox#3=\hbox to \@anim@curwd{%
+        \vrule width \z@ height \@anim@curht depth \@anim@curdp%
+        \noexpand\@anim@refxform{\@anim@lastxform}%
         \hss%
       }%
       \global\setbox#3=\hbox{%
-        \raisebox{-\@anim@zframedp\p@}{%
-          \resizebox*{\@anim@zframewd\p@}{%
-            \dimexpr\@anim@zframeht\p@+\@anim@zframedp\p@\relax%
+        \raisebox{-\@anim@zframedp}{%
+          \resizebox*{\@anim@zframewd}{%
+            \dimexpr\@anim@zframeht+\@anim@zframedp\relax%
           }{\raisebox{\depth}{\box#3}}%
         }%
       }%
@@ -735,17 +425,14 @@
   %keep a record of XObject number
   \@anim@newkey{img@#2}{\@anim@lastxform}%
   \if@anim@timeline\else%
-    \@anim@newkey{frmcontent@#2}{%
-      \@anim@refxform{\@anim@getkeyval{img@#2}}%
-    }%
+    \@anim@newkey{frmcontent@#2}{\@anim@getkeyval{img@#2},}%
     \@anim@makeframe{#1}{#2}%
   \fi%
 }
 
-%creates OCG (ocgbase.sty)
-\def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
-  \ocgbase@new@ocg{#1.#2}{}{1}%
-  \xdef\@anim@curocg{\ocgbase@last@ocg}%
+\def\@anim@insertfrmcontent#1,#2\@nil{%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@refxform{#1}}%
+  \ifthenelse{\equal{#2}{}}{}{\@anim@insertfrmcontent#2\@nil}%
 }
 
 %inserts one animation frame into the output acc. to
@@ -756,9 +443,9 @@
 % animation
 \def\@anim@makeframe#1#2{%
   %container box
-  \global\setbox\@anim@box=\hbox to \@anim@zframewd\p@{%
-    \vrule width \z@ height \@anim@zframeht\p@ depth \@anim@zframedp\p@%
-    \@anim@getkeyval{frmcontent@#2}%
+  \global\setbox\@anim@box=\hbox to \@anim@zframewd{%
+    \vrule width \z@ height \@anim@zframeht depth \@anim@zframedp%
+    \expandafter\@anim@insertfrmcontent\@anim@getkeyval{frmcontent@#2},\@nil%
     \hss%
   }%
   \ifcase\@anim@method% icon based
@@ -776,8 +463,7 @@
     %build appearance name tree
     \xdef\@anim@appearances{%
       \@anim@appearances
-      (\@anim@pad{1234}{#1}.\@anim@pad{1234}{#2})
-      \@anim@refobj{\@anim@lastxform}%
+      (\@anim@pad{1234}{#1}.\@anim@pad{1234}{#2}) \@anim@lastxform%
     }%
   \or% widget based
     %initial visibility
@@ -803,8 +489,8 @@
       \@anim@annotflag%
       /FT/Btn/Ff 65537%
       /BS <</W 0>>%
-      /AP <</N \@anim@refobj{\@anim@lastxform}>>%
-      /MK <</TP 1/I \@anim@refobj{\@anim@lastxform}/IF<</S/A/FB true>>>>%
+      /AP <</N \@anim@lastxform>>%
+      /MK <</TP 1/I \@anim@lastxform/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
       \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
     }%
@@ -824,17 +510,17 @@
       \fi%
     \fi%
     \def\@anim@needresize{0}%
-    \ifdim\@anim@animwidth\p@=\@anim@zframewd\p@\else%
+    \ifdim\@anim@animwidth=\@anim@zframewd\else%
       \def\@anim@needresize{1}\fi%
-    \ifdim\@anim@animheight\p@=\@anim@zframeht\p@\else%
+    \ifdim\@anim@animheight=\@anim@zframeht\else%
       \def\@anim@needresize{1}\fi%
-    \ifdim\@anim@animdepth\p@=\@anim@zframedp\p@\else%
+    \ifdim\@anim@animdepth=\@anim@zframedp\else%
       \def\@anim@needresize{1}\fi%
     \ifnum\@anim@needresize>\z@\relax%
       \global\setbox\@anim@box=\hbox{%
-        \raisebox{-\@anim@animdepth\p@}{%
-          \resizebox*{\@anim@animwidth\p@}{%
-            \dimexpr\@anim@animheight\p@+\@anim@animdepth\p@\relax%
+        \raisebox{-\@anim@animdepth}{%
+          \resizebox*{\@anim@animwidth}{%
+            \dimexpr\@anim@animheight+\@anim@animdepth\relax%
           }{\raisebox{\depth}{\box\@anim@box}}%
         }%
       }%
@@ -1058,6 +744,7 @@
     \@anim@xbutton{StepLeft}{[-1 0 0 1 15 0] concat \@anim@btnstep}{#1}%
     \@anim@xbutton{StepRight}{\@anim@btnstep}{#1}%
   }
+  \newcount\@anim@objnum
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
       gsave [1 0 0 1 0 0] setmatrix
@@ -1075,9 +762,8 @@
       }?pdfmark mark /EP pdfmark
       grestore
     }%
-    \xdef\@anim@lastobj{{@anm@obj\the\@anim@objnum}}%
+    \@anim@newkey{btn#1:#3}{{@anm@obj\the\@anim@objnum}}%
     \global\advance\@anim@objnum by \@ne%
-    \@anim@newkey{btn#1:#3}{\@anim@lastobj}%
   }
 \else %pdftex/dvipdfmx/xetex
   %stroking commands
@@ -1457,7 +1143,7 @@
   \vtop{% draw boxes
     \offinterlineskip%
     \hbox{%
-      \raisebox{-\@anim@animdepth\p@}{%
+      \raisebox{-\@anim@animdepth}{%
         \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
           \put(0,0){\framebox(\@anim@animwidth,\@anim@animtotalheight){}}%
         \end{picture}%
@@ -1466,7 +1152,7 @@
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
-      \hbox to \@anim@animwidth\p@ {%
+      \hbox to \@anim@animwidth {%
         \hss%
         \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
         \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
@@ -1540,7 +1226,7 @@
     \fi%
     \if@anim@multipage%
       \xdef\@anim@pathtofile{\expandafter\zap@finalspace\@filef@und\@nil}%
-      \@anim@filebox{\@anim@pathtofile}{1}%
+      \pdfximage page 1 {\@anim@pathtofile}%
       \@anim@curframe=\pdflastximagepages%
       \advance\@anim@curframe by -\@ne%since \pdfximagepages is 1-based
       \edef\@anim@lastpage{\the\@anim@curframe}%
@@ -1768,7 +1454,7 @@
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
-      \hbox to \@anim@animwidth\p@ {%
+      \hbox to \@anim@animwidth {%
         \hss%
         \def\@anim@tooltip{}%
         \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
@@ -1810,9 +1496,9 @@
     \let\totalheight\@anim@tmpdimb%
     \setlength{\totalheight}{\dimexpr\height+\depth\relax}%
     %evaluate resizing options
-    \xdef\@anim@animwidth{\strip@pt\dimexpr\@anim@widtharg\relax}%
-    \xdef\@anim@animheight{\strip@pt\dimexpr\@anim@heightarg\relax}%
-    \xdef\@anim@animtotalheight{\strip@pt\dimexpr\@anim@totheightarg\relax}%
+    \xdef\@anim@animwidth{\the\dimexpr\@anim@widtharg\relax}%
+    \xdef\@anim@animheight{\the\dimexpr\@anim@heightarg\relax}%
+    \xdef\@anim@animtotalheight{\the\dimexpr\@anim@totheightarg\relax}%
   \endgroup%
   %correct wrong option combination; totalheight overrides height
   \ifnum\@anim@resizeflags=3\relax% height+totalheight->totalheight
@@ -1824,42 +1510,42 @@
   %now resize
   \ifcase\@anim@resizeflags% bit 2^2=width, 2^1=height, 2^0=totalhight given
   \or% 1
-    \global\setbox#1=\hbox{\resizebox*{!}{\@anim@animtotalheight\p@}{\box#1}}%
+    \global\setbox#1=\hbox{\resizebox*{!}{\@anim@animtotalheight}{\box#1}}%
   \or% 2
-    \global\setbox#1=\hbox{\resizebox{!}{\@anim@animheight\p@}{\box#1}}%
+    \global\setbox#1=\hbox{\resizebox{!}{\@anim@animheight}{\box#1}}%
   \or\or% 4
-    \global\setbox#1=\hbox{\resizebox{\@anim@animwidth\p@}{!}{\box#1}}%
+    \global\setbox#1=\hbox{\resizebox{\@anim@animwidth}{!}{\box#1}}%
   \or% 5
     \if@anim@iso%
       \setlength{\@anim@tmpdima}{%
-        \totalheightof{\usebox#1}*\ratio{\@anim@animwidth\p@}{\wd#1}}%
+        \totalheightof{\usebox#1}*\ratio{\@anim@animwidth}{\wd#1}}%
       \ifdim\@anim@tmpdima<\z@\@anim@tmpdima=-\@anim@tmpdima\fi%
-      \setlength{\@anim@tmpdimb}{\@anim@animtotalheight\p@}%
+      \setlength{\@anim@tmpdimb}{\@anim@animtotalheight}%
       \ifdim\@anim@tmpdimb<\z@\@anim@tmpdimb=-\@anim@tmpdimb\fi%
       \ifdim\@anim@tmpdima<\@anim@tmpdimb%
-        \global\setbox#1=\hbox{\resizebox*{\@anim@animwidth\p@}{!}{\box#1}}%
+        \global\setbox#1=\hbox{\resizebox*{\@anim@animwidth}{!}{\box#1}}%
       \else%
         \global\setbox#1=\hbox{%
-          \resizebox*{!}{\@anim@animtotalheight\p@}{\box#1}}%
+          \resizebox*{!}{\@anim@animtotalheight}{\box#1}}%
       \fi%
     \else%
       \global\setbox#1=\hbox{%
-        \resizebox*{\@anim@animwidth\p@}{\@anim@totheightarg}{\box#1}}%
+        \resizebox*{\@anim@animwidth}{\@anim@totheightarg}{\box#1}}%
     \fi%
   \or% 6
     \if@anim@iso%
-      \setlength{\@anim@tmpdima}{\ht#1*\ratio{\@anim@animwidth\p@}{\wd#1}}%
+      \setlength{\@anim@tmpdima}{\ht#1*\ratio{\@anim@animwidth}{\wd#1}}%
       \ifdim\@anim@tmpdima<\z@\@anim@tmpdima=-\@anim@tmpdima\fi%
-      \setlength{\@anim@tmpdimb}{\@anim@animheight\p@}%
+      \setlength{\@anim@tmpdimb}{\@anim@animheight}%
       \ifdim\@anim@tmpdimb<\z@\@anim@tmpdimb=-\@anim@tmpdimb\fi%
       \ifdim\@anim@tmpdima<\@anim@tmpdimb%
-        \global\setbox#1=\hbox{\resizebox{\@anim@animwidth\p@}{!}{\box#1}}%
+        \global\setbox#1=\hbox{\resizebox{\@anim@animwidth}{!}{\box#1}}%
       \else%
-        \global\setbox#1=\hbox{\resizebox{!}{\@anim@animheight\p@}{\box#1}}%
+        \global\setbox#1=\hbox{\resizebox{!}{\@anim@animheight}{\box#1}}%
       \fi%
     \else%
       \global\setbox#1=\hbox{%
-        \resizebox{\@anim@animwidth\p@}{\@anim@animheight\p@}{\box#1}}%
+        \resizebox{\@anim@animwidth}{\@anim@animheight}{\box#1}}%
     \fi%
   \fi%
   %apply scale
@@ -1867,10 +1553,10 @@
     \global\setbox#1=\hbox{\scalebox{\@anim@boxscale}{\box#1}}%
   \fi%
   %dimensions after resizing
-  \xdef\@anim@animwidth{\strip@pt\wd#1}%
-  \xdef\@anim@animheight{\strip@pt\ht#1}%
-  \xdef\@anim@animdepth{\strip@pt\dp#1}%
-  \xdef\@anim@animtotalheight{\strip@pt\dimexpr\ht#1+\dp#1\relax}%
+  \xdef\@anim@animwidth{\the\wd#1}%
+  \xdef\@anim@animheight{\the\ht#1}%
+  \xdef\@anim@animdepth{\the\dp#1}%
+  \xdef\@anim@animtotalheight{\the\dimexpr\ht#1+\dp#1\relax}%
 }
 
 %interactive Widget annotation serving as animation frame container / that is
@@ -1878,6 +1564,7 @@
 %frame OCGs
 \def\@anim@animwidget#1{%
   \@anim@pojscript{#1}%
+  \@anim@pcjscript{#1}%
   \@anim@otherjscript{#1}%
   \def\@anim@annotflag{}%
   \ifnum\@anim@poster>\@anim@maxframe\relax%
@@ -1895,14 +1582,13 @@
         \@anim@xform{0}{0}{\@anim@box}%
         \xdef\@anim@apdummy{\@anim@lastxform}%
         \xdef\@anim@appearances{%
-          (0000)
-          \@anim@refobj{\@anim@lastxform}
+          (0000) \@anim@lastxform
           \@anim@appearances%
         }%
       \fi%
-      \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
+      \def\@anim@apmk{\@anim@apdummy}%
     \else%
-      \def\@anim@apmk{\@anim@refobj{\@anim@posterap}}%
+      \def\@anim@apmk{\@anim@posterap}%
     \fi%
   \else%
     \ifdefined\@anim@apdummy\else% empty appearance dummy
@@ -1910,7 +1596,7 @@
       \@anim@xform{0}{0}{\@anim@box}%
       \xdef\@anim@apdummy{\@anim@lastxform}%
     \fi%
-    \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
+    \def\@anim@apmk{\@anim@apdummy}%
   \fi%
   %With icon and ocg method, we put one dummy widget below; this seems to be
   %necessary for the OCG visibility referenced by the /OC entry to work as
@@ -1933,17 +1619,18 @@
     /T (anm#1)%
     /Contents (animation by animate[\@anim@version])%
     /AA <<%
-      /PO <<%
-        /S/JavaScript/JS \@anim@pojscriptobj%
-      >>%
+      /PV <</S/JavaScript/JS \@anim@pojscriptobj>>% PageVisible
+      /PO <</S/JavaScript/JS \@anim@pojscriptobj>>% PageOpen
+      /PI <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageInvisible
+      /PC <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageClose
       \@anim@otherjscriptkey%
     >>%
     /AP <</N \@anim@apmk>>%
     /MK <</TP 1/I \@anim@apmk/IF<</S/A/FB true>>>>%
     \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
   }%
-  \hbox to \@anim@animwidth\p@ {%
-    \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
+  \hbox to \@anim@animwidth {%
+    \vrule width 0pt height \@anim@animheight depth \@anim@animdepth%
     \hss%
   }%
 }
@@ -1977,12 +1664,12 @@
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
   \ifdefined\ocgxii@insert@OC% put dummy widget below (for ocgx2 compatibility)
     \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
-      \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
+      \@anim@pdfannot{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
         /Subtype/Widget/F 2%
       }%
     }%
   \fi%
-  \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
+  \@anim@pdfannot{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
     /Subtype/Widget%
     \@anim@annotflag%
     /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
@@ -1992,8 +1679,8 @@
       /AP <</N \@anim@getkeyval{btn#3}>>%
       /MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>%
     \else%
-      /AP <</N \@anim@refobj{\@anim@apdummy}>>%
-      /MK <</TP 1/I \@anim@refobj{\@anim@apdummy}/IF<</S/A/FB true>>>>%
+      /AP <</N \@anim@apdummy>>%
+      /MK <</TP 1/I \@anim@apdummy/IF<</S/A/FB true>>>>%
     \fi%
     /T (#1.#2)%
     \@anim@tooltip%
@@ -2059,9 +1746,6 @@
   \ifdefined\NoHyper\NoHyper\fi% silently suppress any hyperref specials
   \let\newframe\@anim@@newframe%
   \let\multiframe\@anim@multiframe%
-  \let\PDFXForm\@gobble% suppress any of these inside `animateinline'
-  \let\PDFRefXForm\@gobble%
-  \let\PDFLastXForm\relax%
   \@anim@beginframe%
   \ignorespaces%
 }{%
@@ -2169,14 +1853,16 @@
 
 %starts new frame
 \def\@anim@beginframe{%
-  \begin{lrbox}{\@anim@box}% store graphics in a box
+  \begingroup%
+  \lrbox{\@anim@box}% store graphics in a box
   \@anim@begin%
 }
 
 %terminates current frame
 \def\@anim@endframe#1#2{%
   \@anim@end%
-  \end{lrbox}%
+  \endlrbox%
+  \endgroup%
   \ifnum\@anim@skipfram=\z@\relax%
     \ifnum#2=\z@\relax%
       \ifdim\wd\@anim@box=\z@%
@@ -2362,12 +2048,12 @@
 
 \begingroup\catcode`\_=13\let_\space
 \xdef\@anim@nusewarning{%
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
-  @_There_were_unused_animation_transparencies._______@\MessageBreak%
-  @_See_the_transcript_file___________________________@\MessageBreak%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
+  @_There_were_unused_animation_transparencies._____@\MessageBreak%
+  @_See_the_transcript_file_________________________@\MessageBreak%
   @___``\jobname.log''\MessageBreak%
-  @_for_additional_information!_______________________@\MessageBreak%
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+  @_for_additional_information!_____________________@\MessageBreak%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
 }
 \xdef\@anim@icondvipswarning{%
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
@@ -2631,7 +2317,7 @@
           \edef\@anim@tmpvar{\@anim@getkeyval{%
             layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
           \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
-            \@anim@tmpvar\@anim@refxform{\@anim@getkeyval{img@#1}}%
+            \@anim@tmpvar\@anim@getkeyval{img@#1},%
           }%
           %append transp. to list of transparencies used in the current layer
           \edef\@anim@tmpvar{\@anim@getkeyval{%
@@ -2709,9 +2395,9 @@
       \gdef\@anim@multlabel{}%
       \AtEndDocument{%
         \PackageWarningNoLine{animate}{%
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
-        @@ There were multiply-defined labels! @@\MessageBreak
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+        @ There were multiply-defined labels! @\MessageBreak
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
       }%
     \fi%
   \fi%
@@ -3267,39 +2953,13 @@
   \def\@anim@@method{\@ne}
 \fi\fi
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% useful macros for XObject generation and usage
-% \PDFXForm, \PDFRefXForm, \PDFLastXForm modelled after
-% PDFTeX's builtins \pdfxform, \pdfrefxform, \pdflastxform
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\def\PDFXForm#1{% #1 box number
-  \begingroup%
-  \edef\@anim@mywd{\the\wd#1}%
-  \edef\@anim@myht{\the\ht#1}%
-  \edef\@anim@mydp{\the\dp#1}%
-  \@anim@reset\@anim@xform{}{0}{#1}%
-  \global\let\PDFLastXForm\@anim@lastxform%
-  \expandafter\xdef\csname xform.\pdfLastXForm.wd\endcsname{\@anim@mywd}%
-  \expandafter\xdef\csname xform.\pdfLastXForm.ht\endcsname{\@anim@myht}%
-  \expandafter\xdef\csname xform.\pdfLastXForm.dp\endcsname{\@anim@mydp}%
-  \endgroup%
-}
-\def\PDFRefXForm#1{% #1 PDF XForm Object identifier
-  \makebox[\csname xform.#1.wd\endcsname][l]{%
-    \rule{0pt}{\csname xform.#1.ht\endcsname}%
-    \rule{0pt}{-\csname xform.#1.dp\endcsname}%
-    \@anim@refxform{#1}%
-  }%
-}%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %process package options
 \def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
 \edef\@anim@pkgopts{{\@ptionlist{\@currname.\@currext}}}
 \expandafter\@anim@setpkgkeys\@anim@pkgopts
 
 %JavaScript objects
-%animation widget's PageOpen event
+%animation widget's PageOpen/PageVisible event
 \def\@anim@pojscript#1{%
   \@anim@streamobj{}{\@anim@@pojscript{#1}}%
   \xdef\@anim@pojscriptobj{\@anim@lastobj}%
@@ -3321,7 +2981,7 @@
         app.alert('Icon-based'+spc+'animation'+spc+'is'+spc+'not'+spc+%
           'supported'+spc+'by'+spc+'this'+spc+'Reader.'+spc+'Try'+spc+%
           'one'+spc+'of'+spc+'"method=widget"'+spc+'or'+spc+%
-          '"method=useocg"'+spc+'options.');%
+          '"method=ocg"'+spc+'options.');%
       }%
       a#1.wid=this.getField('anm#1');%reference to interactive widget
       for(i=0;i<=\@anim@maxframe;i++){%
@@ -3702,35 +3362,41 @@
   \fi%
 }
 
+%animation widget's PageClose and PageInvisible events
+\def\@anim@pcjscript#1{%
+  \@anim@streamobj{}{\@anim@@pcjscript{#1}}%
+  \xdef\@anim@pcjscriptobj{\@anim@lastobj}%
+}
+\def\@anim@@pcjscript#1{% #1: @anim@num
+  \if@anim@step%
+    \if@anim@palindrome a#1.playsRight=true;\fi%
+  \else
+    if(a#1.playing){
+      \if@anim@autopause
+        a#1.pause();%
+      \else
+        a#1.pause(true);% stop
+      \fi%
+    }%
+    \if@anim@morejs if(!a#1.isPaused)a#1.playsRight=true;\fi%
+  \fi
+  %re-display poster frame
+  if(!a#1.isPaused){% i.e. if stopped
+    \ifnum\@anim@poster=\@anim@mtwo %poster=none
+      var ret=app.setTimeOut('a#1.seekFrame(-2)',1);%
+    \fi%
+    \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
+      var ret=app.setTimeOut('a#1.seekFrame(\@anim@poster)',1);%
+    \fi%
+    \ifnum\@anim@poster=\@anim@mone %poster=last
+      var ret=app.setTimeOut('a#1.seekFrame(\@anim@maxframe)',1);%
+    \fi%
+  }%
+}
+
 %other trigger events in the anim widget's AA dictionary
 \def\@anim@otherjscript#1{%
   \xdef\@anim@otherjscriptkey{%
-    /PC <</S/JavaScript/JS (% PageClose
-      \if@anim@step%
-        \if@anim@palindrome a#1.playsRight=true;\fi%
-      \else
-        if(a#1.playing){
-          \if@anim@autopause
-            a#1.pause();%
-          \else
-            a#1.pause(true);% stop
-          \fi%
-        }%
-        \if@anim@morejs if(!a#1.isPaused)a#1.playsRight=true;\fi%
-      \fi
-      %re-display poster frame
-      if(!a#1.isPaused){% i.e. if stopped
-        \ifnum\@anim@poster=\@anim@mtwo %poster=none
-          var ret=app.setTimeOut('a#1.seekFrame(-2)',1);%
-        \fi%
-        \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
-          var ret=app.setTimeOut('a#1.seekFrame(\@anim@poster)',1);%
-        \fi%
-        \ifnum\@anim@poster=\@anim@mone %poster=last
-          var ret=app.setTimeOut('a#1.seekFrame(\@anim@maxframe)',1);%
-        \fi%
-      }%
-    )>>%
     /D <</S/JavaScript/JS (%
       app.focusRect=false;% disable focus rectangle
       \if@anim@step\else % pause on MouseDown
@@ -3785,6 +3451,7 @@
     )>>%
   }%
 }
+
 %actions for control buttons
 \def\@anim@upjscript#1#2{%
   \def\@anim@action{#2}%

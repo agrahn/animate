@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/08/21]
+\ProvidesPackage{animate}[2007/09/25]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -62,6 +62,13 @@
       Install a newer version!%
     }%
   \fi
+\fi
+
+%\pdfmdfivesum is used for hashing object references of embedded files, based
+%on their MD5 digest (in order to avoid multiple inclusion); if it is not
+%available, hashing will be based on the file name
+\ifx\@undefined\pdfmdfivesum
+  \def\pdfmdfivesum file #1{#1}
 \fi
 
 %creating and using global definitions
@@ -123,37 +130,61 @@
 \newdimen\@anim@tmpdima %length registers for occasional use
 \newdimen\@anim@tmpdimb
 
-%creates Form XObject from graphics file
+%tests whether file is known, if so it returns identifier of form xobj
+%otherwise `!'
+\def\@anim@fileknown#1{% #1 file name
+  %identify file by md5sum
+  \expandafter\ifx\csname file:\pdfmdfivesum file {#1}\endcsname\relax!%
+  \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}}\fi%
+}%
+\def\@anim@makefileknown#1#2{%
+  \@anim@newkey{file:\pdfmdfivesum file {#1}}{#2}%
+}
+
 \def\@anim@pt{pt}
+
 \ifpdf
-  \def\@anim@ximage#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename
-    %store file in a box
+  %helper macro that typesets graphics file into savebox
+  \def\@anim@filebox#1{% #1 filename
     \def\@anim@mps{.mps}%
     \ifx\@anim@ext\@anim@mps%
-      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#3}{1}{1}}%
+      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
     \else%
-      \immediate\pdfximage{#3}%
+      \pdfximage{#1}%
       \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
     \fi%
-    %delegate Form XObject creation
-    \@anim@xinline{#1}{#2}{\@anim@box}%
   }
 \else
-  \def\@anim@ximage#1#2#3{%
-    %store file in a box
-    \edef\@anim@curfile{{#3}}%
+  \def\@anim@filebox#1{% #1 filename
+    \edef\@anim@curfile{{#1}}%
     \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
-    %delegate Form XObject creation
-    \@anim@xinline{#1}{#2}{\@anim@box}%
   }
 \fi
+
+%create Form XObject from graphics file
+\def\@anim@ximage#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename
+  \ifthenelse{\equal{\@anim@fileknown{#3}}{!}}{% new file to be embedded
+    \@anim@filebox{#3}% store file in a box
+    \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
+    \@anim@makefileknown{#3}{\@anim@lastxform}% keep form xobject number
+  }{% file known, re-use existing form xobject
+    \ifnum#2=0%
+      \@anim@filebox{#3}% for size determination of first frame
+      \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}}%
+    \else%
+      \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}}%
+    \fi%
+  }%
+}
 
 \newboolean{@anim@timeline} %true if `timeline' option was set
 
 %creates Form XObject from box contents and associates it with a newly
 %created OCG
-\ifpdf
-  \def\@anim@xinline#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:box number
+\ifpdf%
+  %#1: @anim@num, #2:@anim@curframe@zb, #3: empty (`') or box number,
+  %#4: `!' or form xobj identifier
+  \def\@anim@xinline#1#2#3#4{%
     \ifnum#2=0% measuring the size of the box (first frame only)
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
@@ -162,11 +193,19 @@
       \addtolength{\@anim@tmpdima}{\dp#3}%
       \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
     \fi%
-    %put graphics into XObject
-    \immediate\pdfxform #3%
-    %XObject resource entry of container XObject
-    \xdef\@anim@xobject{%
-      \@anim@xobject\space/im#2\space\the\pdflastxform\space 0 R%
+    \ifthenelse{\equal{#4}{!}}{%
+      %put graphics into XObject
+      \setbox\@anim@box=\hbox{%
+        \raisebox{-\dp#3}[\@anim@animheight\@anim@pt]%
+          [\@anim@animdepth\@anim@pt]{\box#3}%
+      }%
+      \immediate\pdfxform\@anim@box%
+      \xdef\@anim@lastxform{\the\pdflastxform}%
+      \xdef\@anim@xobject{%XObject resource entry of container XObject
+        \@anim@xobject\space/im#2\space\@anim@lastxform\space 0 R%
+      }%
+    }{%
+      \xdef\@anim@xobject{\@anim@xobject\space/im#2\space #4\space 0 R}%
     }%
     \if@anim@timeline\else%
       \@anim@newocg{#1}{#2}%new ocg
@@ -175,9 +214,9 @@
         \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
       }%
     \fi%
-   }
+  }
 \else
-  \def\@anim@xinline#1#2#3{%
+  \def\@anim@xinline#1#2#3#4{%
     \ifnum#2=0%
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
@@ -186,43 +225,67 @@
       \addtolength{\@anim@tmpdima}{\dp#3}%
       \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
     \fi%
-    \edef\@anim@oldunitlength{\the\unitlength}% make backup
-    \setlength{\unitlength}{1pt}%
-    %mark BBox of the graphics
-    \begin{picture}(0,0)%
-    \put(0,-\@anim@animdepth){%
-      \special{ps:
-        currentpoint /frame@lly exch def /frame@llx exch def
+    \ifthenelse{\equal{#4}{!}}{%
+      \begingroup%
+      \setlength{\unitlength}{1pt}%
+      %mark BBox of the graphics
+      \begin{picture}(0,0)%
+      \put(0,-\@anim@animdepth){%
+        \special{ps:
+          currentpoint /frame@lly exch def /frame@llx exch def
+        }%
       }%
-    }%
-    \put(\@anim@animwidth,\@anim@animheight){%
-      \special{ps:
-        currentpoint /frame@ury exch def /frame@urx exch def
+      \put(\@anim@animwidth,\@anim@animheight){%
+        \special{ps:
+          currentpoint /frame@ury exch def /frame@urx exch def
+        }%
       }%
-    }%
-    \end{picture}%
-    \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlength
-    %distill graphics into XObject
-    \special{ps:
-      gsave
-      mark
-        /_objdef {@anim@frm@#1@#2}
-        /BBox [frame@llx frame@lly frame@urx frame@ury]
-      /BP pdfmark
-      %flip around horizontal axis
-      { [1 0 0 -1 0 frame@lly frame@ury add ] concat } ?pdfmark
-    }%
-    \begin{picture}(0,0)%
-      \put(0,0){\box#3}%
-    \end{picture}%
-    \special{ps:
-      mark /EP pdfmark
-      grestore
-    }%
-    %XObject resource entry of container XObject
-    \xdef\@anim@xobject{%
-      \@anim@xobject\space/im#2\space
-      {@anim@frm@#1@#2}%
+      \end{picture}%
+      \endgroup%
+      %distill graphics into XObject
+      \special{ps:
+        gsave
+        mark
+          /_objdef {@anim@frm@#1@#2}
+          /BBox [frame@llx frame@lly frame@urx frame@ury]
+        /BP pdfmark
+        {%
+          isls{%landscape mode (powerdot, geometry /w landscape option)
+            /frame@dxdy {%
+              frame@urx frame@llx sub abs
+              frame@ury frame@lly sub abs div%
+            } bind def
+            /frame@dydx {1 frame@dxdy div} bind def
+            /frame@cx {frame@urx frame@llx add 2 div} bind def
+            /frame@cy {frame@ury frame@lly add 2 div} bind def
+            [% graphics needs to be rescaled for some reason ...
+              frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
+              1 frame@dydx sub frame@cy mul%
+            ] concat
+            %... rotated by 270 degrees ...
+            [0 -1 1 0 frame@cx frame@cy sub frame@cx frame@cy add] concat
+            %... and flipped around vertical axis
+            [-1 0 0 1 frame@llx frame@urx add 0] concat%
+          }{% flip around horizontal axis in portrait mode
+            [1 0 0 -1 0 frame@lly frame@ury add] concat%
+          }ifelse
+        } ?pdfmark
+      }%
+      \begin{picture}(0,0)%
+        \put(0,0){\box#3}%
+      \end{picture}%
+      \special{ps:
+        mark /EP pdfmark
+        grestore
+      }%
+      \xdef\@anim@lastxform{@anim@frm@#1@#2}%
+      \xdef\@anim@xobject{% XObject resource entry of container XObject
+        \@anim@xobject\space/im#2\space {@anim@frm@#1@#2}%
+      }%
+    }{%
+      \xdef\@anim@xobject{% XObject resource entry of container XObject
+        \@anim@xobject\space/im#2\space {#4}%
+      }%
     }%
     \if@anim@timeline\else%
       \@anim@newocg{#1}{#2}% new ocg
@@ -262,10 +325,8 @@
       mark {@anim@ocg@#1@#2} <<
         /Type/OCG /Name (#1.#2)
       >> /PUT pdfmark
-      %append to ocg array
       mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
     }%
-    %store ref to ocg if it is a poster
     \ifnum#2=0%
       \def\@anim@posterframe{first}%
     \else%
@@ -274,7 +335,6 @@
     \ifx\@anim@poster\@anim@posterframe%
       \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
     \fi%
-    %compose Properties entry for use in container XObject
     \xdef\@anim@properties{%
       \@anim@properties\space/oc#2\space {@anim@ocg@#1@#2}%
     }%
@@ -284,7 +344,6 @@
 %create XObject which contains all frames of the sequence
 \ifpdf
   \def\@anim@makecontainer#1{% #1:@anim@num
-    \edef\@anim@oldunitlength{\the\unitlength}% make backup
     \setlength{\unitlength}{1pt}%
     \global\setbox\@anim@box=\hbox{%
       \pdfliteral{q}%
@@ -292,7 +351,6 @@
       \end{picture}%
       \pdfliteral{Q\@anim@content}%
     }%
-    \setlength{\unitlength}{\@anim@oldunitlength}% restore previous unitlen
     \immediate\pdfxform resources {%
         /Properties <<\@anim@properties>>
         /XObject <<\@anim@xobject>>
@@ -318,8 +376,8 @@
 
 %create container XObjects for play & pause button faces;
 \ifpdf
-  \def\@anim@makeppcontainer#1#2{% #1: @anim@num, #2: Right or Left
-    %OCGs
+  \def\@anim@makeppcontainer#1#2#3{% #1: @anim@num, #2: Right or Left,
+    %OCGs         #3: index of existing button face colour combination
     \immediate\pdfobj{<</Type/OCG /Name (#1.Play#2)>>}%
     \edef\@anim@playocg{\the\pdflastobj\space 0 R}%
     \immediate\pdfobj{<< /Type/OCG /Name (#1.Pause#2)>>}%
@@ -334,8 +392,8 @@
       /Resources <<%
         /Properties <</oc0 \@anim@playocg /oc1 \@anim@pauseocg>>%
         /XObject <<%
-          /im0 \@anim@getkeyval{btnPlay#2}
-          /im1 \@anim@getkeyval{btnPause#2}%
+          /im0 \@anim@getkeyval{btnPlay#2:#3}
+          /im1 \@anim@getkeyval{btnPause#2:#3}%
         >>%
       >>%
     }{%
@@ -344,7 +402,7 @@
     \@anim@newkey{btn#1.PlayPause#2}{\the\pdflastobj\space 0 R}%
   }
 \else
-  \def\@anim@makeppcontainer#1#2{%
+  \def\@anim@makeppcontainer#1#2#3{%
     \special{ps:
       %OCGs
       mark /_objdef {#1.Play#2} /type/dict /OBJ pdfmark
@@ -371,8 +429,8 @@
         /Resources <<%
           /Properties <</oc0 {#1.Play#2} /oc1 {#1.Pause#2}>>%
           /XObject <<%
-            /im0 {btnPlay#2}
-            /im1 {btnPause#2}%
+            /im0 {btnPlay#2:#3}
+            /im1 {btnPause#2:#3}%
           >>%
         >>%
       >> /PUT pdfmark
@@ -384,10 +442,11 @@
 \ifpdf
   %stroking commands
   \def\@anim@btnend{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
@@ -401,10 +460,11 @@
     S
   }
   \def\@anim@btnstep{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
@@ -414,10 +474,11 @@
     S
   }
   \def\@anim@btnplay{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
@@ -428,9 +489,10 @@
     S
   }
   \def\@anim@btnpause{%
+    \@anim@bg\space
     2.5 w
     1 j
-    0 G
+    \@anim@fg\space
     0 10 m
     140 10 l
     140 140 l
@@ -442,10 +504,11 @@
     S
   }
   \def\@anim@btnminus{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
@@ -455,10 +518,11 @@
     S
   }
   \def\@anim@btnplus{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
@@ -470,17 +534,18 @@
     S
   }
   \def\@anim@btnreset{%
+    \@anim@bg\space
     2.5 w
     1 J
     1 j
-    0 G
+    \@anim@fg\space
     10 10 130 130 re
     S
     10 w
     75 40 m
     75 110 l
     S
-    0 g
+    \@anim@@@fg\space
     35 50 m
     70 75 l
     35 100 l
@@ -497,62 +562,63 @@
     115 75 l
     S
   }
-  \def\@anim@makebuttons{%
+  \def\@anim@makebuttons#1{%
     \@anim@xbutton{EndLeft}{%
       q -0.1 0 0 0.1 15 0 cm
       \@anim@btnend\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{EndRight}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnend\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{Minus}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnminus\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{PauseLeft}{%
       q -0.1 0 0 0.1 15 0 cm
       \@anim@btnpause\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{PauseRight}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnpause\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{PlayLeft}{%
       q -0.1 0 0 0.1 15 0 cm
       \@anim@btnplay\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{PlayRight}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnplay\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{Plus}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnplus\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{Reset}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnreset\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{StepLeft}{%
       q -0.1 0 0 0.1 15 0 cm
       \@anim@btnstep\space Q%
-    }%
+    }{#1}%
     \@anim@xbutton{StepRight}{%
       q 0.1 0 0 0.1 0 0 cm
       \@anim@btnstep\space Q%
-    }%
+    }{#1}%
   }
   %XObject creation
-  \def\@anim@xbutton#1#2{% #1 name, #2 stroking commands
+  \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
     \immediate\pdfobj stream attr{%
       /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
     }{#2}%
-    \@anim@newkey{btn#1}{\the\pdflastobj\space 0 R}%
+    \@anim@newkey{btn#1:#3}{\the\pdflastobj\space 0 R}%
   }
 \else
   \def\@anim@btnend{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -573,7 +639,8 @@
     stroke
   }
   \def\@anim@btnstep{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -590,7 +657,8 @@
     stroke
   }
   \def\@anim@btnplay{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -608,7 +676,8 @@
     stroke
   }
   \def\@anim@btnpause{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     0 setlinecap
     1 setlinejoin
@@ -623,7 +692,8 @@
     stroke
   }
   \def\@anim@btnminus{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -640,7 +710,8 @@
     stroke
   }
   \def\@anim@btnplus{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -659,7 +730,8 @@
     stroke
   }
   \def\@anim@btnreset{%
-    0 setgray
+    \@anim@bg\space
+    \@anim@fg\space
     0.25 setlinewidth
     1 setlinecap
     1 setlinejoin
@@ -692,52 +764,60 @@
     11.5 7.5 lineto
     stroke
   }
-  \def\@anim@makebuttons{%
+  \def\@anim@makebuttons#1{% #1: @anim@num
     \@anim@xbutton{EndLeft}{%
       [-1 0 0 1 15 0] concat
       \@anim@btnend%
-    }%
+    }{#1}%
     \@anim@xbutton{EndRight}{%
       \@anim@btnend%
-    }%
+    }{#1}%
     \@anim@xbutton{Minus}{%
       \@anim@btnminus%
-    }%
+    }{#1}%
     \@anim@xbutton{PauseLeft}{%
       [-1 0 0 1 15 0] concat
       \@anim@btnpause%
-    }%
+    }{#1}%
     \@anim@xbutton{PauseRight}{%
       \@anim@btnpause%
-    }%
+    }{#1}%
     \@anim@xbutton{PlayLeft}{%
       [-1 0 0 1 15 0] concat
       \@anim@btnplay%
-    }%
+    }{#1}%
     \@anim@xbutton{PlayRight}{%
       \@anim@btnplay%
-    }%
+    }{#1}%
     \@anim@xbutton{Plus}{%
       \@anim@btnplus%
-    }%
+    }{#1}%
     \@anim@xbutton{Reset}{%
       \@anim@btnreset%
-    }%
+    }{#1}%
     \@anim@xbutton{StepLeft}{%
       [-1 0 0 1 15 0] concat
       \@anim@btnstep%
-    }%
+    }{#1}%
     \@anim@xbutton{StepRight}{%
       \@anim@btnstep%
-    }%
+    }{#1}%
   }
-  \def\@anim@xbutton#1#2{% #1: name; #2: stroking commands
+  \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
-      gsave
+      gsave [1 0 0 1 0 0] setmatrix
       mark
-        /_objdef {btn#1}
+        /_objdef {btn#1:#3}
         /BBox [0 0 15 15]
-      /BP pdfmark { #2 } ?pdfmark mark /EP pdfmark
+      /BP pdfmark
+      {%
+        %landscape mode (powerdot, geometry /w landscape option)
+        isls{%
+          [0 -1 1 0 0 15] concat % rotate by 270 degrees
+          [-1 0 0 1 15 0] concat%  flip around vertical axis
+        }if
+        #2
+      } ?pdfmark mark /EP pdfmark
       grestore
     }%
   }
@@ -760,6 +840,12 @@
     \IfFileExists{#1\@anim@ext}{}{%
     \gdef\@anim@ext{.jb2}%
     \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jp2}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.j2k}%
+    \IfFileExists{#1\@anim@ext}{}{%
+    \gdef\@anim@ext{.jpx}%
+    \IfFileExists{#1\@anim@ext}{}{%
       \PackageError{animate}{%
         Neither of the files\MessageBreak%
         `#1.pdf',\MessageBreak%
@@ -767,12 +853,15 @@
         `#1.png',\MessageBreak%
         `#1.jpg',\MessageBreak%
         `#1.jpeg',\MessageBreak%
-        `#1.jbig2' or\MessageBreak%
+        `#1.jbig2',\MessageBreak%
         `#1.jb2',\MessageBreak%
+        `#1.jp2',\MessageBreak%
+        `#1.j2k', or\MessageBreak%
+        `#1.jpx',\MessageBreak%
         could be found.\MessageBreak%
         Wrong file type? Mis-spelled file name?%
       }{}%
-    }}}}}}}%
+    }}}}}}}}}}%
   }%
 \else
   \def\@anim@getext#1{%
@@ -801,9 +890,6 @@
 \newcount\@anim@curframe
 \newcount\@anim@curframe@zb% zero based
 
-\newboolean{@anim@buttonsmade} %true if button faces have been made
-\setboolean{@anim@buttonsmade}{false}
-
 %draftbox from file
 \ifpdf
   \def\@anim@filedraftbox#1{% #1: filename
@@ -812,7 +898,7 @@
     \ifx\@anim@ext\@anim@mps%
       \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
     \else%
-      \immediate\pdfximage{#1}%
+      \pdfximage{#1}%
       \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
     \fi%
     \@anim@draftbox{\@anim@box}% draw draft box with controls (if set)
@@ -835,7 +921,6 @@
   \addtolength{\@anim@tmpdima}{\dp#1}%
   \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
   \@anim@rescale% rescale box
-  \edef\@anim@oldunitlength{\the\unitlength}%
   \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
@@ -893,7 +978,6 @@
         \hss%
       }%
     \fi%
-    \setlength{\unitlength}{\@anim@oldunitlength}%
   }%
 }
 
@@ -905,6 +989,7 @@
 % #5: last frame (integer)
 \newcommand{\animategraphics}[5][]{%
   \leavevmode%
+  \begingroup%
   \ifpdf\else%
     \ifx\includegraphics\@undefined\@anim@missing{graphics}\fi%
   \fi%
@@ -930,15 +1015,18 @@
     \@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
   \else%
     \if@anim@controls%
-      %create button faces if necessary
-      \if@anim@buttonsmade\else%
-        \@anim@makebuttons%
-        \setboolean{@anim@buttonsmade}{true}%
+      %create button faces only once in the current colour combination
+      \expandafter\ifx\csname
+        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\relax%
+        \@anim@makebuttons{\the\@anim@num}%
+        \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
       \fi%
       \if@anim@step\else%
         %combine Pause & Play button faces into one XObject
-        \@anim@makeppcontainer{\the\@anim@num}{Right}%
-        \@anim@makeppcontainer{\the\@anim@num}{Left}%
+        \@anim@makeppcontainer{\the\@anim@num}{Right}{%
+          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+        \@anim@makeppcontainer{\the\@anim@num}{Left}{%
+          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
       \fi%
     \fi%
     \xdef\@anim@fps{#2}% current frame rate
@@ -962,13 +1050,15 @@
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     \@anim@makecontainer{\the\@anim@num}% create container XObject
     %insert animation widget & controls
-    \@anim@insertwidgets{\the\@anim@num}%
+    \@anim@insertwidgets{\the\@anim@num}{%
+      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \global\advance\@anim@num by 1%
+  \endgroup%
 }%
 
 %inserts animation and control button widgets
-\def\@anim@insertwidgets#1{%#1:@anim@num
+\def\@anim@insertwidgets#1#2{%#1:@anim@num, #2 existing btn colour combination
   \vtop{%
     \offinterlineskip%
     \hbox{\@anim@animwidget{#1}}%
@@ -977,19 +1067,19 @@
       \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth\@anim@pt {%
         \hss%
-        \@anim@buttonwidget{#1}{EndLeft}{EndLeft}%
-        \@anim@buttonwidget{#1}{StepLeft}{StepLeft}%
+        \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
+        \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
         \if@anim@step\else%
           \@anim@buttonwidget{#1}{PlayPauseLeft}{#1.PlayPauseLeft}%
           \@anim@buttonwidget{#1}{PlayPauseRight}{#1.PlayPauseRight}%
         \fi%
-        \@anim@buttonwidget{#1}{StepRight}{StepRight}%
-        \@anim@buttonwidget{#1}{EndRight}{EndRight}%
+        \@anim@buttonwidget{#1}{StepRight}{StepRight:#2}%
+        \@anim@buttonwidget{#1}{EndRight}{EndRight:#2}%
         \if@anim@step\else%
           \hskip 0.3\@anim@tmpdima%
-          \@anim@buttonwidget{#1}{Minus}{Minus}%
-          \@anim@buttonwidget{#1}{Reset}{Reset}%
-          \@anim@buttonwidget{#1}{Plus}{Plus}%
+          \@anim@buttonwidget{#1}{Minus}{Minus:#2}%
+          \@anim@buttonwidget{#1}{Reset}{Reset:#2}%
+          \@anim@buttonwidget{#1}{Plus}{Plus:#2}%
         \fi%
         \hss%
       }%
@@ -1029,6 +1119,29 @@
     }%
   }%
   \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%rescale width
+    \ifthenelse{% depth missing
+      \NOT\equal{\@anim@boxheight}{}\AND%
+      \equal{\@anim@boxdepth}{}%
+    }{%
+      \setlength{\@anim@tmpdima}{%
+        \@anim@animtotalheight\@anim@pt%
+          *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+      }%
+      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxheight\@anim@pt}%
+      \xdef\@anim@animdepth{\strip@pt\@anim@tmpdimb}%
+    }{%
+      \ifthenelse{% height missing
+        \equal{\@anim@boxheight}{}\AND%
+        \NOT\equal{\@anim@boxdepth}{}%
+      }{%
+        \setlength{\@anim@tmpdima}{%
+          \@anim@animtotalheight\@anim@pt%
+            *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+        }%
+        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxdepth\@anim@pt}%
+        \xdef\@anim@animheight{\strip@pt\@anim@tmpdimb}%
+      }{}%
+    }%
     \xdef\@anim@animwidth{\@anim@boxwidth}%
   }{%
     %if width is not given, but either height or depth are, scale
@@ -1085,10 +1198,6 @@
       /H/N%
       /AP <</N \@anim@container>>%
       /T (anm@#1)%
-      /MK <<%
-        /TP 1% icon, no caption
-        /IF <</SW/A/S/A>>% scale icon freely within widget
-      >>%
       /AA <<% bind JavaScripts to trigger events
         /PO <</S/JavaScript/JS \@anim@pojscriptobj>>%
         \@anim@otherjscriptkey%
@@ -1103,7 +1212,6 @@
 \else
   \def\@anim@animwidget#1{%
     \@anim@rescale%
-    \edef\@anim@oldunitlength{\the\unitlength}%
     \setlength{\unitlength}{1pt}%
     %mark annotation rectangle
     \begin{picture}(0,0)%
@@ -1118,7 +1226,6 @@
       }%
     }%
     \end{picture}%
-    \setlength{\unitlength}{\@anim@oldunitlength}%
     \@anim@pojscript{#1}%
     \@anim@otherjscript{#1}%
     \def\@anim@posterframe{none}%
@@ -1137,10 +1244,6 @@
         /H/N%
         /AP <</N {@anim@xobj#1}>>%
         /T (anm@#1)%
-        /MK <<%
-          /TP 1
-          /IF <</SW/A/S/A>>%
-        >>%
         /AA <<%
           /PO <</S/JavaScript/JS {a#1@pojscript}>>%
           \@anim@otherjscriptkey%
@@ -1173,11 +1276,6 @@
         /H/I%
         /AP <</N \@anim@getkeyval{btn#3}>>%
         /T (btn@#1@#2)%
-        /MK <<%
-          /TP 1%
-          /BG [\@anim@btnbg]%
-          /IF <</SW/A/S/A>>% scale button face icon freely within widget
-        >>%
         /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
       }%
       \vrule width 0pt height \@anim@tmpdima depth 0pt%
@@ -1188,7 +1286,6 @@
   \def\@anim@buttonwidget#1#2#3{%
     \@anim@upjscript{#1}{#2}%
     \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-    \edef\@anim@oldunitlength{\the\unitlength}%
     \setlength{\unitlength}{1pt}%
     \begin{picture}(0,0)%
       \put(0,0){%
@@ -1202,7 +1299,6 @@
       }%
     }%
     \end{picture}%
-    \setlength{\unitlength}{\@anim@oldunitlength}%
     \special{ps:
       mark
         /Rect [wid@llx wid@lly wid@urx wid@ury]
@@ -1212,11 +1308,6 @@
         /H/I
         /AP <</N {btn#3}>>%
         /T (btn@#1@#2)%
-        /MK <<
-          /TP 1
-          /BG [\@anim@btnbg]
-          /IF <</SW/A/S/A>>
-        >>%
         /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
       /ANN pdfmark
     }%
@@ -1238,20 +1329,23 @@
 % #2: frame rate (fps)
 \newenvironment{animateinline}[2][]{%
   \leavevmode%
+  \begingroup%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
   \if@anim@draft\else%
     %create button faces if necessary
     \if@anim@controls%
-      \if@anim@buttonsmade\else%
-        \@anim@makebuttons%
-        \setboolean{@anim@buttonsmade}{true}%
+      \expandafter\ifx\csname
+        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\relax%
+        \@anim@makebuttons{\the\@anim@num}%
+        \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
       \fi%
       \if@anim@step\else%
-        %combine Pause & Play button faces into one XObject
-        \@anim@makeppcontainer{\the\@anim@num}{Right}%
-        \@anim@makeppcontainer{\the\@anim@num}{Left}%
+        \@anim@makeppcontainer{\the\@anim@num}{Right}{%
+          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+        \@anim@makeppcontainer{\the\@anim@num}{Left}{%
+          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
       \fi%
     \fi%
     \xdef\@anim@fps{#2}%
@@ -1270,10 +1364,12 @@
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     \@anim@makecontainer{\the\@anim@num}% create container XObject
     %insert animation widget & controls
-    \@anim@insertwidgets{\the\@anim@num}%
+    \@anim@insertwidgets{\the\@anim@num}{%
+      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \global\advance\@anim@num by 1%
   \setboolean{@anim@inside}{false}%
+  \endgroup%
 }
 
 %usercommand for use within `animateinline' environment;
@@ -1393,7 +1489,7 @@
     \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
   \fi%
   %now create Form XObject of box contents
-  \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}\message{>}\fi%
+  \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}{!}\message{>}\fi%
 }
 
 %prints zero padded integers
@@ -1427,7 +1523,6 @@
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
 \def\@anim@buildtmln#1{% #1:@anim@num
-  \edef\@anim@endlinechar{\the\endlinechar}%
   \endlinechar=-1% suppress trailing space at input line end
   \global\@anim@curframe@zb=0%
   %read timeline file a first time to get number of lines (= number of frames)
@@ -1472,6 +1567,7 @@
         /OC/oc\the\@anim@curframe@zb\space%
         BDC\@anim@getkeyval{@anim@content@\the\@anim@curframe@zb} EMC%
       }%
+      \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by 1%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
@@ -1481,25 +1577,24 @@
       \setboolean{@anim@eof}{false}\fi%
   }%
   \closein\@anim@@tmlnfile%
-  \endlinechar=\@anim@endlinechar% reset endlinechar
 }
 
 %reads one line of timeline file and splits into its colon separated parts
 \def\@anim@parseline#1:#2:#3;{%
   \if@anim@step\else%
-    \ifx #1*% first column is a star (pause frame)
+    \ifthenelse{\equal{#1}{*}}{%first column is a star (pause frame)
       \xdef\@anim@pauseat{%
         \@anim@pauseat%
         a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
       }%
       \setboolean{@anim@pauseframes}{true}%
-    \fi%
+    }{}%
     \xdef\@anim@pfps{\@anim@nfps}%
     \xdef\@anim@nfps{#2}%
-    \ifx\@anim@nfps\@empty% second column contains a number (new frame rate)
+    \ifx\@anim@nfps\@empty % second column contains a number (new frame rate)
       \xdef\@anim@nfps{\@anim@pfps}%
     \else%
-      \ifnum\@anim@curframe@zb=0%
+      \ifnum\@anim@curframe@zb=0
         \xdef\@anim@fps{#2}%
       \fi%
       %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
@@ -1521,39 +1616,36 @@
 %parses 3rd column of timeline file (comma separated list of transp. specs)
 \def\@anim@parsethird#1,#2;{%
   \def\@anim@firstarg{#1}%
-  \ifx\@anim@firstarg\@empty\else%
-    \@anim@process#1x:;% process one transparency spec
-  \fi%
-  \ifx #2:\else%
-    \@anim@parsethird#2;%
-  \fi%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x:;}%process one transparency spec
+  \ifthenelse{\equal{#2}{:}}{}{\@anim@parsethird#2;}%
 }
 
 \newcount\@anim@tmpcnt %scratch counter for different uses
+
 %process transparency spec, such as 123 or 456x78 or 9x0
 \def\@anim@process#1x#2;{%
   %determine number of repetitions of current transparency
-  \ifx #2:%
+  \ifthenelse{\equal{#2}{:}}{%
     \gdef\@anim@repeats{1}%
-  \else%
+  }{%
     \@anim@processsecond#2;%
-  \fi%
-  \ifnum\@anim@repeats=0% 0= means: repeat until end of timeline
+  }%
+  \ifnum\@anim@repeats=0 %0= means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
   \else%
     \@anim@tmpcnt=\@anim@curframe@zb%
     \advance\@anim@tmpcnt by \@anim@repeats%
-    \ifnum\@anim@frames<\@anim@tmpcnt%
+    \ifnum\@anim@frames<\@anim@tmpcnt
       \edef\@anim@repeatuntil{\@anim@frames}%
     \else%
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
     \fi%
   \fi%
   %build contents of animation frames according to transparency specifications
-  \ifnum\@anim@transp<#1\else% ignore non-existing transparency specifications
+  \ifnum\@anim@transp<#1\else%ignore non-existing transparencies
     \ifnum\@anim@transp=#1\else%
       \@anim@tmpcnt=\@anim@curframe@zb%
-      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
+      \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
         \@anim@newkey{@anim@content@\the\@anim@tmpcnt}{%
           \@anim@getkeyval{@anim@content@\the\@anim@tmpcnt}
           q /im#1\space Do Q%
@@ -1586,15 +1678,97 @@
 \define@key{anim@user}{scale}{%
   \gdef\@anim@boxscale{#1}%
 }
-
-\define@key{anim@user}{screenbg}{%background colour
-  \gdef\@anim@bg{#1}%
-}
 \define@key{anim@user}{buttonsize}{%
   \gdef\@anim@btnsize{#1}%
 }
-\define@key{anim@user}{buttonbg}{%background of buttons
-  \gdef\@anim@btnbg{#1}%
+\def\@anim@colours#1:#2;{% helper macro to get number of colour components and
+  \xdef\@anim@colour{\@anim@colour\space #1}% to replace : by ` ' in the arg
+  \ifthenelse{\equal{#2}{!}}{}{%
+    \global\advance\@anim@tmpcnt by 1%
+    \@anim@colours#2;%
+  }%
+}
+\ifpdf %background frame of buttons
+  \def\@anim@@@bg{%
+    0 j
+    0 0 150 150 re
+    f%
+  }
+\else
+  \def\@anim@@@bg{%
+    0 setlinejoin
+    0 0 moveto
+    15 0 lineto
+    15 15 lineto
+    0 15 lineto
+    closepath
+    fill%
+  }
+\fi
+\define@key{anim@user}{buttonbg}{%background colour of buttons
+  \global\@anim@tmpcnt=1%
+  \gdef\@anim@colour{}%
+  \@anim@colours#1:!;%
+  \xdef\@anim@bgcolour{\@anim@colour}%
+  \ifpdf%
+    \ifnum\@anim@tmpcnt=1
+      \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@bg{\@anim@colour\space k\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
+  \else%
+    \ifnum\@anim@tmpcnt=1
+      \xdef\@anim@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
+  \fi%
+}
+\define@key{anim@user}{buttonfg}{%stroking colour of buttons
+  \global\@anim@tmpcnt=1%
+  \gdef\@anim@colour{}%
+  \@anim@colours#1:!;%
+  \xdef\@anim@fgcolour{\@anim@colour}%
+  \ifpdf%
+    \ifthenelse{\the\@anim@tmpcnt=1}{%
+      \xdef\@anim@fg{\@anim@colour\space G}%
+      \xdef\@anim@@@fg{\@anim@colour\space g}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@fg{\@anim@colour\space RG}%
+        \xdef\@anim@@@fg{\@anim@colour\space rg}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@fg{\@anim@colour\space K}%
+          \xdef\@anim@@@fg{\@anim@colour\space k}%
+        }{}%
+      }%
+    }%
+  \else%
+    \ifthenelse{\the\@anim@tmpcnt=1}{%
+      \xdef\@anim@fg{\@anim@colour\space setgray}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@fg{\@anim@colour\space setrgbcolor}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@fg{\@anim@colour\space setcmykcolor}%
+        }{}%
+      }%
+    }%
+  \fi%
 }
 \newboolean{@anim@controls}
 \setboolean{@anim@controls}{false}
@@ -1683,7 +1857,10 @@
   \gdef\@anim@boxheight{}%
   \gdef\@anim@boxwidth{}%
   \xdef\@anim@bg{\@anim@@bg}%
-  \xdef\@anim@btnbg{\@anim@@btnbg}%
+  \xdef\@anim@fg{\@anim@@fg}%
+  \ifpdf\xdef\@anim@@@fg{\@anim@@@@fg}\fi%
+  \xdef\@anim@bgcolour{\@anim@@bgcolour}% default button colours
+  \xdef\@anim@fgcolour{\@anim@@fgcolour}%
   \xdef\@anim@btnsize{\@anim@@btnsize}%
   \xdef\@anim@poster{\@anim@@poster}%
   \let\if@anim@controls=\if@anim@@controls%
@@ -1710,17 +1887,78 @@
 }
 
 %package options
-\def\@anim@@bg{}%
-\define@key{anim@pkg}{screenbg}{%
-  \gdef\@anim@@bg{#1}%
+\def\@anim@@bg{}
+\def\@anim@@bgcolour{}
+\define@key{anim@pkg}{buttonbg}{%background colour of buttons
+  \global\@anim@tmpcnt=1%
+  \gdef\@anim@colour{}%
+  \@anim@colours#1:!;%
+  \xdef\@anim@@bgcolour{\@anim@colour}%
+  \ifpdf%
+    \ifnum\@anim@tmpcnt=1
+      \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@@bg{\@anim@colour\space rg\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@@bg{\@anim@colour\space k\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
+  \else%
+    \ifnum\@anim@tmpcnt=1
+      \xdef\@anim@@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
+    \else%
+      \ifnum\@anim@tmpcnt=3
+        \xdef\@anim@@bg{\@anim@colour\space setrgbcolor\space\@anim@@@bg}%
+      \else%
+        \ifnum\@anim@tmpcnt=4
+          \xdef\@anim@@bg{\@anim@colour\space setcmykcolor\space\@anim@@@bg}%
+        \fi%
+      \fi%
+    \fi%
+  \fi%
+}
+\ifpdf\def\@anim@@fg{0 G}\def\@anim@@@@fg{0 g}\else\def\@anim@@fg{0 setgray}\fi
+\def\@anim@@fgcolour{}
+\define@key{anim@pkg}{buttonfg}{%stroking colour of buttons
+  \global\@anim@tmpcnt=1%
+  \gdef\@anim@colour{}%
+  \@anim@colours#1:!;%
+  \xdef\@anim@@fgcolour{\@anim@colour}%
+  \ifpdf%
+    \ifthenelse{\the\@anim@tmpcnt=1}{%
+      \xdef\@anim@@fg{\@anim@colour\space G}%
+      \xdef\@anim@@@@fg{\@anim@colour\space g}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@@fg{\@anim@colour\space RG}%
+        \xdef\@anim@@@@fg{\@anim@colour\space rg}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@@fg{\@anim@colour\space K}%
+          \xdef\@anim@@@@fg{\@anim@colour\space k}%
+        }{}%
+      }%
+    }%
+  \else%
+    \ifthenelse{\the\@anim@tmpcnt=1}{%
+      \xdef\@anim@@fg{\@anim@colour\space setgray}%
+    }{%
+      \ifthenelse{\the\@anim@tmpcnt=3}{%
+        \xdef\@anim@@fg{\@anim@colour\space setrgbcolor}%
+      }{%
+        \ifthenelse{\the\@anim@tmpcnt=4}{%
+          \xdef\@anim@@fg{\@anim@colour\space setcmykcolor}%
+        }{}%
+      }%
+    }%
+  \fi%
 }
 \def\@anim@@btnsize{1.44em}%
 \define@key{anim@pkg}{buttonsize}{%
   \gdef\@anim@@btnsize{#1}%
-}
-\def\@anim@@btnbg{}%
-\define@key{anim@pkg}{buttonbg}{%
-  \gdef\@anim@@btnbg{#1}%
 }
 \newboolean{@anim@@controls}
 \setboolean{@anim@@controls}{false}%
@@ -2039,7 +2277,7 @@
           a#1.btn['PauseRight'].state=true;%
           a#1.btn['PlayRight'].state=false;%
         \fi
-        a#1_int=app.setInterval('a#1.actnPrev()', a#1.dt);%
+        a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
       };%
       \if@anim@controls
         a#1.actnIncr=function(){% speed up animation

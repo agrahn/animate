@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/07/15}
+\def\@anim@version{2008/07/18}
 \ProvidesPackage{animate}[\@anim@version]
 
 %test for e-TeX
@@ -217,7 +217,7 @@
   }%
 \else
   %counts inserted widget annots
-  \newcount\@anim@fieldnum\@anim@fieldnum=0
+  \newcount\@anim@fieldnum\@anim@fieldnum=\z@%
   \if@anim@@dvipdfmx
     %array which takes refs to all widget annotations
     \special{pdf:obj @anim@fields [ ]}
@@ -294,14 +294,14 @@
     \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
       \@anim@filebox{#3}{#4}% store file in a box
       \@anim@getsize{\@anim@box}%
-      \ifnum#2=0
+      \ifnum#2=\z@%
         \@anim@scale% scale animation widget
       \fi%
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
       \ifx\@anim@gropts\@empty\if@anim@multipage\message{<#4>}\fi\fi%
       \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
     }{% file known, re-use existing form xobject
-      \ifnum#2=0
+      \ifnum#2=\z@%
         \@anim@filebox{#3}{#4}% for size determination of first frame
         \@anim@getsize{\@anim@box}%
         \@anim@scale%
@@ -315,13 +315,13 @@
       \ifthenelse{\equal{\@anim@fileknown{#3}{1}}{!}}{% new file to be embedded
         \@anim@filebox{#3}{}%
         \@anim@getsize{\@anim@box}%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \@anim@scale%
         \fi%
         \@anim@xinline{#1}{#2}{\@anim@box}{!}%
         \@anim@makefileknown{#3}{1}{\@anim@lastxform}%
       }{%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \@anim@filebox{#3}{}%
           \@anim@getsize{\@anim@box}%
           \@anim@scale%
@@ -334,13 +334,13 @@
       \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
         \@anim@filebox{#3}{}%
         \@anim@getsize{\@anim@box}%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \@anim@scale%
         \fi%
         \@anim@xinline{#1}{#2}{\@anim@box}{!}%
         \@anim@makefileknown{#3}{#1}{\@anim@lastxform}%
       }{%file already used in the current animation, re-use existing xobject
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \@anim@filebox{#3}{}%
           \@anim@getsize{\@anim@box}%
           \@anim@scale%
@@ -497,7 +497,7 @@
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
     %store ref to ocg if it's a poster
     \ifx\@anim@poster\@anim@posternone\else%
-      \ifnum#2=0
+      \ifnum#2=\z@%
         \ifx\@anim@poster\@anim@posterfirst%
           \xdef\@anim@posterocg{\@anim@curocg}%
         \fi%
@@ -513,7 +513,7 @@
       \special{pdf:obj @anim@ocg@#1@#2 <</Type/OCG /Name (#1.#2)>>}%
       \special{pdf:put @anim@ocgs @anim@ocg@#1@#2}%
       \ifx\@anim@poster\@anim@posternone\else%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \ifx\@anim@poster\@anim@posterfirst%
             \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
           \fi%
@@ -531,7 +531,7 @@
         mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
       }%
       \ifx\@anim@poster\@anim@posternone\else%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \ifx\@anim@poster\@anim@posterfirst%
             \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
           \fi%
@@ -566,7 +566,7 @@
       %widget visibility state
       \def\@anim@annotflag{/F 2}%default: hidden (no view, no print)
       \ifx\@anim@poster\@anim@posternone\else%
-        \ifnum#2=0
+        \ifnum#2=\z@%
           \ifx\@anim@poster\@anim@posterfirst%
             \def\@anim@annotflag{/F 4}% visible, print
           \fi%
@@ -616,7 +616,7 @@
       \else%
         \def\@anim@annotflag{/F 2}%
         \ifx\@anim@poster\@anim@posternone\else%
-          \ifnum#2=0
+          \ifnum#2=\z@%
             \ifx\@anim@poster\@anim@posterfirst%
               \def\@anim@annotflag{/F 4}%
             \fi%
@@ -664,7 +664,7 @@
       \else%
         \def\@anim@annotflag{/F 2}%
         \ifx\@anim@poster\@anim@posternone\else%
-          \ifnum#2=0
+          \ifnum#2=\z@%
             \ifx\@anim@poster\@anim@posterfirst%
               \def\@anim@annotflag{/F 4}%
             \fi%
@@ -1301,7 +1301,7 @@
 \fi
 
 %counts embedded animations
-\newcount\@anim@num\@anim@num=0
+\newcount\@anim@num\@anim@num=\z@%
 
 %current frame
 \newcount\@anim@curframe
@@ -1456,6 +1456,9 @@
   \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
     \setboolean{@anim@ctrlorplndrm}{true}%
   }{}%
+  \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
+    \setboolean{@anim@loop}{true}%
+  }{}%
   \def\@anim@base{#3}%
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
@@ -1478,7 +1481,7 @@
     }{}%
   \fi%
   \global\@anim@curframe=\@anim@first%
-  \global\@anim@curframe@zb=0%
+  \global\@anim@curframe@zb=\z@%
   %
   \if@anim@draft%
     \if@anim@multipage%
@@ -1924,6 +1927,9 @@
   \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
     \setboolean{@anim@ctrlorplndrm}{true}%
   }{}%
+  \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
+    \setboolean{@anim@loop}{true}%
+  }{}%
   \if@anim@draft\else%
     %create button faces if necessary
     \if@anim@controls%
@@ -1942,8 +1948,8 @@
     \xdef\@anim@fps{#2}%
     \xdef\@anim@nfps{#2}% current frame rate (for use in \newframe)
   \fi%
-  \global\@anim@curframe@zb=0%
-  \global\@anim@skipfram=0%
+  \global\@anim@curframe@zb=\z@%
+  \global\@anim@skipfram=\z@%
   \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
   \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \@anim@beginframe%
@@ -1991,7 +1997,7 @@
   \@ifstar\@anim@newframestar\@anim@newframe%
 }
 \newcommand{\@anim@newframe}[1][]{% #1: new frame rate
-  \ifnum\@anim@skipfram=0
+  \ifnum\@anim@skipfram=\z@%
     \if@anim@draft\else%
       \if@anim@step\else%
         \if@anim@timeline\else%
@@ -2001,7 +2007,7 @@
             \edef\@anim@nfps{\@anim@pfps}%
           \else%
             \ifnum\@anim@nfps=\@anim@pfps\else%
-              \ifnum\@anim@curframe@zb=0
+              \ifnum\@anim@curframe@zb=\z@%
                 \xdef\@anim@fps{#1}%
               \fi%
               %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
@@ -2026,7 +2032,7 @@
   \ignorespaces%
 }
 \newcommand{\@anim@newframestar}[1][]{% starred variant for pausing animation
-  \ifnum\@anim@skipfram=0 %             #1: new frame rate
+  \ifnum\@anim@skipfram=\z@%            #1: new frame rate
     \if@anim@draft\else%
       \if@anim@step\else%
         \if@anim@timeline\else%
@@ -2042,7 +2048,7 @@
             \xdef\@anim@nfps{\@anim@pfps}%
           \else%
             \ifnum\@anim@nfps=\@anim@pfps\else%
-              \ifnum\@anim@curframe@zb=0
+              \ifnum\@anim@curframe@zb=\z@%
                 \xdef\@anim@fps{#1}%
               \fi%
               %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
@@ -2077,10 +2083,10 @@
 \def\@anim@endframe#1#2{%
   \the\@anim@end%
   \end{lrbox}%
-  \ifnum\@anim@skipfram=0
+  \ifnum\@anim@skipfram=\z@%
     \@anim@getsize{\@anim@box}%determine size of graphics
-    \ifnum #2=0
-      \ifdim\wd\@anim@box=0pt%
+    \ifnum#2=\z@%
+      \ifdim\wd\@anim@box=\z@%
         \PackageError{animate}{%
           Contents of first frame must not have zero width%
         }{%
@@ -2088,8 +2094,8 @@
           immediately followed by \protect\newframe%
         }%
       \fi%
-      \ifdim\ht\@anim@box=0pt%
-        \ifdim\dp\@anim@box=0pt%
+      \ifdim\ht\@anim@box=\z@%
+        \ifdim\dp\@anim@box=\z@%
           \PackageError{animate}{%
             Contents of first frame must not have zero height%
           }{}%
@@ -2106,7 +2112,7 @@
   \fi%
   \global\advance\@anim@skipfram by \@ne%
   \ifnum\@anim@skipfram=\@anim@every
-    \global\@anim@skipfram=0%
+    \global\@anim@skipfram=\z@%
   \fi%
 }
 
@@ -2142,7 +2148,7 @@
       \@anim@updatevars% update variables
     \fi%
     \global\advance\@anim@mulframecnt by \@ne%
-    \ignorespaces
+    \ignorespaces%
     #3% execute loop body
     \unskip%
   }%
@@ -2152,11 +2158,17 @@
 
 %splits list of variable declarations
 \def\@anim@parsevars#1,#2\@nil{%
-  \ifthenelse{\equal{#1}{}}{}{\@anim@parsedecl#1\@nil}%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@parsedecl#1\@nil=+\@nil\relax}%
   \ifthenelse{\equal{#2}{!}}{}{\@anim@parsevars#2\@nil}%
 }
 %parser for single variable declaration
-\def\@anim@parsedecl#1=#2+#3\@nil{%
+\def\@anim@parsedecl#1=#2+#3\@nil#4\relax{%
+  \ifx\@empty#4\@empty%
+    \PackageError{animate}{\protect\multiframe: bad variable declaration}{}%
+  \fi%
+  \ifthenelse{\equal{#1}{}\OR\equal{#2}{}\OR\equal{#3}{}}{%
+    \PackageError{animate}{\protect\multiframe: bad variable declaration}{}%
+  }{}%
   \edef\@anim@vartype{\@anim@getvartype#1\@nil}%
   \ifthenelse{\equal{\@anim@vartype}{d}\OR\equal{\@anim@vartype}{D}}{%
     % dimensions, prefix d, D
@@ -2164,7 +2176,7 @@
     \setlength{\@anim@tmpdima}{#2}%
     \expandafter\edef\csname#1\endcsname{\number\@anim@tmpdima sp}%
     %global copy that saves current variable value between loops
-    \expandafter\gdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
+    \expandafter\xdef\csname#1@old\endcsname{\number\@anim@tmpdima sp}%
     %append script for updating variable to \@anim@updatevars macro
     \g@addto@macro\@anim@updatevars{%
       %new value
@@ -2257,7 +2269,7 @@
 
 \def\@anim@buildtmln#1{% #1:@anim@num
   \endlinechar=-1% suppress trailing space at input line end
-  \global\@anim@curframe@zb=0%
+  \global\@anim@curframe@zb=\z@%
   %read timeline file a first time to get number of lines (= number of frames)
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
   \read\@anim@@tmlnfile to \@anim@inputline%
@@ -2286,11 +2298,11 @@
   \global\@anim@tmpcnt=\@anim@frames%
   \global\advance\@anim@tmpcnt by -\@ne%
   \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
-  \global\@anim@curframe@zb=0%
+  \global\@anim@curframe@zb=\z@%
   \gdef\@anim@maxlayer{0}% highest layer index
   %reopen timeline file and build timeline
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
-  \global\@anim@lineno=0%
+  \global\@anim@lineno=\z@%
   \read\@anim@@tmlnfile to \@anim@inputline%
   \edef\@anim@inputline{\@anim@inputline\space}%
   \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
@@ -2303,7 +2315,7 @@
       %process input line
       \expandafter\@anim@parseline\@anim@inputline\@nil%
       %combine the layers of the current frame
-      \global\@anim@curlayer=0%
+      \global\@anim@curlayer=\z@%
       \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
         \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{%
           \@anim@getkeyval{frmcontent@\the\@anim@curframe@zb}%
@@ -2336,7 +2348,7 @@
   }%
   \closein\@anim@@tmlnfile%
   %check for unused transparencies
-  \global\@anim@tmpcnt=0%
+  \global\@anim@tmpcnt=\z@%
   \loop\ifnum\@anim@transp>\@anim@tmpcnt
     \ifcsname u@tr\the\@anim@tmpcnt\endcsname%
       {\expandafter\global\expandafter\let\csname
@@ -2389,7 +2401,7 @@
       \xdef\@anim@nfps{\@anim@pfps}%
     \else%
       \ifnum\@anim@nfps=\@anim@pfps\else%
-        \ifnum\@anim@curframe@zb=0
+        \ifnum\@anim@curframe@zb=\z@%
           \xdef\@anim@fps{#2}%
         \fi%
         %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
@@ -2406,7 +2418,7 @@
     \fi%
   \fi%
   %parse the third field (list of layer specifications)
-  \global\@anim@curlayer=0
+  \global\@anim@curlayer=\z@%
   \@anim@parsethird#3;:\@nil%
 }
 
@@ -2438,7 +2450,7 @@
   }{%
     \@anim@getrepetitions#2\@nil%
   }%
-  \ifnum\@anim@repeats=0 %0= means: repeat until end of timeline
+  \ifnum\@anim@repeats=\z@% %0= means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
   \else%
     \global\@anim@tmpcnt=\@anim@curframe@zb%
@@ -3474,12 +3486,16 @@
             }else{%
               a#1.actnPrev();%
             }%
-          \else
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.actnEndLeft();%
-            }else{%
-              a#1.actnNext();%
-            }%
+          \else%
+            \if@anim@loop
+              if(a#1.idx==\@anim@maxframe){%
+                a#1.actnEndLeft();%
+              }else{%
+            \fi
+                a#1.actnNext();%
+            \if@anim@loop%
+              }%
+            \fi%
           \fi%
         \else%
           \if@anim@ctrlorplndrm

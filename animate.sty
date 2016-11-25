@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/03/26]
+\ProvidesPackage{animate}[2008/04/01]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -228,9 +228,9 @@
   \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
     %#4: not used
     \ifthenelse{\equal{\@anim@fileknown{#3}{#1}}{!}}{%file is new to current
-	  \@anim@filebox{#3}{}% store file in a box                       animation
+      \@anim@filebox{#3}{}% store file in a box                       animation
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-      \@anim@makefileknown{#3}{#1}{\@anim@lastxform}% keep form xobject number
+      \@anim@makefileknown{#3}{#1}{\@anim@lastxform}% keep form xobject ref
     }{%file already used in the current animation, re-use existing form xobject
       \ifnum#2=0
         \@anim@filebox{#3}{}% for size determination of first frame
@@ -2118,6 +2118,10 @@
   \if@anim@grxloaded\xdef\@anim@gropts{\@anim@gropts, trim=#1}%
   \else\@anim@missing{graphicx}\fi%
 }
+\newboolean{@anim@meas}
+\define@key{anim@user}{measure}[true]{%
+  \setboolean{@anim@meas}{#1}%
+}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -2156,6 +2160,7 @@
   \gdef\@anim@every{1}% frames to be included
   \gdef\@anim@gropts{}%
   \setboolean{@anim@multipdf}{false}%
+  \setboolean{@anim@meas}{false}%
 }
 
 %package options
@@ -2411,6 +2416,7 @@
       a#1.fr[a#1.idx].state=false;%
       try{%
         a#1.fr[++a#1.idx].state=true;%
+        \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         --a#1.idx;%
         \if@anim@palindrome%
@@ -2419,6 +2425,7 @@
             a#1.playsRight=false;%
           \else
             a#1.fr[a#1.idx].state=true;%
+            \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
           \fi%
         \else%
@@ -2461,6 +2468,7 @@
       a#1.fr[a#1.idx].state=false;%
       try{%
         a#1.fr[--a#1.idx].state=true;%
+        \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         ++a#1.idx;%
         \if@anim@palindrome%
@@ -2469,6 +2477,7 @@
             a#1.playsRight=true;%
           \else
             a#1.fr[a#1.idx].state=true;%
+            \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
           \fi%
         \else%
@@ -2509,6 +2518,7 @@
     };%
     \if@anim@step\else
       a#1.actnPause=function(){%
+        \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1.isPlaying=false;%
         a#1.isPaused=true;%
@@ -2530,7 +2540,8 @@
           a#1.btn['PlayLeft'].state=false;%
           a#1.btn['PauseRight'].state=true;%
           a#1.btn['PlayRight'].state=false;%
-        \fi
+        \fi%
+        \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
       };%
       a#1.actnPlayLeft=function(){%
@@ -2544,7 +2555,8 @@
           a#1.btn['PlayLeft'].state=false;%
           a#1.btn['PauseRight'].state=true;%
           a#1.btn['PlayRight'].state=false;%
-        \fi
+        \fi%
+        \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
       };%
       \if@anim@controls
@@ -2580,6 +2592,26 @@
               a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
             }%
           }%
+        };%
+      \fi%
+    \fi%
+    \if@anim@step\else%
+      \if@anim@meas
+        var spc=String.fromCharCode(32);%
+        a#1.frcnt=0;% frame counter for speed measurements
+        a#1.msStart=0;% takes start time (in millisecs)
+        a#1.msEnd=0;% takes end time (in millisecs)
+        a#1.startMeas=function(){%
+          a#1.frcnt=0;% reset frame counter
+          a#1.msStart=(new Date()).getTime();%
+        };%
+        a#1.stopMeas=function(){%
+          a#1.msEnd=(new Date()).getTime();%
+          app.alert({%
+            cMsg:'av.'+spc+'frame'+spc+'rate:'+spc+%
+                 1e3*a#1.frcnt/(a#1.msEnd-a#1.msStart)+spc+'fps',%
+            nIcon:3%
+          });
         };%
       \fi%
     \fi%

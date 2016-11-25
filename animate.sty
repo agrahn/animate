@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2012/05/02}
+\def\@anim@version{2011/09/16}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -204,14 +204,9 @@
 
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
-\newboolean{@anim@pgfloaded}
-\setboolean{@anim@pgfloaded}{false}
 \AtBeginDocument{%
   \@ifpackageloaded{graphicx}{%
     \setboolean{@anim@grxloaded}{true}%
-  }{}%
-  \@ifpackageloaded{pgf}{%
-    \setboolean{@anim@pgfloaded}{true}%
   }{}%
 }
 
@@ -276,10 +271,10 @@
       >>
     >>}
   \else
-    \def\@anim@fields{@anim@fields}
+	\def\@anim@fields{@anim@fields}
     \if@anim@powerdot\if@anim@pdclock
-      \def\@anim@fields{afields}
-    \fi\fi
+	  \def\@anim@fields{afields}
+	\fi\fi
     \special{ps:
       mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
       mark /_objdef {@anim@posterocgs} /type/array /OBJ pdfmark
@@ -290,14 +285,14 @@
         >>
       >> /PUT pdfmark
     }
-    \ifthenelse{\boolean{@anim@powerdot}\AND\boolean{@anim@pdclock}}{}{
+	\ifthenelse{\boolean{@anim@powerdot}\AND\boolean{@anim@pdclock}}{}{
       \special{ps:
         mark /_objdef {\@anim@fields} /type/array /OBJ pdfmark
         mark {Catalog} <<
           /AcroForm <</Fields {\@anim@fields}>>
         >> /PUT pdfmark
       }
-    }
+	}  
   \fi
 \fi
 
@@ -444,23 +439,6 @@
         \special{pdf:bxobj @anim@frm@#1@#2 width \@anim@framewidth pt
           height \@anim@frameheight pt depth \@anim@framedepth pt}%
         \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
-        \ifthenelse{\boolean{@anim@pgfloaded}}{%
-          \def\@anim@resources{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@extgs@exists}}{%
-            \def\@anim@resources{/ExtGState @pgfextgs}}{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@patterns@exists}}{%
-            \edef\@anim@resources{\@anim@resources/Pattern @pgfpatterns}}{}%
-          \ifthenelse{\boolean{pgf@sys@pdf@colorspaces@exists}}{%
-            \edef\@anim@resources{%
-              \@anim@resources/ColorSpace @pgfcolorspaces}}{}%
-          \ifthenelse{%
-            \boolean{pgf@sys@pdf@extgs@exists}%
-            \OR\boolean{pgf@sys@pdf@patterns@exists}%
-            \OR\boolean{pgf@sys@pdf@colorspaces@exists}%
-          }{%
-            \special{pdf:put @resources <<\@anim@resources>>}%
-          }{}%
-        }{}%
         \special{pdf:exobj}%
         \xdef\@anim@lastxform{@anim@frm@#1@#2}%
         \@anim@newkey{img@#2}{\@anim@lastxform}%
@@ -1968,7 +1946,6 @@
 \newboolean{@anim@pauseframes} % true if \newframe* is being used
 \newboolean{@anim@chfps} % true if \newframe or \newframe* is being used
                          % with optional `new frame rate' argument
-\newboolean{@anim@usrjs} % true if user JavaScript provided by user
 
 \newcount\@anim@skipfram % counter for skipped frames
 
@@ -1979,8 +1956,7 @@
   \leavevmode%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
-  \begingroup%
-  % make use of graphic[xs] search path
+  \begingroup% make use of graphic[xs] search path
   \ifcsname Ginput@path\endcsname%
     \let\input@path\Ginput@path%
   \fi%
@@ -2357,7 +2333,6 @@
 \newcounter{@anim@ltxcnt} %scratch LaTeX counter for different uses
 \newcount\@anim@curlayer %takes the number of the current layer being processed
 \newcount\@anim@lineno %current input line No.
-\newcount\@anim@curfield %current field of input line processed
 
 \def\@anim@buildtmln#1{% #1:@anim@num
   \endlinechar=-1% suppress trailing space at input line end
@@ -2396,18 +2371,16 @@
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
   \global\@anim@lineno=\z@%
   \read\@anim@@tmlnfile to \@anim@inputline%
-  \edef\@anim@inputlinenospc{\@anim@inputline\space}%
-  \edef\@anim@inputlinenospc{%
-    \expandafter\zap@space\@anim@inputlinenospc\@empty}%
+  \edef\@anim@inputline{\@anim@inputline\space}%
+  \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
   \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
     \setboolean{@anim@eof}{false}\fi%
   \message{<building timeline a#1 from file `\@anim@tmlnfile':}%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \global\advance\@anim@lineno by \@ne%
-    \ifthenelse{\equal{\@anim@inputlinenospc}{}}{}{%
+    \ifthenelse{\equal{\@anim@inputline}{}}{}{%
       %process input line
-      \global\@anim@curfield=\z@%
-      \expandafter\@anim@parseline\@anim@inputline:\@nil%
+      \expandafter\@anim@parseline\@anim@inputline\@nil%
       %combine the layers of the current frame
       \global\@anim@curlayer=\z@%
       \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
@@ -2449,9 +2422,8 @@
       \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
-    \edef\@anim@inputlinenospc{\@anim@inputline\space}%
-    \edef\@anim@inputlinenospc{%
-      \expandafter\zap@space\@anim@inputlinenospc\@empty}%
+    \edef\@anim@inputline{\@anim@inputline\space}%
+    \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
     \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
       \setboolean{@anim@eof}{false}\fi%
   }%
@@ -2482,70 +2454,41 @@
 }
 
 %reads one line of timeline file and splits into its colon separated parts
-\def\@anim@parseline#1:#2\@nil{%
-  \ifcase\@anim@curfield\relax%
-    %first field: a star (pause frame)
-    \if@anim@step\else%
-      \edef\@anim@tmp{#1\space}%
-      \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-      \ifthenelse{\equal{\@anim@tmp}{*}}{%
-        \xdef\@anim@pauseat{%
-          \@anim@pauseat%
-          a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
-        }%
-        \setboolean{@anim@pauseframes}{true}%
-      }{}%
-    \fi%
-    \global\advance\@anim@curfield by \@ne%
-    \@anim@parseline#2\@nil%
-  \or%
-    \if@anim@step\else%
-      %second field: new frame rate
-      \xdef\@anim@pfps{\@anim@nfps}%
-      \xdef\@anim@nfps{#1\space}%
-      \xdef\@anim@nfps{\expandafter\zap@space\@anim@nfps\@empty}%
-      \ifx\@anim@nfps\@empty% no change of frame rate
-        \xdef\@anim@nfps{\@anim@pfps}%
-      \else%
-        \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
-          \ifnum\@anim@curframe@zb=\z@%
-            \xdef\@anim@fps{#1}%
-          \fi%
-          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-          \xdef\@anim@nfpsat{%
-            \@anim@nfpsat%
-            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-          }%
-          \xdef\@anim@pfpsat{%
-            \@anim@pfpsat%
-            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-          }%
-          \setboolean{@anim@chfps}{true}% change fps
+\def\@anim@parseline#1:#2:#3\@nil{%
+  \if@anim@step\else%
+    \ifthenelse{\equal{#1}{*}}{%first field is a star (pause frame)
+      \xdef\@anim@pauseat{%
+        \@anim@pauseat%
+        a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
+      }%
+      \setboolean{@anim@pauseframes}{true}%
+    }{}%
+    \xdef\@anim@pfps{\@anim@nfps}%
+    \xdef\@anim@nfps{#2}%
+    %treat the second field (new frame rate)
+    \ifx\@anim@nfps\@empty% no change of frame rate
+      \xdef\@anim@nfps{\@anim@pfps}%
+    \else%
+      \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
+        \ifnum\@anim@curframe@zb=\z@%
+          \xdef\@anim@fps{#2}%
         \fi%
+        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+        \xdef\@anim@nfpsat{%
+          \@anim@nfpsat%
+          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#2);%
+        }%
+        \xdef\@anim@pfpsat{%
+          \@anim@pfpsat%
+          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+        }%
+        \setboolean{@anim@chfps}{true}% change fps
       \fi%
     \fi%
-    \global\advance\@anim@curfield by \@ne%
-    \@anim@parseline#2\@nil%
-  \or%
-    %parse the third field (list of layer specifications)
-    \global\@anim@curlayer=\z@%
-    \edef\@anim@tmp{#1\space}%
-    \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-    \expandafter\@anim@parsethird\@anim@tmp;\@nil%
-    \edef\@anim@tmp{#2\space}%
-    \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-    \ifx\@anim@tmp\@empty\else%
-      \global\advance\@anim@curfield by \@ne%
-      \@anim@parseline#2\@nil%
-    \fi%
-  \or%
-    %fourth field: JavaScript provided by the user
-    \xdef\@anim@usrjsat{%
-      \@anim@usrjsat%
-      a\the\@anim@num.usrJSat[\the\@anim@curframe@zb]=function(){#1};%
-    }%
-    \setboolean{@anim@usrjs}{true}%
   \fi%
+  %parse the third field (list of layer specifications)
+  \global\@anim@curlayer=\z@%
+  \@anim@parsethird#3;\@nil%
 }
 
 %parses frame contents specification (semicolon separated list of layer
@@ -2892,15 +2835,6 @@
 \define@key{anim@user}{useocg}[true]{%
   \setboolean{@anim@useocg}{#1}%
 }
-\define@key{anim@user}{firstframejs}{%
-  \@anim@firstjs{#1}%
-}
-\define@key{anim@user}{lastframejs}{%
-  \@anim@lastjs{#1}%
-}
-\define@key{anim@user}{otherframejs}{%
-  \@anim@otherjs{#1}%
-}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -2930,13 +2864,8 @@
   \setboolean{@anim@pauseframes}{false}%
   \gdef\@anim@pauseat{}%
   \setboolean{@anim@chfps}{false}%
-  \setboolean{@anim@usrjs}{false}%
   \gdef\@anim@nfpsat{}%
   \gdef\@anim@pfpsat{}%
-  \gdef\@anim@usrjsat{}%
-  \gdef\@anim@firstjs{}%
-  \gdef\@anim@lastjs{}%
-  \gdef\@anim@otherjs{}%
   \gdef\@anim@tmlnfile{}%
   \setboolean{@anim@timeline}{false}%
   \global\@anim@begin={}%
@@ -3229,11 +3158,6 @@
       \fi
       a#1.dt=1000/(1e-6+Math.abs(\@anim@fps));%
     \fi%
-    \if@anim@usrjs
-      %array to take frame numbers (array index) and user provided JavaScript
-      a#1.usrJSat=new Array();%
-      \@anim@usrjsat%
-    \fi%
     %actions
     a#1.actnEndLeft=function(){%
       \if@anim@step\else
@@ -3288,7 +3212,6 @@
           a#1.fr[++a#1.idx].display=display.visible;%
           curdoc.dirty=false;%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         --a#1.idx;%
@@ -3297,7 +3220,6 @@
             a#1.actnEndRight();%
             a#1.playsRight=false;%
           \else%
-            if(a#1.isPlaying){--a#1.idx;}%
             \if@anim@useocg
               a#1.fr[a#1.idx].state=true;%
             \else
@@ -3317,8 +3239,6 @@
                   a#1.fps=Math.abs(\@anim@fps);%
                   a#1.dt=1000/(1e-6+a#1.fps);%
                 \fi
-                a#1.actnEndLeft();%
-                \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
                 a#1.actnPlayRight();%
               }else{a#1.actnEndRight();}%
             \else
@@ -3358,7 +3278,6 @@
             curdoc.dirty=false;%
           \fi%
           \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
         }catch(e){%
           ++a#1.idx;%
           \if@anim@palindrome%
@@ -3366,7 +3285,6 @@
               a#1.actnEndLeft();%
               a#1.playsRight=true;%
             \else%
-              if(a#1.isPlaying){++a#1.idx;}%
               \if@anim@useocg
                 a#1.fr[a#1.idx].state=true;%
               \else
@@ -3386,8 +3304,6 @@
                     a#1.fps=Math.abs(\@anim@nfps);%
                     a#1.dt=1000/(1e-6+a#1.fps);%
                   \fi
-                  a#1.actnEndRight();%
-                  \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
                   a#1.actnPlayLeft();%
                 }else{a#1.actnEndLeft();}%
               \else
@@ -3428,6 +3344,7 @@
       };%
       a#1.actnPlayRight=function(){%
         try{app.clearInterval(a#1_int);}catch(e){}%
+        if(!a#1.isPaused){a#1.actnEndLeft();}%
         a#1.playsRight=true;%
         a#1.isPlaying=true;%
         a#1.isPaused=false;%
@@ -3445,6 +3362,7 @@
       \if@anim@ctrlorplndrm
         a#1.actnPlayLeft=function(){%
           try{app.clearInterval(a#1_int);}catch(e){}%
+          if(!a#1.isPaused){a#1.actnEndRight();}%
           a#1.playsRight=false;%
           a#1.isPlaying=true;%
           a#1.isPaused=false;%
@@ -3536,7 +3454,6 @@
           a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
         \fi%
       \fi%
-      \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
     \fi%
     \if@anim@autoresume
       if(a#1.isPaused){%
@@ -3557,7 +3474,6 @@
             a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
           \fi%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
       }%
     \fi%
   \fi%
@@ -3611,41 +3527,32 @@
       try{%
         \if@anim@step%
           \if@anim@palindrome
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.playsRight=false;%
-              a#1.actnPrev();%
-            }else if(a#1.idx==0){%
-              a#1.playsRight=true;%
-              a#1.actnNext();%
-            }else if(a#1.playsRight){%
+            if(a#1.playsRight){%
               a#1.actnNext();%
             }else{%
               a#1.actnPrev();%
             }%
-          \else
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.actnEndLeft();%
-              \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-            }else{%
-              a#1.actnNext();%
-            }%
+          \else%
+            \if@anim@loop
+              if(a#1.idx==\@anim@maxframe){%
+                a#1.actnEndLeft();%
+              }else{%
+            \fi
+                a#1.actnNext();%
+            \if@anim@loop%
+              }%
+            \fi%
           \fi%
         \else%
-          \if@anim@palindrome%
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.actnPlayLeft();%
-            }else if(a#1.idx==0){%
-              a#1.actnPlayRight();%
-            }else if(a#1.playsRight){%
+          \if@anim@ctrlorplndrm
+            if(a#1.playsRight){%
               a#1.actnPlayRight();%
             }else{%
               a#1.actnPlayLeft();%
             }%
-          \else
-            if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
+          \else%
             a#1.actnPlayRight();%
           \fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi
         \fi%
       }catch(e){}%
     )>>%
@@ -3670,32 +3577,22 @@
     \else%
     \ifx\@anim@action\@anim@StepLeft%
       \if@anim@step
-        if(a#1.idx!=0){a#1.actnPrev();}%
+        a#1.actnPrev();%
       \else
-        if(!a#1.isPlaying&&a#1.idx!=0){a#1.isPaused=true;a#1.actnPrev();}%
+        if(!a#1.isPlaying){a#1.isPaused=true;a#1.actnPrev();}%
       \fi%
     \else%
     \ifx\@anim@action\@anim@PlayPauseLeft
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==0){a#1.actnEndRight();}%
-        a#1.actnPlayLeft();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi
-      }%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayLeft();}%
     \else%
     \ifx\@anim@action\@anim@PlayPauseRight
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
-        a#1.actnPlayRight();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi
-      }%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayRight();}%
     \else%
     \ifx\@anim@action\@anim@StepRight%
       \if@anim@step
-        if(a#1.idx!=\@anim@maxframe){a#1.actnNext();}%
+        a#1.actnNext();%
       \else
-        if(!a#1.isPlaying&&a#1.idx!=\@anim@maxframe){%
-          a#1.isPaused=true;a#1.actnNext();%
-        }%
+        if(!a#1.isPlaying){a#1.isPaused=true;a#1.actnNext();}%
       \fi%
     \else%
     \ifx\@anim@action\@anim@EndRight

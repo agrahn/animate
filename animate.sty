@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/11/20]
+\ProvidesPackage{animate}[2007/11/28]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -92,6 +92,14 @@
   }%
 }
 
+\newboolean{@anim@grxloaded}
+\setboolean{@anim@grxloaded}{false}
+\AtBeginDocument{%
+  \@ifpackageloaded{graphicx}{%
+    \setboolean{@anim@grxloaded}{true}%
+  }{}%
+}
+
 %add OCProperties dict to Catalog
 \ifpdf
   \newcount\@anim@@ocgs
@@ -150,17 +158,26 @@
 \ifpdf
   %helper macro that typesets graphics file into savebox
   \def\@anim@filebox#1{% #1 filename
-    \def\@anim@mps{.mps}%
-    \ifx\@anim@ext\@anim@mps%
-      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
+    \ifx\@anim@gropts\@empty%
+      \def\@anim@mps{.mps}%
+      \ifx\@anim@ext\@anim@mps%
+        \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
+      \else%
+        \pdfximage{#1}%
+        \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
+      \fi%
     \else%
-      \pdfximage{#1}%
-      \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
+      \edef\@anim@curfile{*[\@anim@gropts]{#1}}%
+      \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
     \fi%
   }
 \else
   \def\@anim@filebox#1{% #1 filename
-    \edef\@anim@curfile{{#1}}%
+    \ifx\@anim@gropts\@empty%
+      \edef\@anim@curfile{*{#1}}%
+    \else%
+      \edef\@anim@curfile{*[\@anim@gropts]{#1}}%
+    \fi%
     \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
   }
 \fi
@@ -947,28 +964,7 @@
 \newcount\@anim@curframe
 \newcount\@anim@curframe@zb% zero based
 
-%draftbox from file
-\ifpdf
-  \def\@anim@filedraftbox#1{% #1: filename
-    %store file in a box
-    \def\@anim@mps{.mps}%
-    \ifx\@anim@ext\@anim@mps%
-      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
-    \else%
-      \pdfximage{#1}%
-      \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
-    \fi%
-    \@anim@draftbox{\@anim@box}% draw draft box with controls (if set)
-  }
-\else
-  \def\@anim@filedraftbox#1{%
-    \edef\@anim@curfile{{#1}}%
-    \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
-    \@anim@draftbox{\@anim@box}%
-  }
-\fi
-
-%draftbox from savebox (lowlevel macro)
+%draftbox from savebox
 \def\@anim@draftbox#1{% #1: box number
   %get size
   \xdef\@anim@animwidth{\strip@pt\wd#1}%
@@ -1059,17 +1055,13 @@
   \@anim@curframe=\@anim@first%
   \@anim@curframe@zb=0%
   \if@anim@draft%
-    %test for existence of all files of the sequence
-    \loop\ifnum\@anim@curframe>\@anim@last\else%
-      %get file name extension of current file (also tests for existence)
-      \@anim@getext{%
-        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
-      }%
-      \advance\@anim@curframe by \@anim@every%
-      \advance\@anim@curframe@zb by \@ne%
-    \repeat%
+    %get file name extension
+    \@anim@getext{%
+      \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
+    }%
+    \@anim@filebox{\@anim@base\@anim@first\@anim@ext}% store file in a box
     %draw draftbox according to dimensions of the first frame
-    \@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
+    \@anim@draftbox{\@anim@box}%
   \else%
     \if@anim@controls%
       %create button faces only once in the current colour combination
@@ -1561,7 +1553,7 @@
 %prints zero padded integers
 % #1: arbitrary integer number as template specifying the
 %     width, e. g. `987654' for a width of 6 digits
-% #2: the number to be formatted (zero padded)
+% #2: the number to be formatted
 \def\@anim@pad#1#2{%
   \@anim@@pad{\@anim@template{0}{#1}}{#2}%
 }
@@ -1616,7 +1608,7 @@
       \setboolean{@anim@eof}{false}\fi%
   }%
   \closein\@anim@@tmlnfile%
-  \xdef\@anim@transp{\@anim@frames}% total number of transp
+  \xdef\@anim@transp{\@anim@frames}% total number of transparencies
   \xdef\@anim@frames{\the\@anim@curframe@zb}%total number of actual frames
   \global\@anim@curframe@zb=0%
   \gdef\@anim@maxlayer{0}% highest layer index
@@ -1629,22 +1621,25 @@
     \setboolean{@anim@eof}{false}\fi%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
-	  %process input line
+      %process input line
       \expandafter\@anim@parseline\@anim@inputline\@nil%
-	  %combine layers of the current frame
-	  \@anim@curlayer=0%
-	  \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
+      %combine the layers of the current frame
+      \@anim@curlayer=0%
+      \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
         \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{%
           \@anim@getkeyval{frmcontent@\the\@anim@curframe@zb}%
           \@anim@getkeyval{%
-		    layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}%
-		}%
+            layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}%
+        }%
         \@anim@newkey{%
-		  layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
-	    \advance\@anim@curlayer by \@ne%
-      \repeat%		
-	  %build frame xobject
+          layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
+        \advance\@anim@curlayer by \@ne%
+      \repeat%
+      %build frame xobject
       \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
+      %clean-up
+      \edef\@anim@usedlist{\@anim@getkeyval{usedin@\the\@anim@curframe@zb}}%
+      \expandafter\@anim@resetusedlist\@anim@usedlist,:\@nil%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
@@ -1700,9 +1695,9 @@
   \ifthenelse{\equal{#1}{}}{}{\@anim@parselayer#1,:\@nil}%process one layer spec
   \ifthenelse{\equal{#2}{:}}{}{%
     \global\advance\@anim@curlayer by \@ne%
-	\ifnum\@anim@curlayer>\@anim@maxlayer
-	  \xdef\@anim@maxlayer{\the\@anim@curlayer}%
-	\fi%
+    \ifnum\@anim@curlayer>\@anim@maxlayer
+      \xdef\@anim@maxlayer{\the\@anim@curlayer}%
+    \fi%
     \@anim@parsethird#2\@nil%
   }%
 }
@@ -1720,7 +1715,7 @@
   \ifthenelse{\equal{#2}{:}}{%
     \gdef\@anim@repeats{1}%
   }{%
-    \@anim@processsecond#2\@nil%
+    \@anim@getrepetitions#2\@nil%
   }%
   \ifnum\@anim@repeats=0 %0= means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
@@ -1739,13 +1734,51 @@
     \ifnum\@anim@transp=#1\else%
       \@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
-        \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
-          \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
-          /im#1\space\@anim@getkeyval{img@#1}%
-        }%
+        %detect multiple inclusion of the same transparency in the
+        %current frame
+        \expandafter\ifx\csname used@#1@\the\@anim@tmpcnt\endcsname\relax%
+          %append transparency to ressource list
+          \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
+            \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
+            /im#1\space\@anim@getkeyval{img@#1}%
+          }%
+          %mark current transparency as used within the current frame
+          \@anim@newkey{used@#1@\the\@anim@tmpcnt}{}%
+          %append it to the list of transparencies used in current frame
+          \@anim@newkey{usedin@\the\@anim@tmpcnt}{%
+            \@anim@getkeyval{usedin@\the\@anim@tmpcnt}#1,}%
+        \else%
+          \PackageWarning{animate}{%
+            Transparency #1 multiply included in frame \the\@anim@tmpcnt.%
+            \MessageBreak%
+            File \jobname.tex%
+          }%
+          \ifx\@anim@warned\@undefined%
+            \AtEndDocument{%
+              \PackageWarningNoLine{animate}{%
+                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+                \MessageBreak%
+                @ In certain animation frames, transparencies were%
+                \space\space @\MessageBreak%
+                @ multiply included. This may considerably slow\space%
+                \space\space\space\space @\MessageBreak%
+                @ down animation speed. Revise the timeline file of\space @%
+                \MessageBreak%
+                @ the corresponding animations! See the transcript\space%
+                \space  @\MessageBreak%
+                @ file \jobname.log\MessageBreak%
+                @ for additional information!\space\space\space\space\space%
+                \space\space\space\space\space\space\space\space\space\space%
+                \space\space\space\space\space\space\space\space @\MessageBreak%
+                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+              }%
+            }%
+            \gdef\@anim@warned{}%
+          \fi%
+        \fi%
         \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
           \@anim@getkeyval{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}
-		    q /im#1\space Do Q%
+            q /im#1\space Do Q%
         }%
         \advance\@anim@tmpcnt by \@ne%
       \repeat%
@@ -1753,8 +1786,19 @@
   \fi%
 }
 
+%reset embedded transparency list
+\def\@anim@resetusedlist#1,#2\@nil{%
+  \ifthenelse{\equal{#1}{}}{}{%
+    \expandafter\global\expandafter\let\csname
+      used@#1@\the\@anim@curframe@zb\endcsname\@undefined%
+  }%
+  \ifthenelse{\equal{#2}{:}}{%
+    \@anim@newkey{usedin@\the\@anim@curframe@zb}{}%
+  }{\@anim@resetusedlist#2\@nil}%
+}
+
 %get number of repetitions of frame
-\def\@anim@processsecond#1x:\@nil{%
+\def\@anim@getrepetitions#1x:\@nil{%
   \gdef\@anim@repeats{#1}%
 }
 
@@ -1949,6 +1993,18 @@
 \define@key{anim@user}{every}{% embed every #1 frames
   \ifnum#1<\@ne\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
 }
+\define@key{anim@user}{bb}{%
+  \if@anim@grxloaded\xdef\@anim@gropts{\@anim@gropts, bb=#1}%
+  \else\@anim@missing{graphicx}\fi%
+}
+\define@key{anim@user}{viewport}{%
+  \if@anim@grxloaded\xdef\@anim@gropts{\@anim@gropts, viewport=#1}%
+  \else\@anim@missing{graphicx}\fi%
+}
+\define@key{anim@user}{trim}{%
+  \if@anim@grxloaded\xdef\@anim@gropts{\@anim@gropts, trim=#1}%
+  \else\@anim@missing{graphicx}\fi%
+}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -1985,6 +2041,7 @@
   \@anim@begin={}%
   \@anim@end={}%
   \gdef\@anim@every{1}% frames to be included
+  \gdef\@anim@gropts{}%
 }
 
 %package options

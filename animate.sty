@@ -75,11 +75,7 @@
 
 %creating and using global definitions
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
-\def\@anim@getkeyval#1{%
-  \expandafter\ifx\csname#1\endcsname\relax\else%
-    \csname#1\endcsname%
-  \fi%
-}
+\def\@anim@getkeyval#1{\expandafter\ifx\csname#1\endcsname\relax\else\csname#1\endcsname\fi}
 
 %missing package error message
 \def\@anim@missing#1{%
@@ -1679,8 +1675,8 @@
       %build frame xobject
       \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
       %clean-up
-      \edef\@anim@usedlist{\@anim@getkeyval{usedin@\the\@anim@curframe@zb}}%
-      \expandafter\@anim@resetusedlist\@anim@usedlist,:\@nil%
+%      \edef\@anim@usedlist{\@anim@getkeyval{usedin@\the\@anim@curframe@zb}}%
+%      \expandafter\@anim@resetusedlist\@anim@usedlist,:\@nil%
       \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
       \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
@@ -1771,24 +1767,14 @@
   \fi%
   %build contents of animation layer and update frame xobject resource list
   %according to transparency specifications
-  \ifnum\@anim@transp<#1\else%ignore non-existing transparencies
-    \ifnum\@anim@transp=#1\else%
+  \ifnum\@anim@transp<#1\else%   ignore non-existing
+    \ifnum\@anim@transp=#1\else% transparencies
       \@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
         %detect multiple inclusion of the same transparency in the
         %current frame
-        \expandafter\ifx\csname used@#1@\the\@anim@tmpcnt\endcsname\relax%
-          %append transparency to ressource list
-          \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
-            \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
-            /im#1\space\@anim@getkeyval{img@#1}%
-          }%
-          %mark current transparency as used within the current frame
-          \@anim@newkey{used@#1@\the\@anim@tmpcnt}{}%
-          %append it to the list of transparencies used in current frame
-          \@anim@newkey{usedin@\the\@anim@tmpcnt}{%
-            \@anim@getkeyval{usedin@\the\@anim@tmpcnt}#1,}%
-        \else%
+%        \expandafter\ifx\csname used@#1@\the\@anim@tmpcnt\endcsname\relax%
+        \ifcsname used@#1@\the\@anim@tmpcnt\endcsname%
           \PackageWarning{animate}{%
             Transparency #1 multiply included in frame \the\@anim@tmpcnt.%
             \MessageBreak%
@@ -1816,6 +1802,17 @@
             }%
             \gdef\@anim@warned{}%
           \fi%
+        \else%
+          %append transparency to ressource list
+          \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
+            \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
+            /im#1\space\@anim@getkeyval{img@#1}%
+          }%
+          %mark current transparency as used within the current frame
+          \@anim@newkey{used@#1@\the\@anim@tmpcnt}{}%
+          %append it to the list of transparencies used in current frame
+          \@anim@newkey{usedin@\the\@anim@tmpcnt}{%
+            \@anim@getkeyval{usedin@\the\@anim@tmpcnt}#1,}%
         \fi%
         \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
           \@anim@getkeyval{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}
@@ -1830,8 +1827,8 @@
 %reset embedded transparency list
 \def\@anim@resetusedlist#1,#2\@nil{%
   \ifthenelse{\equal{#1}{}}{}{%
-    \expandafter\global\expandafter\let\csname
-      used@#1@\the\@anim@curframe@zb\endcsname\@undefined%
+    {\expandafter\global\expandafter\let\csname
+      used@#1@\the\@anim@curframe@zb\endcsname\@undefined}%
   }%
   \ifthenelse{\equal{#2}{:}}{%
     \@anim@newkey{usedin@\the\@anim@curframe@zb}{}%

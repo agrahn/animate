@@ -477,6 +477,11 @@
     \xdef\@anim@lastobj{\the\pdflastobj\space 0 R}%
   }
 
+  \def\@anim@streamobj#1#2{% #1: atrrs, #2 content
+    \immediate\pdfobj stream attr {#1}{#2}%
+    \xdef\@anim@lastobj{\the\pdflastobj\space 0 R}%
+  }
+
   \def\@anim@xform#1#2#3{%#1: not used, #2: not used, #3 boxnum
     \immediate\pdfxform resources {\the\pdfpageresources}#3%
     \xdef\@anim@lastxform{\the\pdflastxform}%
@@ -525,6 +530,13 @@
       \xdef\@anim@lastobj{@anm@obj\the\@anim@objnum}%
       \global\advance\@anim@objnum by \@ne%
     }
+
+    \def\@anim@streamobj#1#2{% #1: atrrs, #2 content
+      \special{pdf:stream @anm@obj\the\@anim@objnum\space (#2) <<#1>>}%
+      \xdef\@anim@lastobj{@anm@obj\the\@anim@objnum}%
+      \global\advance\@anim@objnum by \@ne%
+    }
+
     \def\@anim@xform#1#2#3{%#1 add. pgf resources?1:0, #2 not used, #3 boxnum
       \special{pdf:bxobj @anm@obj\the\@anim@objnum\space width \strip@pt\wd#3pt
         height \strip@pt\ht#3pt depth \strip@pt\dp#3pt}%
@@ -555,7 +567,6 @@
     \def\@anim@refxform#1{\special{pdf:uxobj #1}}% #1: xform obj ID
 
     \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
-      \typeout{++++#4++++}%
       \special{pdf:annot @anm@obj\the\@anim@objnum\space
         width #1pt height #2pt
         depth #3pt <<#4>>}%
@@ -588,6 +599,16 @@
     \def\@anim@dictobj#1{%
       \special{ps:
         mark /_objdef {@anm@obj\the\@anim@objnum} /type/dict /OBJ pdfmark
+        mark {@anm@obj\the\@anim@objnum} <<#1>> /PUT pdfmark
+      }%
+      \xdef\@anim@lastobj{{@anm@obj\the\@anim@objnum}}%
+      \global\advance\@anim@objnum by \@ne%
+    }
+
+    \def\@anim@streamobj#1#2{%
+      \special{ps:
+        mark /_objdef {@anm@obj\the\@anim@objnum} /type/stream /OBJ pdfmark
+        mark {@anm@obj\the\@anim@objnum} (#2) /PUT pdfmark
         mark {@anm@obj\the\@anim@objnum} <<#1>> /PUT pdfmark
       }%
       \xdef\@anim@lastobj{{@anm@obj\the\@anim@objnum}}%
@@ -754,7 +775,6 @@
     \fi%
   \fi%
   \if@anim@timeline\else%
-    %\typeout{++++++++++++ a ++++++}%
     \@anim@newkey{frmcontent@#2}{%
       \@anim@refxform{\@anim@getkeyval{img@#2}}%
     }%
@@ -1016,7 +1036,7 @@
     \special{ps:
       gsave [1 0 0 1 0 0] setmatrix
       mark
-        /_objdef {btn#1:#3}
+        /_objdef {@anm@obj\the\@anim@objnum}
         /BBox [0 0 15 15]
       /BP pdfmark
       {%
@@ -1029,7 +1049,8 @@
       }?pdfmark mark /EP pdfmark
       grestore%
     }%
-    \@anim@newkey{btn#1:#3}{{btn#1:#3}}%
+    \@anim@newkey{btn#1:#3}{{@anm@obj\the\@anim@objnum}}%
+    \global\advance\@anim@objnum by \@ne%
   }
 \else
   %stroking commands
@@ -1201,21 +1222,10 @@
     }{#1}%
   }
   %XObject creation
-  \ifpdf
-    \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
-      \immediate\pdfobj stream attr{%
-        /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
-      }{#2}%
-      \@anim@newkey{btn#1:#3}{\the\pdflastobj\space 0 R}%
-    }
-  \else% dvipdfmx
-    \def\@anim@xbutton#1#2#3{%
-      \special{pdf:stream @btn#1:#3\space (#2) <<%
-        /Type/XObject/Subtype/Form/BBox [0 0 15 15] >>%
-      }%
-      \@anim@newkey{btn#1:#3}{@btn#1:#3}%
-    }
-  \fi
+  \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
+    \@anim@streamobj{/Type/XObject/Subtype/Form/BBox [0 0 15 15]}{#2}
+    \@anim@newkey{btn#1:#3}{\@anim@lastobj}%
+  }
 \fi
 
 %determines file type of the sequence
@@ -2986,27 +2996,10 @@
 
 %JavaScript objects
 %animation widget's PageOpen event
-\ifpdf
-  \def\@anim@pojscript#1{%
-    \immediate\pdfobj stream {\@anim@@pojscript{#1}}%
-    \xdef\@anim@pojscriptobj{\the\pdflastobj\space 0 R}%
-  }
-\else
-  \if@anim@dvipdfmx
-    \def\@anim@pojscript#1{%
-      \special{pdf:stream @a#1@pojscript (\@anim@@pojscript{#1})}%
-      \xdef\@anim@pojscriptobj{@a#1@pojscript}%
-    }
-  \else
-    \def\@anim@pojscript#1{%
-      \special{ps:
-        mark /_objdef {a#1@pojscript} /type/stream /OBJ pdfmark
-        mark {a#1@pojscript} (\@anim@@pojscript{#1}) /PUT pdfmark%
-      }%
-      \xdef\@anim@pojscriptobj{{a#1@pojscript}}%
-    }
-  \fi
-\fi
+\def\@anim@pojscript#1{%
+  \@anim@streamobj{}{\@anim@@pojscript{#1}}
+  \xdef\@anim@pojscriptobj{\@anim@lastobj}%
+}
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%

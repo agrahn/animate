@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2015/06/19}
+\def\@anim@version{2015/07/18}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -1748,7 +1748,7 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \@anim@sanitize%
+    \@anim@sanitizeJS%
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
@@ -1758,9 +1758,9 @@
   \endgroup%
   \global\advance\@anim@num by \@ne%
 }%
-%adjust catcodes of several characters within \animategraphics
+%adjust catcode of `:' character within \animategraphics
 \let\@anim@animategraphics\animategraphics
-\def\animategraphics{\@anim@sanitize\@anim@animategraphics}
+\def\animategraphics{\@anim@sanitizeColon\@anim@animategraphics}
 
 %inserts animation and control button widgets
 \def\@anim@insertwidgets#1#2{%#1:@anim@num, #2 existing btn colour combination
@@ -2075,7 +2075,7 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \@anim@sanitize%
+    \@anim@sanitizeJS%
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
@@ -2087,7 +2087,7 @@
   \setboolean{@anim@inside}{false}%
 }
 \let\@anim@animateinline\animateinline
-\def\animateinline{\@anim@sanitize\@anim@animateinline}
+\def\animateinline{\@anim@sanitizeColon\@anim@animateinline}
 
 %usercommand for use within `animateinline' environment;
 %terminates the current frame and starts a new one
@@ -2173,12 +2173,12 @@
 %starts new frame
 \def\@anim@beginframe{%
   \begin{lrbox}{\@anim@box}% store graphics in a box
-  \the\@anim@begin%
+  \@anim@begin%
 }
 
 %terminates current frame
 \def\@anim@endframe#1#2{%
-  \the\@anim@end%
+  \@anim@end%
   \end{lrbox}%
   \ifnum\@anim@skipfram=\z@%
     \ifnum#2=\z@%
@@ -2385,20 +2385,24 @@
 }
 \endgroup
 
-%macros for sanitizing characters read from timeline file
-\def\@anim@@sanitize#1#2\@nil{%
+%macros for sanitizing characters
+\def\@anim@sanitize#1#2\@nil{%
   \catcode`#1=12%
   \ifx\@empty#2\@empty\else%
-    \@anim@@sanitize#2\@nil%
+    \@anim@sanitize#2\@nil%
   \fi%
 }
-\def\@anim@sanitize{%
+\def\@anim@sanitizeJS{% sanitize JS code while being read from timeline file
   \begingroup%
-  \@anim@@sanitize.:;?!/"'*+,->=<$\&@][)(^_`|~\#\@nil%
+  \@anim@sanitize.:;?!/"'*+,->=<$\&@][)(^_`|~\#\@nil%
   \def\\{\string\\}%
   \def\{{\string\{}%
   \def\}{\string\}}%
   \def\%{\string\%}%
+}
+\def\@anim@sanitizeColon{% sanitize colon (`:') while reading the option list,
+  \begingroup%             in particular the `buttonfg' and `buttonbg' options
+  \@anim@sanitize:\@nil%  arguments
 }
 \let\@anim@endsanitize\endgroup
 
@@ -2932,13 +2936,11 @@
     }%
   }%
 }
-\newtoks\@anim@begin
 \define@key{anim@user}{begin}{%
-  \@anim@begin{#1}%
+  \gdef\@anim@begin{#1}%
 }
-\newtoks\@anim@end
 \define@key{anim@user}{end}{%
-  \@anim@end{#1}%
+  \gdef\@anim@end{#1}%
 }
 \define@key{anim@user}{every}{% embed every #1th frame
   \ifnum#1<\@ne\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
@@ -3024,8 +3026,8 @@
   \gdef\@anim@usrjsat{}%
   \gdef\@anim@tmlnfile{}%
   \setboolean{@anim@timeline}{false}%
-  \global\@anim@begin={}%
-  \global\@anim@end={}%
+  \gdef\@anim@begin{}%
+  \gdef\@anim@end{}%
   \gdef\@anim@every{1}% frames to be included
   \gdef\@anim@gropts{}%
   \setboolean{@anim@multipage}{false}%
@@ -3477,6 +3479,7 @@
             \fi%
           \fi%
         \fi
+        return;%
       }%
       \if@anim@step\else%
         \if@anim@pauseframes
@@ -3510,7 +3513,8 @@
                 a#1.stopFirst();%
               \fi%
             \fi%
-          \fi%
+          \fi
+          return;%
         }%
         \if@anim@step\else%
           \if@anim@pauseframes

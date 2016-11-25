@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/08/07}
+\def\@anim@version{2014/08/15}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -98,13 +98,13 @@
   \if@anim@@dvipdfmx\else % dvips
     %if geometry package is loaded, execute `\geometry{dvips}' right before
     %  `\begin{document}'
-    \let\@anim@document\document
-    \def\document{%
-      \endgroup%
-      \@ifpackageloaded{geometry}{\geometry{dvips}}{}%
-      \begingroup%
-      \@anim@document%
-    }
+    %\let\@anim@document\document
+    %\def\document{%
+    %  \endgroup%
+    %  \@ifpackageloaded{geometry}{\geometry{dvips}}{}%
+    %  \begingroup%
+    %  \@anim@document%
+    %}
     %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
     \AtBeginDvi{%
       \expandafter\ifx\csname pdfmark\endcsname\relax%
@@ -1627,12 +1627,12 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \if@anim@timeline%
-      \@anim@sanitize\@anim@buildtmln{\the\@anim@num}\@anim@endsanitize%
-    \fi%
+    \@anim@sanitize%
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+    \@anim@endsanitize%
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
@@ -2088,12 +2088,12 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \if@anim@timeline%
-      \@anim@sanitize\@anim@buildtmln{\the\@anim@num}\@anim@endsanitize%
-    \fi%
+    \@anim@sanitize%
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+    \@anim@endsanitize%
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
@@ -2399,12 +2399,12 @@
 \ifpdf
   \begingroup
   \catcode`\$=0 $catcode`$\=12
-  $gdef$@anim@nln{\}
+  $gdef$@anim@bsl{\}
   $endgroup
 \else
   \begingroup
   \catcode`\$=0 $catcode`$\=12
-  $gdef$@anim@nln{\\}
+  $gdef$@anim@bsl{\\}
   $endgroup
 \fi
 \begingroup
@@ -2416,34 +2416,20 @@
 \endgroup
 
 \def\@anim@@sanitize#1#2\@nil{%
-  \expandafter\xdef\csname @anim@\number`#1\endcsname{\the\catcode`#1}%
   \catcode`#1=12%
-  \ifx\@empty#2\@empty%
-  \else%
+  \ifx\@empty#2\@empty\else%
     \@anim@@sanitize#2\@nil%
   \fi%
 }
-\def\@anim@@endsanitize#1#2\@nil{%
-  \catcode`#1=\csname @anim@\number`#1\endcsname%
-  \ifx\@empty#2\@empty%
-  \else%
-    \@anim@@endsanitize#2\@nil%
-  \fi%
-}
 \def\@anim@sanitize{%
+  \begingroup%
   \@anim@@sanitize.:;?!/"'*+,->=<$\&@][)(^_`|~\#\@nil%
-  \let\@anim@newline=\\\let\\=\@anim@nln%
-  \let\@anim@leftbrace=\{\let\{=\@anim@lbr%
-  \let\@anim@rightbrace=\}\let\}=\@anim@rbr%
-  \let\@anim@percent=\%\let\%=\@anim@per%
-}%
-\def\@anim@endsanitize{%
-  \@anim@@endsanitize.:;?!/"'*+,->=<$\&@][)(^_`|~\#\@nil%
-  \let\%=\@anim@percent%
-  \let\}=\@anim@rightbrace%
-  \let\{=\@anim@leftbrace%
-  \let\\=\@anim@newline%
-}%
+  \let\\=\@anim@bsl%
+  \let\{=\@anim@lbr%
+  \let\}=\@anim@rbr%
+  \let\%=\@anim@per%
+}
+\let\@anim@endsanitize\endgroup
 
 %building timeline from timeline file
 \newread\@anim@@tmlnfile

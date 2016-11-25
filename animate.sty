@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/08/15}
+\def\@anim@version{2014/09/21}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2370,15 +2370,11 @@
     #2%
   \fi%
 }%
-\def\@anim@template#1#2{% create template (stringed zeros) from given num
-  \ifnum10#1<1#2
-    \@anim@template{0#1}{#2}%
+\def\@anim@template#1#2{% create template (string of zeros) from given num
+  \ifnum10#1>1#2
+    #1%
   \else%
-    \ifnum10#1=1#2
-      \@anim@template{0#1}{#2}%
-    \else%
-      #1%
-    \fi%
+    \@anim@template{0#1}{#2}%
   \fi%
 }%
 

@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/09/25]
+\ProvidesPackage{animate}[2007/10/04]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -26,12 +26,14 @@
 \ifpdf
   %load MP to PDF converter
   \ifx\convertMPtoPDF\@undefined%
-    \InputIfFileExists{supp-pdf}{}{}%
+    \InputIfFileExists{supp-df}{}{}%
     \ifx\convertMPtoPDF\@undefined%
       \PackageWarningNoLine{animate}{%
-        File `supp-pdf.tex', which is part of ConTeXt, is not available.%
+        File `supp-pdf.tex', which is part of ConTeXt, is not%
         \MessageBreak%
-        Therefore, MetaPost generated PS files cannot be embedded.%
+        available. Therefore, MetaPost generated PS files%
+        \MessageBreak%
+        cannot be embedded using pdfTeX%
       }%
     \fi%
   \fi%
@@ -64,7 +66,7 @@
   \fi
 \fi
 
-%\pdfmdfivesum is used for hashing object references of embedded files, based
+%\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
 \ifx\@undefined\pdfmdfivesum
@@ -136,12 +138,10 @@
   %identify file by md5sum
   \expandafter\ifx\csname file:\pdfmdfivesum file {#1}\endcsname\relax!%
   \else\@anim@getkeyval{file:\pdfmdfivesum file {#1}}\fi%
-}%
+}
 \def\@anim@makefileknown#1#2{%
   \@anim@newkey{file:\pdfmdfivesum file {#1}}{#2}%
 }
-
-\def\@anim@pt{pt}
 
 \ifpdf
   %helper macro that typesets graphics file into savebox
@@ -168,7 +168,7 @@
     \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
     \@anim@makefileknown{#3}{\@anim@lastxform}% keep form xobject number
   }{% file known, re-use existing form xobject
-    \ifnum#2=0%
+    \ifnum#2=0
       \@anim@filebox{#3}% for size determination of first frame
       \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@fileknown{#3}}%
     \else%
@@ -185,7 +185,7 @@
   %#1: @anim@num, #2:@anim@curframe@zb, #3: empty (`') or box number,
   %#4: `!' or form xobj identifier
   \def\@anim@xinline#1#2#3#4{%
-    \ifnum#2=0% measuring the size of the box (first frame only)
+    \ifnum#2=0 %measuring the size of the box (first frame only)
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
       \xdef\@anim@animdepth{\strip@pt\dp#3}%
@@ -196,8 +196,7 @@
     \ifthenelse{\equal{#4}{!}}{%
       %put graphics into XObject
       \setbox\@anim@box=\hbox{%
-        \raisebox{-\dp#3}[\@anim@animheight\@anim@pt]%
-          [\@anim@animdepth\@anim@pt]{\box#3}%
+        \raisebox{-\dp#3}[\@anim@animheight\p@][\@anim@animdepth\p@]{\box#3}%
       }%
       \immediate\pdfxform\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
@@ -217,7 +216,7 @@
   }
 \else
   \def\@anim@xinline#1#2#3#4{%
-    \ifnum#2=0%
+    \ifnum#2=0
       \xdef\@anim@animwidth{\strip@pt\wd#3}%
       \xdef\@anim@animheight{\strip@pt\ht#3}%
       \xdef\@anim@animdepth{\strip@pt\dp#3}%
@@ -269,7 +268,7 @@
           }{% flip around horizontal axis in portrait mode
             [1 0 0 -1 0 frame@lly frame@ury add] concat%
           }ifelse
-        } ?pdfmark
+        }?pdfmark
       }%
       \begin{picture}(0,0)%
         \put(0,0){\box#3}%
@@ -305,7 +304,7 @@
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
     %store ref to ocg if it's a poster
-    \ifnum#2=0%
+    \ifnum#2=0
       \def\@anim@posterframe{first}%
     \else%
       \def\@anim@posterframe{last}%
@@ -327,7 +326,7 @@
       >> /PUT pdfmark
       mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
     }%
-    \ifnum#2=0%
+    \ifnum#2=0
       \def\@anim@posterframe{first}%
     \else%
       \def\@anim@posterframe{last}%
@@ -377,7 +376,7 @@
 %create container XObjects for play & pause button faces;
 \ifpdf
   \def\@anim@makeppcontainer#1#2#3{% #1: @anim@num, #2: Right or Left,
-    %OCGs         #3: index of existing button face colour combination
+    % #3: index of existing button face colour combination
     \immediate\pdfobj{<</Type/OCG /Name (#1.Play#2)>>}%
     \edef\@anim@playocg{\the\pdflastobj\space 0 R}%
     \immediate\pdfobj{<< /Type/OCG /Name (#1.Pause#2)>>}%
@@ -817,7 +816,7 @@
           [-1 0 0 1 15 0] concat%  flip around vertical axis
         }if
         #2
-      } ?pdfmark mark /EP pdfmark
+      }?pdfmark mark /EP pdfmark
       grestore
     }%
   }
@@ -925,7 +924,7 @@
   \vtop{% draw boxes
     \offinterlineskip%
     \hbox{%
-      \raisebox{-\@anim@animdepth\@anim@pt}{%
+      \raisebox{-\@anim@animdepth\p@}{%
         \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
           \put(0,0){\framebox(\@anim@animwidth,\@anim@animtotalheight){}}%
         \end{picture}%
@@ -934,7 +933,7 @@
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
-      \hbox to \@anim@animwidth\@anim@pt {%
+      \hbox to \@anim@animwidth\p@ {%
         \hss%
         \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
         \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
@@ -1008,8 +1007,8 @@
       \@anim@getext{%
         \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
       }%
-      \advance\@anim@curframe by 1%
-      \advance\@anim@curframe@zb by 1%
+      \advance\@anim@curframe by \@anim@every%
+      \advance\@anim@curframe@zb by \@ne%
     \repeat%
     %draw draftbox according to dimensions of the first frame
     \@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
@@ -1042,8 +1041,8 @@
       \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
         \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
       }%
-      \advance\@anim@curframe by 1%
-      \advance\@anim@curframe@zb by 1%
+      \advance\@anim@curframe by \@anim@every%
+      \advance\@anim@curframe@zb by \@ne%
     \repeat%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
     %build timeline from optional timeline file
@@ -1053,7 +1052,7 @@
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
-  \global\advance\@anim@num by 1%
+  \global\advance\@anim@num by \@ne%
   \endgroup%
 }%
 
@@ -1065,7 +1064,7 @@
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
-      \hbox to \@anim@animwidth\@anim@pt {%
+      \hbox to \@anim@animwidth\p@ {%
         \hss%
         \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
         \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
@@ -1107,12 +1106,12 @@
         %ht & dp to keep aspect ratio
         \ifthenelse{\NOT\equal{\@anim@boxwidth}{}}{%
           \setlength{\@anim@tmpdima}{%
-            \@anim@animheight\@anim@pt%
-            *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+            \@anim@animheight\p@%
+            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
           }\xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
           \setlength{\@anim@tmpdima}{%
-            \@anim@animdepth\@anim@pt%
-            *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+            \@anim@animdepth\p@%
+            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
           }\xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
         }{}%
       }%
@@ -1124,10 +1123,10 @@
       \equal{\@anim@boxdepth}{}%
     }{%
       \setlength{\@anim@tmpdima}{%
-        \@anim@animtotalheight\@anim@pt%
-          *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+        \@anim@animtotalheight\p@%
+          *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
       }%
-      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxheight\@anim@pt}%
+      \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxheight\p@}%
       \xdef\@anim@animdepth{\strip@pt\@anim@tmpdimb}%
     }{%
       \ifthenelse{% height missing
@@ -1135,10 +1134,10 @@
         \NOT\equal{\@anim@boxdepth}{}%
       }{%
         \setlength{\@anim@tmpdima}{%
-          \@anim@animtotalheight\@anim@pt%
-            *\ratio{\@anim@boxwidth\@anim@pt}{\@anim@animwidth\@anim@pt}%
+          \@anim@animtotalheight\p@%
+            *\ratio{\@anim@boxwidth\p@}{\@anim@animwidth\p@}%
         }%
-        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxdepth\@anim@pt}%
+        \setlength{\@anim@tmpdimb}{\@anim@tmpdima-\@anim@boxdepth\p@}%
         \xdef\@anim@animheight{\strip@pt\@anim@tmpdimb}%
       }{}%
     }%
@@ -1151,26 +1150,25 @@
       \NOT\equal{\@anim@boxdepth}{}%
     }{%
       \setlength{\@anim@tmpdima}{%
-        \@anim@animwidth\@anim@pt%
-          *\ratio{%
-             \@anim@animheight\@anim@pt+\@anim@animdepth\@anim@pt%
-           }{\@anim@animtotalheight\@anim@pt}%
+        \@anim@animwidth\p@%
+          *\ratio{\@anim@animheight\p@+\@anim@animdepth\p@}{%
+            \@anim@animtotalheight\p@}%
       }%
       \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
     }{}%
   }%
   %apply scaling factor
-  \setlength{\@anim@tmpdima}{\@anim@animwidth\@anim@pt}%
+  \setlength{\@anim@tmpdima}{\@anim@animwidth\p@}%
   \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
   \xdef\@anim@animwidth{\strip@pt\@anim@tmpdima}%
-  \setlength{\@anim@tmpdima}{\@anim@animheight\@anim@pt}%
+  \setlength{\@anim@tmpdima}{\@anim@animheight\p@}%
   \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
   \xdef\@anim@animheight{\strip@pt\@anim@tmpdima}%
-  \setlength{\@anim@tmpdima}{\@anim@animdepth\@anim@pt}%
+  \setlength{\@anim@tmpdima}{\@anim@animdepth\p@}%
   \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
   \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
-  \setlength{\@anim@tmpdima}{\@anim@animheight\@anim@pt}%
-  \addtolength{\@anim@tmpdima}{\@anim@animdepth\@anim@pt}%
+  \setlength{\@anim@tmpdima}{\@anim@animheight\p@}%
+  \addtolength{\@anim@tmpdima}{\@anim@animdepth\p@}%
   \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
 }
 
@@ -1187,9 +1185,8 @@
       \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
     \fi%
     \pdfannot
-      width \@anim@animwidth\@anim@pt
-      height \@anim@animheight\@anim@pt
-      depth \@anim@animdepth\@anim@pt
+      width \@anim@animwidth\p@ height \@anim@animheight\p@
+      depth \@anim@animdepth\p@
     {%
       /Subtype/Widget%
       /F 4% allow printing
@@ -1203,9 +1200,8 @@
         \@anim@otherjscriptkey%
       >>%
     }%
-    \hbox to \@anim@animwidth\@anim@pt {%
-      \vrule width 0pt height \@anim@animheight\@anim@pt
-             depth \@anim@animdepth\@anim@pt%
+    \hbox to \@anim@animwidth\p@ {%
+      \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
       \hss%
     }%
   }%
@@ -1250,9 +1246,8 @@
         >>%
       /ANN pdfmark
     }%
-    \hbox to \@anim@animwidth\@anim@pt {%
-      \vrule width 0pt height \@anim@animheight\@anim@pt
-             depth \@anim@animdepth\@anim@pt%
+    \hbox to \@anim@animwidth\p@ {%
+      \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
       \hss%
     }%
   }
@@ -1324,6 +1319,8 @@
 \newboolean{@anim@chfps} % true if \newframe or \newframe* is being used
                          % with optional `new frame rate' argument
 
+\newcount\@anim@skipfram % counter for skipped frames
+
 %user environment for animating inline graphics
 % #1: options
 % #2: frame rate (fps)
@@ -1352,12 +1349,13 @@
     \xdef\@anim@nfps{#2}% current frame rate (for use in \newframe)
   \fi%
   \global\@anim@curframe@zb=0%
+  \global\@anim@skipfram=0%
   \@anim@beginframe%
   \ignorespaces%
 }{%
   \unskip%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
-  \global\advance\@anim@curframe@zb by 1%
+  \global\advance\@anim@curframe@zb by \@ne%
   \if@anim@draft\else%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
     %build timeline from optional timeline file
@@ -1367,7 +1365,7 @@
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
-  \global\advance\@anim@num by 1%
+  \global\advance\@anim@num by \@ne%
   \setboolean{@anim@inside}{false}%
   \endgroup%
 }
@@ -1386,70 +1384,74 @@
   \@ifstar\@anim@newframestar\@anim@newframe%
 }
 \newcommand{\@anim@newframe}[1][]{% #1: new frame rate
-  \if@anim@draft\else%
-    \if@anim@step\else%
-      \if@anim@timeline\else%
-        \edef\@anim@pfps{\@anim@nfps}%
-        \edef\@anim@nfps{#1}%
-        \ifx\@anim@nfps\@empty%
-          \edef\@anim@nfps{\@anim@pfps}%
-        \else%
-          \ifnum\@anim@curframe@zb=0%
-            \xdef\@anim@fps{#1}%
+  \ifnum\@anim@skipfram=0
+    \if@anim@draft\else%
+      \if@anim@step\else%
+        \if@anim@timeline\else%
+          \edef\@anim@pfps{\@anim@nfps}%
+          \edef\@anim@nfps{#1}%
+          \ifx\@anim@nfps\@empty%
+            \edef\@anim@nfps{\@anim@pfps}%
+          \else%
+            \ifnum\@anim@curframe@zb=0
+              \xdef\@anim@fps{#1}%
+            \fi%
+            %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+            \xdef\@anim@nfpsat{%
+              \@anim@nfpsat%
+              a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+            }%
+            \xdef\@anim@pfpsat{%
+              \@anim@pfpsat%
+              a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+                Math.abs(\@anim@pfps);%
+            }%
+            \setboolean{@anim@chfps}{true}% change fps
           \fi%
-          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-          \xdef\@anim@nfpsat{%
-            \@anim@nfpsat%
-            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-          }%
-          \xdef\@anim@pfpsat{%
-            \@anim@pfpsat%
-            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
-              Math.abs(\@anim@pfps);%
-          }%
-          \setboolean{@anim@chfps}{true}% change fps
         \fi%
       \fi%
     \fi%
+    \global\advance\@anim@curframe@zb by \@ne%
   \fi%
-  \global\advance\@anim@curframe@zb by 1%
   \@anim@beginframe%
   \ignorespaces%
 }
-\newcommand{\@anim@newframestar}[1][]{% starred variant for pauseing animation
-  \if@anim@draft\else%                  #1: new frame rate
-    \if@anim@step\else%
-      \if@anim@timeline\else%
-        %build JavaScript commands to fill the `pauseAt' array
-        \xdef\@anim@pauseat{%
-          \@anim@pauseat%
-          a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
-        }%
-        \setboolean{@anim@pauseframes}{true}%
-        \xdef\@anim@pfps{\@anim@nfps}%
-        \xdef\@anim@nfps{#1}%
-        \ifx\@anim@nfps\@empty%
-          \xdef\@anim@nfps{\@anim@pfps}%
-        \else%
-          \ifnum\@anim@curframe@zb=0%
-            \xdef\@anim@fps{#1}%
+\newcommand{\@anim@newframestar}[1][]{% starred variant for pausing animation
+  \ifnum\@anim@skipfram=0 %             #1: new frame rate
+    \if@anim@draft\else%
+      \if@anim@step\else%
+        \if@anim@timeline\else%
+          %build JavaScript commands to fill the `pauseAt' array
+          \xdef\@anim@pauseat{%
+            \@anim@pauseat%
+            a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
+          }%
+          \setboolean{@anim@pauseframes}{true}%
+          \xdef\@anim@pfps{\@anim@nfps}%
+          \xdef\@anim@nfps{#1}%
+          \ifx\@anim@nfps\@empty%
+            \xdef\@anim@nfps{\@anim@pfps}%
+          \else%
+            \ifnum\@anim@curframe@zb=0
+              \xdef\@anim@fps{#1}%
+            \fi%
+            %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+            \xdef\@anim@nfpsat{%
+              \@anim@nfpsat%
+              a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+            }%
+            \xdef\@anim@pfpsat{%
+              \@anim@pfpsat%
+              a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+                Math.abs(\@anim@pfps);%
+            }%
+            \setboolean{@anim@chfps}{true}% change fps
           \fi%
-          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-          \xdef\@anim@nfpsat{%
-            \@anim@nfpsat%
-            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-          }%
-          \xdef\@anim@pfpsat{%
-            \@anim@pfpsat%
-            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
-              Math.abs(\@anim@pfps);%
-          }%
-          \setboolean{@anim@chfps}{true}% change fps
         \fi%
       \fi%
     \fi%
+    \global\advance\@anim@curframe@zb by \@ne%
   \fi%
-  \global\advance\@anim@curframe@zb by 1%
   \@anim@beginframe%
   \ignorespaces%
 }
@@ -1464,32 +1466,38 @@
 \def\@anim@endframe#1#2{%
   \the\@anim@end%
   \end{lrbox}%
-  \if@anim@draft\else\message{< a#1, fr#2}\fi%
-  %determine size of graphics
-  \ifnum #2=0%
-    \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
-    \ifdim\wd\@anim@box=0pt%
-      \PackageError{animate}{%
-        Contents of first frame must not have zero width%
-      }{%
-        Possible reason: \protect\begin{animateinline}{...}
-        immediately followed by \protect\newframe%
-      }%
-    \fi%
-    \xdef\@anim@animheight{\strip@pt\ht\@anim@box}%
-    \xdef\@anim@animdepth{\strip@pt\dp\@anim@box}%
-    \ifdim\ht\@anim@box=0pt%
-      \ifdim\dp\@anim@box=0pt%
+  \ifnum\@anim@skipfram=0
+    \if@anim@draft\else\message{< a#1, fr#2}\fi%
+    %determine size of graphics
+    \ifnum #2=0
+      \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
+      \ifdim\wd\@anim@box=0pt%
         \PackageError{animate}{%
-          Contents of first frame must not have zero height%
-        }{}%
+          Contents of first frame must not have zero width%
+        }{%
+          Possible reason: \protect\begin{animateinline}{...}
+          immediately followed by \protect\newframe%
+        }%
       \fi%
+      \xdef\@anim@animheight{\strip@pt\ht\@anim@box}%
+      \xdef\@anim@animdepth{\strip@pt\dp\@anim@box}%
+      \ifdim\ht\@anim@box=0pt%
+        \ifdim\dp\@anim@box=0pt%
+          \PackageError{animate}{%
+            Contents of first frame must not have zero height%
+          }{}%
+        \fi%
+      \fi%
+      %draw draftbox according to dimensions of the first frame
+      \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
     \fi%
-    %draw draftbox according to dimensions of the first frame
-    \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
+    %now create Form XObject of box contents
+    \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}{!}\message{>}\fi%
   \fi%
-  %now create Form XObject of box contents
-  \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}{!}\message{>}\fi%
+  \global\advance\@anim@skipfram by \@ne%
+  \ifnum\@anim@skipfram=\@anim@every
+    \global\@anim@skipfram=0%
+  \fi%
 }
 
 %prints zero padded integers
@@ -1537,7 +1545,7 @@
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
       %initialise contents of each frame (to be filled with refs to XObjects
       \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%  to be drawn)
-      \global\advance\@anim@curframe@zb by 1%
+      \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
     \edef\@anim@inputline{\@anim@inputline\space}%
@@ -1547,7 +1555,7 @@
   }%
   \closein\@anim@@tmlnfile%
   \xdef\@anim@transp{\@anim@frames}% total number of transp
-  \xdef\@anim@frames{\the\@anim@curframe@zb}% total number of anim positions
+  \xdef\@anim@frames{\the\@anim@curframe@zb}%total number of actual frames
   \global\@anim@curframe@zb=0%
   %reopen timeline file and build timeline
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
@@ -1568,7 +1576,7 @@
         BDC\@anim@getkeyval{@anim@content@\the\@anim@curframe@zb} EMC%
       }%
       \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%
-      \global\advance\@anim@curframe@zb by 1%
+      \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
     \edef\@anim@inputline{\@anim@inputline\space}%
@@ -1591,7 +1599,8 @@
     }{}%
     \xdef\@anim@pfps{\@anim@nfps}%
     \xdef\@anim@nfps{#2}%
-    \ifx\@anim@nfps\@empty % second column contains a number (new frame rate)
+    %treat the second field (new frame rate)
+    \ifx\@anim@nfps\@empty% no change of frame rate
       \xdef\@anim@nfps{\@anim@pfps}%
     \else%
       \ifnum\@anim@curframe@zb=0
@@ -1650,7 +1659,7 @@
           \@anim@getkeyval{@anim@content@\the\@anim@tmpcnt}
           q /im#1\space Do Q%
         }%
-        \advance\@anim@tmpcnt by 1%
+        \advance\@anim@tmpcnt by \@ne%
       \repeat%
     \fi%
   \fi%
@@ -1684,7 +1693,7 @@
 \def\@anim@colours#1:#2;{% helper macro to get number of colour components and
   \xdef\@anim@colour{\@anim@colour\space #1}% to replace : by ` ' in the arg
   \ifthenelse{\equal{#2}{!}}{}{%
-    \global\advance\@anim@tmpcnt by 1%
+    \global\advance\@anim@tmpcnt by \@ne%
     \@anim@colours#2;%
   }%
 }
@@ -1706,12 +1715,12 @@
   }
 \fi
 \define@key{anim@user}{buttonbg}{%background colour of buttons
-  \global\@anim@tmpcnt=1%
+  \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!;%
   \xdef\@anim@bgcolour{\@anim@colour}%
   \ifpdf%
-    \ifnum\@anim@tmpcnt=1
+    \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@bg{\@anim@colour\space g\space\@anim@@@bg}%
     \else%
       \ifnum\@anim@tmpcnt=3
@@ -1723,7 +1732,7 @@
       \fi%
     \fi%
   \else%
-    \ifnum\@anim@tmpcnt=1
+    \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
       \ifnum\@anim@tmpcnt=3
@@ -1737,12 +1746,12 @@
   \fi%
 }
 \define@key{anim@user}{buttonfg}{%stroking colour of buttons
-  \global\@anim@tmpcnt=1%
+  \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!;%
   \xdef\@anim@fgcolour{\@anim@colour}%
   \ifpdf%
-    \ifthenelse{\the\@anim@tmpcnt=1}{%
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@fg{\@anim@colour\space G}%
       \xdef\@anim@@@fg{\@anim@colour\space g}%
     }{%
@@ -1757,7 +1766,7 @@
       }%
     }%
   \else%
-    \ifthenelse{\the\@anim@tmpcnt=1}{%
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@fg{\@anim@colour\space setgray}%
     }{%
       \ifthenelse{\the\@anim@tmpcnt=3}{%
@@ -1849,6 +1858,9 @@
 \define@key{anim@user}{end}{%
   \@anim@end{#1}%
 }
+\define@key{anim@user}{every}{% embed every #1 frames
+  \ifnum#1<\@ne\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
+}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -1884,18 +1896,19 @@
   \setboolean{@anim@timeline}{false}%
   \@anim@begin={}%
   \@anim@end={}%
+  \gdef\@anim@every{1}% frames to be included
 }
 
 %package options
 \def\@anim@@bg{}
 \def\@anim@@bgcolour{}
 \define@key{anim@pkg}{buttonbg}{%background colour of buttons
-  \global\@anim@tmpcnt=1%
+  \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!;%
   \xdef\@anim@@bgcolour{\@anim@colour}%
   \ifpdf%
-    \ifnum\@anim@tmpcnt=1
+    \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@@bg{\@anim@colour\space g\space\@anim@@@bg}%
     \else%
       \ifnum\@anim@tmpcnt=3
@@ -1907,7 +1920,7 @@
       \fi%
     \fi%
   \else%
-    \ifnum\@anim@tmpcnt=1
+    \ifnum\@anim@tmpcnt=\@ne
       \xdef\@anim@@bg{\@anim@colour\space setgray\space\@anim@@@bg}%
     \else%
       \ifnum\@anim@tmpcnt=3
@@ -1923,12 +1936,12 @@
 \ifpdf\def\@anim@@fg{0 G}\def\@anim@@@@fg{0 g}\else\def\@anim@@fg{0 setgray}\fi
 \def\@anim@@fgcolour{}
 \define@key{anim@pkg}{buttonfg}{%stroking colour of buttons
-  \global\@anim@tmpcnt=1%
+  \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
   \@anim@colours#1:!;%
   \xdef\@anim@@fgcolour{\@anim@colour}%
   \ifpdf%
-    \ifthenelse{\the\@anim@tmpcnt=1}{%
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@@fg{\@anim@colour\space G}%
       \xdef\@anim@@@@fg{\@anim@colour\space g}%
     }{%
@@ -1943,7 +1956,7 @@
       }%
     }%
   \else%
-    \ifthenelse{\the\@anim@tmpcnt=1}{%
+    \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
       \xdef\@anim@@fg{\@anim@colour\space setgray}%
     }{%
       \ifthenelse{\the\@anim@tmpcnt=3}{%
@@ -2108,13 +2121,12 @@
     \fi%
     %actions
     a#1.actnEndLeft=function(){%
-      var curIdx=a#1.idx;%
       \if@anim@step\else
         a#1.actnPause();%
         a#1.isPaused=false;% because it has been explicitly stopped
       \fi
+      a#1.fr[a#1.idx].state=false;%
       a#1.idx=0;%
-      a#1.fr[curIdx].state=false;%
       a#1.fr[0].state=true;%
       \if@anim@chfps
         a#1.fpsDeflt=Math.abs(\@anim@fps);%
@@ -2123,13 +2135,12 @@
       \fi%
     };%
     a#1.actnEndRight=function(){%
-      var curIdx=a#1.idx;%
       \if@anim@step\else
         a#1.actnPause();%
         a#1.isPaused=false;%
       \fi
+      a#1.fr[a#1.idx].state=false;%
       a#1.idx=\@anim@frames-1;%
-      a#1.fr[curIdx].state=false;%
       a#1.fr[a#1.idx].state=true;%
       \if@anim@chfps %frame rate from the last fps change (\@anim@nfps)
         a#1.fpsDeflt=Math.abs(\@anim@nfps);%
@@ -2138,20 +2149,23 @@
       \fi%
     };%
     a#1.actnNext=function(){%
-      var curIdx=a#1.idx;%
-      \if@anim@palindrome
-        if(a#1.idx==\@anim@frames-1){%
+      a#1.fr[a#1.idx].state=false;%
+      try{%
+        a#1.fr[++a#1.idx].state=true;%
+      }catch(e){%
+        --a#1.idx;%
+        \if@anim@palindrome%
           \if@anim@step
+            a#1.actnEndRight();%
             a#1.playsRight=false;%
           \else
+            a#1.fr[a#1.idx].state=true;%
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
           \fi%
-        }else{%
-          a#1.idx++;%
-        }%
-      \else
-        if(a#1.idx==\@anim@frames-1){%
-          \if@anim@step\else%
+        \else%
+          \if@anim@step
+            a#1.actnEndRight();%
+          \else%
             \if@anim@loop
               if(a#1.isPlaying){%
                 \if@anim@chfps
@@ -2160,17 +2174,13 @@
                   a#1.dt=a#1.dtDeflt;%
                 \fi
                 a#1.actnPlayRight();%
-              }%
+              }else{a#1.actnEndRight();}%
             \else
               a#1.actnEndRight();%
             \fi%
           \fi%
-        }else{%
-          a#1.idx++;%
-        }%
-      \fi
-      a#1.fr[curIdx].state=false;%
-      a#1.fr[a#1.idx].state=true;%
+        \fi%
+      }%
       \if@anim@step\else%
         \if@anim@chfps
           if(%
@@ -2189,20 +2199,23 @@
       \fi%
     };%
     a#1.actnPrev=function(){%
-      var curIdx=a#1.idx;%
-      \if@anim@palindrome
-        if(a#1.idx==0){%
+      a#1.fr[a#1.idx].state=false;%
+      try{%
+        a#1.fr[--a#1.idx].state=true;%
+      }catch(e){%
+        ++a#1.idx;%
+        \if@anim@palindrome%
           \if@anim@step
+            a#1.actnEndLeft();%
             a#1.playsRight=true;%
           \else
+            a#1.fr[a#1.idx].state=true;%
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
           \fi%
-        }else{%
-          a#1.idx--;%
-        }%
-      \else
-        if(a#1.idx==0){%
-          \if@anim@step\else%
+        \else%
+          \if@anim@step
+            a#1.actnEndLeft();%
+          \else%
             \if@anim@loop
               if(a#1.isPlaying){%
                 \if@anim@chfps
@@ -2211,17 +2224,13 @@
                   a#1.dt=a#1.dtDeflt;%
                 \fi
                 a#1.actnPlayLeft();%
-              }%
+              }else{a#1.actnEndLeft();}%
             \else
               a#1.actnEndLeft();%
             \fi%
           \fi%
-        }else{%
-          a#1.idx--;%
-        }%
-      \fi
-      a#1.fr[curIdx].state=false;%
-      a#1.fr[a#1.idx].state=true;%
+        \fi%
+      }%
       \if@anim@step\else%
         \if@anim@chfps
           if(%

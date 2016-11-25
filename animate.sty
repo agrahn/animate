@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/01/04}
+\def\@anim@version{2010/01/20}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -79,8 +79,8 @@
   \InputIfFileExists{supp-pdf}{}{%
     \PackageWarningNoLine{animate}{%
       Neither of the files `supp-pdf.mkii' and `supp-pdf.tex',%
-	  \MessageBreak%
-	  which are part of ConTeXt, could be found.%
+      \MessageBreak%
+      which are part of ConTeXt, could be found.%
       \MessageBreak%
       Therefore, MetaPost generated PS files cannot%
       \MessageBreak%
@@ -188,10 +188,6 @@
     to the preamble of your document%
   }{}%
 }
-
-\newboolean{@anim@powerdot} %to cope with some powerdot oddity
-\setboolean{@anim@powerdot}{false}
-\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
 
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
@@ -399,7 +395,8 @@
       \global\setbox\@anim@box=\hbox{%
         \raisebox{-\dp#3}[\@anim@frameheight\p@][\@anim@framedepth\p@]{\box#3}%
       }%
-      \immediate\pdfxform\@anim@box%
+      \immediate\pdfxform\ifdefined\pgf@sys@pdf@possible@resources resources {%
+        \pgf@sys@pdf@possible@resources}\fi\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
       %keep a record of XObject number
       \@anim@newkey{img@#2}{\@anim@lastxform\space 0 R}%
@@ -470,14 +467,11 @@
         \endgroup%
         \special{ps:
           gsave
-          %translate graphics to lower left page corner
-          \if@anim@powerdot\else%
-            {%
-              frame@llx neg frame@lly neg translate
-              one@inch@x DVImag div neg one@inch@y DVImag div neg translate
-              0 paper@height DVImag div translate
-            }?pdfmark
-          \fi%
+          %translate graphics to upper left page corner
+          {%
+            frame@llx neg frame@ury neg translate
+            one@inch@x DVImag div neg one@inch@y DVImag div neg translate%
+          }?pdfmark
           %distill graphics into XObject
           mark
             /_objdef {@anim@frm@#1@#2}

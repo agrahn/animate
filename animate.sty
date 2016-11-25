@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/05/30}
+\def\@anim@version{2016/06/08}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -173,7 +173,7 @@
     \def\@anim@pdfmdfivesum#1{\pdfmdfivesum file {#1}}
   \else
     \ifcsname mdfivesum\endcsname
-      \let\@anim@pdfmdfivesum\mdfivesum
+      \def\@anim@pdfmdfivesum#1{\mdfivesum file {#1}}
     \else  
       \def\@anim@pdfmdfivesum#1{#1}
     \fi
@@ -268,7 +268,6 @@
 % true if any of `autoplay' or `autoresume' options is set
 \newboolean{@anim@autoplayorresume}
 % true if any of `controls' or `palindrome' or `label' options is set
-\newboolean{@anim@morejs}
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
 
@@ -1321,12 +1320,6 @@
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
   }{}%
-  \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
-    \setboolean{@anim@morejs}{true}%
-  }{}%
-  \ifx\empty\@anim@label\empty\else%
-    \setboolean{@anim@morejs}{true}%
-  \fi%
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
@@ -1700,12 +1693,6 @@
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
   }{}%
-  \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
-    \setboolean{@anim@morejs}{true}%
-  }{}%
-  \ifx\empty\@anim@label\empty\else%
-    \setboolean{@anim@morejs}{true}%
-  \fi%
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
@@ -2684,7 +2671,6 @@
   \setboolean{@anim@multipage}{false}%
   \setboolean{@anim@meas}{false}%
   \setboolean{@anim@autoplayorresume}{false}%
-  \setboolean{@anim@morejs}{false}%
   \xdef\@anim@ftype{\@anim@@ftype}%
 }
 
@@ -3006,8 +2992,8 @@
     %playing state and direction
     \if@anim@step
       \if@anim@palindrome a#1.playsRight=true;\fi%
-    \else%
-      \if@anim@morejs a#1.playsRight=true;\fi%
+    \else
+      a#1.playsRight=true;%
     \fi%
     a#1.isPaused=false;%
     \if@anim@step\else
@@ -3025,11 +3011,7 @@
       a#1.setFps=function(f){%
         a#1.fps=f;%
         if(a#1.playing){%
-          \if@anim@morejs
-            if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
-          \else
-            a#1.playRight();%
-          \fi%
+          if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
         }%
       };%
     \fi%
@@ -3138,42 +3120,40 @@
         \fi%
       \fi%
     };%
-    \if@anim@morejs
-      a#1.gotoPrev=function(){%
-        if(a#1.seekFrame(a#1.idx-1)<0){%
-          \if@anim@step\else\if@anim@meas a#1.stopMeas();\fi\fi%
-          \if@anim@palindrome%
-            \if@anim@step
-              a#1.stopFirst();%
-              a#1.playsRight=true;%
-            \else
-              if(a#1.playing){%
-                a#1.seekFrame(a#1.idx+1);%
-                a#1.playRight();%
-              }%
-            \fi%
-          \else%
-            \if@anim@step
-              a#1.stopFirst();%
-            \else%
-              \if@anim@loop
-                if(a#1.playing){%
-                  a#1.seekFrame(\@anim@maxframe);%
-                }else{a#1.stopFirst();}%
-              \else
-                a#1.stopFirst();%
-              \fi%
-            \fi%
-          \fi
-          return;%
-        }%
-        \if@anim@step\else%
-          \if@anim@pauseframes
-            if(a#1.playing&&a#1.pauseAt[a#1.idx]){a#1.pause();}%
+    a#1.gotoPrev=function(){%
+      if(a#1.seekFrame(a#1.idx-1)<0){%
+        \if@anim@step\else\if@anim@meas a#1.stopMeas();\fi\fi%
+        \if@anim@palindrome%
+          \if@anim@step
+            a#1.stopFirst();%
+            a#1.playsRight=true;%
+          \else
+            if(a#1.playing){%
+              a#1.seekFrame(a#1.idx+1);%
+              a#1.playRight();%
+            }%
           \fi%
+        \else%
+          \if@anim@step
+            a#1.stopFirst();%
+          \else%
+            \if@anim@loop
+              if(a#1.playing){%
+                a#1.seekFrame(\@anim@maxframe);%
+              }else{a#1.stopFirst();}%
+            \else
+              a#1.stopFirst();%
+            \fi%
+          \fi%
+        \fi
+        return;%
+      }%
+      \if@anim@step\else%
+        \if@anim@pauseframes
+          if(a#1.playing&&a#1.pauseAt[a#1.idx]){a#1.pause();}%
         \fi%
-      };%
-    \fi%
+      \fi%
+    };%
     \if@anim@step\else
       a#1.pause=function(stop){%
         try{app.clearInterval(a#1_int);}catch(e){}%
@@ -3189,7 +3169,7 @@
       };%
       a#1.playRight=function(){%
         try{app.clearInterval(a#1_int);}catch(e){}%
-        \if@anim@morejs a#1.playsRight=true;\fi
+        a#1.playsRight=true;%
         a#1.playing=true;%
         a#1.isPaused=false;%
         \if@anim@controls
@@ -3203,24 +3183,22 @@
         a#1_int=app.setInterval('a#1.gotoNext()',%
           1000/(1e-6+a#1.fps)/a#1.sm);%
       };%
-      \if@anim@morejs
-        a#1.playLeft=function(){%
-          try{app.clearInterval(a#1_int);}catch(e){}%
-          a#1.playsRight=false;%
-          a#1.playing=true;%
-          a#1.isPaused=false;%
-          \if@anim@controls
-            a#1.btnPauseLeft.display=display.visible;%
-            a#1.btnPlayLeft.display=display.hidden;%
-            a#1.btnPauseRight.display=display.visible;%
-            a#1.btnPlayRight.display=display.hidden;%
-            curdoc.dirty=false;%
-          \fi%
-          \if@anim@meas a#1.startMeas();\fi
-          a#1_int=app.setInterval('a#1.gotoPrev()',%
-          1000/(1e-6+a#1.fps)/a#1.sm);%
-        };%
-      \fi%
+      a#1.playLeft=function(){%
+        try{app.clearInterval(a#1_int);}catch(e){}%
+        a#1.playsRight=false;%
+        a#1.playing=true;%
+        a#1.isPaused=false;%
+        \if@anim@controls
+          a#1.btnPauseLeft.display=display.visible;%
+          a#1.btnPlayLeft.display=display.hidden;%
+          a#1.btnPauseRight.display=display.visible;%
+          a#1.btnPlayRight.display=display.hidden;%
+          curdoc.dirty=false;%
+        \fi%
+        \if@anim@meas a#1.startMeas();\fi
+        a#1_int=app.setInterval('a#1.gotoPrev()',%
+        1000/(1e-6+a#1.fps)/a#1.sm);%
+      };%
       \if@anim@controls
         a#1.fpsIncr=function(){% speed up animation
           a#1.sm*=1.1;%
@@ -3253,34 +3231,32 @@
         };%
       \fi%
     \fi%
-    \if@anim@morejs%
-      \if@anim@step
-        a#1.stepBwd=function(){%
-          a#1.seekFrame(a#1.idx-1);%
-          a#1.isPaused=true;%
-        };%
-        a#1.stepFwd=function(){%
-          a#1.seekFrame(a#1.idx+1);%
-          a#1.isPaused=true;%
-        };%
-      \else
-        a#1.stepBwd=function(){if(!a#1.playing){%
-          a#1.seekFrame(a#1.idx-1);%
-          a#1.isPaused=true;%
-        }};%
-        a#1.stepFwd=function(){if(!a#1.playing){%
-          a#1.seekFrame(a#1.idx+1);%
-          a#1.isPaused=true;%
-        }};%
-        a#1.playBwd=function(){%
-          if(a#1.idx==0||!a#1.isPaused){a#1.stopLast();}%
-          a#1.playLeft();%
-        };%
-        a#1.playFwd=function(){%
-          if(a#1.idx==\@anim@maxframe||!a#1.isPaused){a#1.stopFirst();}%
-          a#1.playRight();%
-        };%
-      \fi%
+    \if@anim@step
+      a#1.stepBwd=function(){%
+        a#1.seekFrame(a#1.idx-1);%
+        a#1.isPaused=true;%
+      };%
+      a#1.stepFwd=function(){%
+        a#1.seekFrame(a#1.idx+1);%
+        a#1.isPaused=true;%
+      };%
+    \else
+      a#1.stepBwd=function(){if(!a#1.playing){%
+        a#1.seekFrame(a#1.idx-1);%
+        a#1.isPaused=true;%
+      }};%
+      a#1.stepFwd=function(){if(!a#1.playing){%
+        a#1.seekFrame(a#1.idx+1);%
+        a#1.isPaused=true;%
+      }};%
+      a#1.playBwd=function(){%
+        if(a#1.idx==0||!a#1.isPaused){a#1.stopLast();}%
+        a#1.playLeft();%
+      };%
+      a#1.playFwd=function(){%
+        if(a#1.idx==\@anim@maxframe||!a#1.isPaused){a#1.stopFirst();}%
+        a#1.playRight();%
+      };%
     \fi%
     %animation API for labelled anims
     \ifx\empty\@anim@label\empty\else
@@ -3336,12 +3312,8 @@
     \if@anim@autoplayorresume%
       \if@anim@autoresume
         if(a#1.isPaused){%
-      \fi%
-        \if@anim@morejs
-          if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
-        \else
-          a#1.playRight();%
-        \fi%
+      \fi
+        if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
       \if@anim@autoresume%
         }%
       \fi%
@@ -3364,8 +3336,8 @@
       \else
         a#1.pause(true);% stop
       \fi%
-    }%
-    \if@anim@morejs if(!a#1.isPaused)a#1.playsRight=true;\fi%
+    }
+    if(!a#1.isPaused)a#1.playsRight=true;%
   \fi
   %re-display poster frame
   if(!a#1.isPaused){% i.e. if stopped
@@ -3394,6 +3366,7 @@
       try{%
         \if@anim@step%
           \if@anim@palindrome
+            if(event.shift)a#1.playsRight=!a#1.playsRight;%
             if(a#1.idx==\@anim@maxframe){%
               a#1.playsRight=false;%
             }else if(a#1.idx==0){%
@@ -3405,34 +3378,36 @@
               a#1.gotoPrev();%
             }%
           \else
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.stopFirst();%
-            }else{%
-              a#1.gotoNext();%
-            }%
+            if(event.shift){%
+              if(a#1.idx==0){%
+                a#1.stopLast();%
+              }else{%
+                a#1.gotoPrev();%
+              }%
+            }else{%  
+              if(a#1.idx==\@anim@maxframe){%
+                a#1.stopFirst();%
+              }else{%
+                a#1.gotoNext();%
+              }%
+            }%  
           \fi
           a#1.isPaused=true;%
         \else
           if(!a#1.isPaused)a#1.stopFirst();%
-          \if@anim@morejs%
-            \if@anim@palindrome
-              if(a#1.idx==0)a#1.playsRight=true;%
-              if(a#1.idx==\@anim@maxframe)a#1.playsRight=false;%
-            \else
-              if(a#1.idx==\@anim@maxframe&&a#1.playsRight)a#1.stopFirst();%
-              if(a#1.idx==0&&!a#1.playsRight)a#1.stopLast();%
-            \fi
-            if(a#1.playsRight){%
-              a#1.playRight();%
-            }else{%
-              a#1.playLeft();%
-            }%
-          \else%
-            \if@anim@loop\else
-              if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
-            \fi
+          if(event.shift)a#1.playsRight=!a#1.playsRight;%
+          \if@anim@palindrome
+            if(a#1.idx==0)a#1.playsRight=true;%
+            if(a#1.idx==\@anim@maxframe)a#1.playsRight=false;%
+          \else
+            if(a#1.idx==\@anim@maxframe&&a#1.playsRight)a#1.stopFirst();%
+            if(a#1.idx==0&&!a#1.playsRight)a#1.stopLast();%
+          \fi
+          if(a#1.playsRight){%
             a#1.playRight();%
-          \fi%
+          }else{%
+            a#1.playLeft();%
+          }%
         \fi%
       }catch(e){}%
     )>>%

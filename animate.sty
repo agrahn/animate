@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/12/21]
+\ProvidesPackage{animate}[2008/01/03]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -168,7 +168,8 @@
       \fi%
     \else%
       \edef\@anim@curfile{*[page=#2\@anim@gropts]{#1}}%
-      \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
+      \global\setbox\@anim@box=\hbox{%
+        \expandafter\includegraphics\@anim@curfile}%
     \fi%
   }
 \else
@@ -228,7 +229,7 @@
       \@anim@newkey{img@#2}{#4\space 0 R}%
     }%
     \if@anim@timeline\else%
-	  \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+      \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
       \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
       \@anim@makeframe{#1}{#2}%
     \fi%
@@ -301,7 +302,7 @@
       \@anim@newkey{img@#2}{{#4}}%
     }%
     \if@anim@timeline\else%
-	  \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+      \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
       \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
       \@anim@makeframe{#1}{#2}%
     \fi%
@@ -1836,8 +1837,8 @@
 \define@key{anim@user}{buttonsize}{%
   \gdef\@anim@btnsize{#1}%
 }
-\def\@anim@colours#1:#2\@nil{% helper macro to get number of colour components and
-  \xdef\@anim@colour{\@anim@colour\space #1}% to replace : by ` ' in the arg
+\def\@anim@colours#1:#2\@nil{% helper macro to get number of colour components
+  \xdef\@anim@colour{\@anim@colour\space #1}% and to replace : by ` ' in the arg
   \ifthenelse{\equal{#2}{!}}{}{%
     \global\advance\@anim@tmpcnt by \@ne%
     \@anim@colours#2\@nil%

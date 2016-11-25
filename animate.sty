@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/01/19}
+\def\@anim@version{2016/02/04}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -551,7 +551,7 @@
     \def\@anim@refobj#1{#1}
 
     \def\@anim@xform#1#2#3{%#1 not used, #2 used as appearance ? 1:0, #3 boxnum
-      \ifnum\@anim@method=\z@% icon based && dvips kill links in document
+      \ifnum\@anim@method=\z@\relax% icon based && dvips kill links in document
         \ifdefined\hypersetup%
           \ifdefined\@anim@icondvipswarned\else%
             \AtEndDocument{%
@@ -561,7 +561,7 @@
           \fi%
         \fi%
       \fi%
-      \ifnum\@anim@method<\tw@% icon based && widget based
+      \ifnum\@anim@method<\tw@\relax% icon based && widget based
         \ifdefined\@anim@@dpiwarning\else%
           %determine DVI resolution and output warning message if too high
           \AtEndDvi{\special{ps:\@anim@dpiwarning}}%
@@ -647,9 +647,11 @@
     }
     \def\@anim@refxform#1{% #1: xform obj ID
       \special{ps:
+        gsave
         currentpoint pop \@anim@getkeyval{origin:#1} pop sub
         currentpoint exch pop \@anim@getkeyval{origin:#1} exch pop sub translate
         mark #1 /SP pdfmark
+        grestore
       }%
     }
 
@@ -687,7 +689,7 @@
   \edef\@anim@curwd{\strip@pt\wd#3}%
   \edef\@anim@curht{\strip@pt\ht#3}%
   \edef\@anim@curdp{\strip@pt\dp#3}%
-  \ifnum#2=\z@%
+  \ifnum#2=\z@\relax%
     %nat. dims of zeroth frame
     \xdef\@anim@zframewd{\@anim@curwd}%
     \xdef\@anim@zframeht{\@anim@curht}%
@@ -712,9 +714,9 @@
   }{%
     \xdef\@anim@lastxform{#4}%
   }%
-  \ifnum#2>\z@%
+  \ifnum#2>\z@\relax%
     %adjust size of current frame to zeroth frame's dims, if necessary
-    \ifnum\@anim@needresize>\z@%
+    \ifnum\@anim@needresize>\z@\relax%
       \global\setbox#3=\hbox to \@anim@curwd\p@{%
         \vrule width \z@ height \@anim@curht\p@ depth \@anim@curdp\p@%
         \@anim@refxform{\@anim@lastxform}%
@@ -762,11 +764,11 @@
   \ifcase\@anim@method% icon based
     \@anim@xform{0}{1}{\@anim@box}%
     %initial visibility
-    \ifnum\@anim@poster>\@anim@mtwo% insert poster frame
-      \ifnum#2=\@anim@poster%
+    \ifnum\@anim@poster>\@anim@mtwo\relax% insert poster frame
+      \ifnum#2=\@anim@poster\relax%
         \edef\@anim@posterap{\@anim@lastxform}%
       \else%
-        \ifnum\@anim@poster=\@anim@mone% use last frame as poster
+        \ifnum\@anim@poster=\@anim@mone\relax% use last frame as poster
           \edef\@anim@posterap{\@anim@lastxform}%
         \fi%
       \fi%
@@ -780,12 +782,15 @@
   \or% widget based
     %initial visibility
     \def\@anim@annotflag{/F 2}% default: hidden
-    \ifnum\@anim@poster>\@anim@mtwo% insert poster frame
-      \ifnum#2=\@anim@poster%
+    \ifnum\@anim@poster>\@anim@mtwo\relax% insert poster frame
+      \ifnum#2=\@anim@poster\relax%
         \def\@anim@annotflag{/F 4}% not hidden + print (4)
       \else%
-        \ifnum\@anim@poster=\@anim@mone% use last frame as poster
-          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
+        \ifnum\@anim@poster=\@anim@mone\relax% use last frame as poster
+          \ifthenelse{%
+            \NOT\equal{\@anim@getkeyval{a#1.poster}}{}\AND%
+            #2=\@anim@getkeyval{a#1.poster}%
+          }{%
             \def\@anim@annotflag{/F 4}%
           }{}%
         \fi%
@@ -806,12 +811,15 @@
   \or% ocg based
     \@anim@newocg{#1}{#2}%
     %initial visibility
-    \ifnum\@anim@poster=\@anim@mone% use last frame as poster
-      \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
+    \ifnum\@anim@poster=\@anim@mone\relax% use last frame as poster
+      \ifthenelse{%
+        \NOT\equal{\@anim@getkeyval{a#1.poster}}{}\AND%
+        #2=\@anim@getkeyval{a#1.poster}%
+      }{}{%
         \ocgbase@add@to@off@list{\@anim@curocg}%
       }%
     \else%
-      \ifnum#2=\@anim@poster\else%
+      \ifnum#2=\@anim@poster\relax\else%
         \ocgbase@add@to@off@list{\@anim@curocg}%
       \fi%
     \fi%
@@ -822,7 +830,7 @@
       \def\@anim@needresize{1}\fi%
     \ifdim\@anim@animdepth\p@=\@anim@zframedp\p@\else%
       \def\@anim@needresize{1}\fi%
-    \ifnum\@anim@needresize>\z@%
+    \ifnum\@anim@needresize>\z@\relax%
       \global\setbox\@anim@box=\hbox{%
         \raisebox{-\@anim@animdepth\p@}{%
           \resizebox*{\@anim@animwidth\p@}{%
@@ -1539,16 +1547,16 @@
       \ifx\@anim@first\@empty%
         \gdef\@anim@first{0}%
       \else%
-        \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
-        \ifnum\@anim@first>\@anim@lastpage%
+        \ifnum\@anim@first<\z@\relax\gdef\@anim@first{0}\fi%
+        \ifnum\@anim@first>\@anim@lastpage\relax%
           \xdef\@anim@first{\@anim@lastpage}%
         \fi%
       \fi%
       \ifx\@anim@last\@empty%
         \xdef\@anim@last{\@anim@lastpage}%
       \else%
-        \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
-        \ifnum\@anim@last>\@anim@lastpage%
+        \ifnum\@anim@last<\z@\relax\gdef\@anim@last{0}\fi%
+        \ifnum\@anim@last>\@anim@lastpage\relax%
           \xdef\@anim@last{\@anim@lastpage}%
         \fi%
       \fi%
@@ -1582,16 +1590,16 @@
         \ifx\@anim@first\@empty%
           \gdef\@anim@first{0}%
         \else%
-          \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
-          \ifnum\@anim@first>\@anim@lastpage%
+          \ifnum\@anim@first<\z@\relax\gdef\@anim@first{0}\fi%
+          \ifnum\@anim@first>\@anim@lastpage\relax%
             \xdef\@anim@first{\@anim@lastpage}%
           \fi%
         \fi%
         \ifx\@anim@last\@empty%
           \xdef\@anim@last{\@anim@lastpage}%
         \else%
-          \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
-          \ifnum\@anim@last>\@anim@lastpage%
+          \ifnum\@anim@last<\z@\relax\gdef\@anim@last{0}\fi%
+          \ifnum\@anim@last>\@anim@lastpage\relax%
             \xdef\@anim@last{\@anim@lastpage}%
           \fi%
         \fi%
@@ -1673,7 +1681,7 @@
   \fi%
   \def\@anim@relop{>}%
   \edef\@anim@numtemplate{\@anim@first}%
-  \ifnum\@anim@first>\@anim@last%
+  \ifnum\@anim@first>\@anim@last\relax%
     \edef\@anim@every{-\@anim@every}%
     \def\@anim@relop{<}%
     \edef\@anim@numtemplate{\@anim@last}%
@@ -1712,7 +1720,7 @@
     \xdef\@anim@fps{\@anim@nfps}%
     %
     %read all frames of the sequence
-    \loop\ifnum\@anim@curframe\@anim@relop\@anim@last\else%
+    \loop\ifnum\@anim@curframe\@anim@relop\@anim@last\relax\else%
       \if@anim@multipage%
         %embed graphics
         \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
@@ -1737,7 +1745,7 @@
     \@anim@sanitizeJS%
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     % if last frame used as poster, write frame num to aux file
-    \ifnum\@anim@poster=\@anim@mone%
+    \ifnum\@anim@poster=\@anim@mone\relax%
       \@anim@keytoaux{a\the\@anim@num.poster}{\@anim@maxframe}%
     \fi%
     %insert animation widget & controls
@@ -1807,10 +1815,10 @@
     \xdef\@anim@animtotalheight{\strip@pt\dimexpr\@anim@totheightarg\relax}%
   \endgroup%
   %correct wrong option combination; totalheight overrides height
-  \ifnum\@anim@resizeflags=3% height+totalheight->totalheight
+  \ifnum\@anim@resizeflags=3\relax% height+totalheight->totalheight
     \global\@anim@resizeflags=\@ne%
   \fi%
-  \ifnum\@anim@resizeflags=7% height+totalheight+width->totalheight+width
+  \ifnum\@anim@resizeflags=7\relax% height+totalheight+width->totalheight+width
     \global\@anim@resizeflags=5%
   \fi%
   %now resize
@@ -1872,16 +1880,16 @@
   \@anim@pojscript{#1}%
   \@anim@otherjscript{#1}%
   \def\@anim@annotflag{}%
-  \ifnum\@anim@poster>\@anim@maxframe%
+  \ifnum\@anim@poster>\@anim@maxframe\relax%
     \PackageError{animate}{%
       Poster frame `\@anim@poster' is out-of-bounds\MessageBreak%
       on input line \the\inputlineno.\MessageBreak%
       Try option `poster=last'%
     }{}%
   \fi%
-  \ifnum\@anim@method=\z@%
+  \ifnum\@anim@method=\z@\relax%
     \def\@anim@annotflag{/F 4}% 4=allow printing
-    \ifnum\@anim@poster=\@anim@mtwo%
+    \ifnum\@anim@poster=\@anim@mtwo\relax%
       \ifdefined\@anim@apdummy\else% empty appearance dummy
         \setbox\@anim@box=\hbox{\phantom{x}}%
         \@anim@xform{0}{0}{\@anim@box}%
@@ -1907,7 +1915,7 @@
   %With icon and ocg method, we put one dummy widget below; this seems to be
   %necessary for the OCG visibility referenced by the /OC entry to work as
   %expected (if we place the animation on a PDF layer using ocgx2.sty).
-  \ifnum\@anim@method=\@ne\else%
+  \ifnum\@anim@method=\@ne\relax\else%
     \ifdefined\ocgxii@insert@OC%
       \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
         \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
@@ -2051,6 +2059,9 @@
   \ifdefined\NoHyper\NoHyper\fi% silently suppress any hyperref specials
   \let\newframe\@anim@@newframe%
   \let\multiframe\@anim@multiframe%
+  \let\PDFXForm\@gobble% suppress any of these inside `animateinline'
+  \let\PDFRefXForm\@gobble%
+  \let\PDFLastXForm\relax%
   \@anim@beginframe%
   \ignorespaces%
 }{%
@@ -2071,7 +2082,7 @@
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
     \@anim@endsanitize%
     % if last frame used as poster, write frame num to aux file
-    \ifnum\@anim@poster=\@anim@mone%
+    \ifnum\@anim@poster=\@anim@mone\relax%
       \@anim@keytoaux{a\the\@anim@num.poster}{\@anim@maxframe}%
     \fi%
   \fi%
@@ -2096,14 +2107,14 @@
   \ifx\@anim@nfps\@empty% no change of frame rate
     \xdef\@anim@nfps{\@anim@pfps}%
   \fi%
-  \ifnum\@anim@curframe@zb=\z@%
+  \ifnum\@anim@curframe@zb=\z@\relax%
     \xdef\@anim@fps{\@anim@nfps}% default fps
     \xdef\@anim@nfpsat{\@anim@nfps}%
   \else%
     \xdef\@anim@nfpsat{\@anim@nfpsat,\@anim@nfps}%
   \fi%
   \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
-    \ifnum\@anim@curframe@zb=\z@\else%
+    \ifnum\@anim@curframe@zb=\z@\relax\else%
       \setboolean{@anim@chfps}{true}% change fps
     \fi%
   \fi%
@@ -2114,7 +2125,7 @@
   \fi%
 }%
 \newcommand{\@anim@newframe}[1][]{% #1: new frame rate
-  \ifnum\@anim@skipfram=\z@%
+  \ifnum\@anim@skipfram=\z@\relax%
     \global\advance\@anim@curframe@zb by \@ne%
     \if@anim@draft\else%
       \if@anim@step\else%
@@ -2129,7 +2140,7 @@
   \ignorespaces%
 }
 \newcommand{\@anim@newframestar}[1][]{% starred variant for pausing animation
-  \ifnum\@anim@skipfram=\z@%            #1: new frame rate
+  \ifnum\@anim@skipfram=\z@\relax%            #1: new frame rate
     \if@anim@draft\else%
       \if@anim@step\else%
         \if@anim@timeline\else%
@@ -2166,8 +2177,8 @@
 \def\@anim@endframe#1#2{%
   \@anim@end%
   \end{lrbox}%
-  \ifnum\@anim@skipfram=\z@%
-    \ifnum#2=\z@%
+  \ifnum\@anim@skipfram=\z@\relax%
+    \ifnum#2=\z@\relax%
       \ifdim\wd\@anim@box=\z@%
         \PackageError{animate}{%
           Contents of first frame must not have zero width%
@@ -2196,7 +2207,7 @@
     \fi%
   \fi%
   \global\advance\@anim@skipfram by \@ne%
-  \ifnum\@anim@skipfram=\@anim@every%
+  \ifnum\@anim@skipfram=\@anim@every\relax%
     \global\@anim@skipfram=\z@%
   \fi%
 }
@@ -2221,7 +2232,7 @@
   %remove spaces from variable declaration list (2nd arg)
   \xdef\@anim@vardecls{#2\space}%
   \xdef\@anim@vardecls{\expandafter\zap@space\@anim@vardecls\@empty}%
-  \ifnum#1<\z@%
+  \ifnum#1<\z@\relax%
     \PackageError{animate}{%
       \protect\multiframe: first argument must be greater than zero%
     }{}%
@@ -2229,7 +2240,7 @@
   %parse list of variable declarations and build macro for updating them
   \expandafter\@anim@parsevars\@anim@vardecls,\@nil%
   \whiledo{\@anim@mulframecnt<#1}{%
-    \ifnum\@anim@mulframecnt>\z@%
+    \ifnum\@anim@mulframecnt>\z@\relax%
       \@anim@@newframe%
       \@anim@updatevars% update variables
     \fi%
@@ -2447,7 +2458,7 @@
       \expandafter\@anim@parseline\@anim@inputline:\@nil%
       %combine the layers of the current frame
       \global\@anim@curlayer=\z@%
-      \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
+      \loop\ifnum\@anim@curlayer>\@anim@maxlayer\relax\else%
         \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{%
           \@anim@getkeyval{frmcontent@\the\@anim@curframe@zb}%
           \@anim@getkeyval{%
@@ -2488,7 +2499,7 @@
   \closein\@anim@@tmlnfile%
   %check for unused transparencies
   \global\@anim@tmpcnt=\z@%
-  \loop\ifnum\@anim@transp>\@anim@tmpcnt%
+  \loop\ifnum\@anim@transp>\@anim@tmpcnt\relax%
     \ifcsname u@tr\the\@anim@tmpcnt\endcsname%
       {\expandafter\global\expandafter\let\csname
          u@tr\the\@anim@tmpcnt\endcsname\@undefined}%
@@ -2553,7 +2564,7 @@
   \ifthenelse{\equal{#1}{}}{}{\@anim@parselayer#1,\@nil}%process one layer spec
   \ifthenelse{\equal{#2}{}}{}{%
     \global\advance\@anim@curlayer by \@ne%
-    \ifnum\@anim@curlayer>\@anim@maxlayer%
+    \ifnum\@anim@curlayer>\@anim@maxlayer\relax%
       \xdef\@anim@maxlayer{\the\@anim@curlayer}%
     \fi%
     \@anim@parsethird#2\@nil%
@@ -2589,12 +2600,12 @@
   }{%
     \@anim@getrepetitions#2\@nil%
   }%
-  \ifnum\@anim@repeats=\z@% =0 means: repeat until end of timeline
+  \ifnum\@anim@repeats=\z@\relax% =0 means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
   \else%
     \global\@anim@tmpcnt=\@anim@curframe@zb%
     \global\advance\@anim@tmpcnt by \@anim@repeats%
-    \ifnum\@anim@frames<\@anim@tmpcnt%
+    \ifnum\@anim@frames<\@anim@tmpcnt\relax%
       \edef\@anim@repeatuntil{\@anim@frames}%
     \else%
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
@@ -2603,7 +2614,7 @@
   %test whether transparency stack of the current layer is to be cleared
   \ifthenelse{\equal{#1}{c}\OR\equal{#1}{C}}{%
     \global\@anim@tmpcnt=\@anim@curframe@zb%
-    \loop\ifnum\@anim@frames>\@anim@tmpcnt%
+    \loop\ifnum\@anim@frames>\@anim@tmpcnt\relax%
       %clear layer content
       \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{}%
       %clear list of transparencies used in the current layer
@@ -2612,10 +2623,10 @@
     \repeat%
   }{%
     %build contents of animation layer according to transparency specifications
-    \ifnum\@anim@transp<#1\else%   ignore non-existing
-      \ifnum\@anim@transp=#1\else% transparencies
+    \ifnum\@anim@transp<#1\relax\else%   ignore non-existing
+      \ifnum\@anim@transp=#1\relax\else% transparencies
         \global\@anim@tmpcnt=\@anim@curframe@zb%
-        \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
+        \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt\relax%
           %layer content
           \edef\@anim@tmpvar{\@anim@getkeyval{%
             layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}}%
@@ -2643,11 +2654,13 @@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
   @_In_certain_animation_frames,_transparencies_were_@\MessageBreak%
   @_included_multiple_times._This_may_considerably___@\MessageBreak%
-  @_slow__down_animation_speed._Revise_the_timeline__@\MessageBreak%
-  @_file_of_the_corresponding_animation!_See_the_____@\MessageBreak%
-  @_transcript_file__________________________________@\MessageBreak%
+  @_slow_down_animation_speed._Revise_the_timeline___@\MessageBreak%
+  @_file_of_the_corresponding_animation!_____________@\MessageBreak%
+  @__________________________________________________@\MessageBreak%
+  @_See_the_transcript_file__________________________@\MessageBreak%
   @___``\jobname.log''\MessageBreak%
-  @_for_additional_information!______________________@\MessageBreak%
+  @_for_additional_information_about_which_anima-____@\MessageBreak%
+  @_tion(s)_are_affected!____________________________@\MessageBreak%
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
 }%
 \endgroup
@@ -2752,7 +2765,7 @@
   \@anim@colours#1:\@nil%
   \xdef\@anim@bgcolour{\@anim@colour}%
   \if@anim@dvips
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@bg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -2764,7 +2777,7 @@
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@bg{\@anim@colour\space g}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -2783,7 +2796,7 @@
   \@anim@colours#1:\@nil%
   \xdef\@anim@fgcolour{\@anim@colour}%
   \if@anim@dvips
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@fg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -2795,7 +2808,7 @@
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@fg{\@anim@colour\space G}%
       \xdef\@anim@@@fg{\@anim@colour\space g}%
     \else%
@@ -2858,7 +2871,7 @@
       }{%
         \gdef\@anim@poster{-2}%
       }{%
-        \ifnum#1<\z@%
+        \ifnum#1<\z@\relax%
           \PackageError{animate}{%
             Poster frame `#1' is out-of-bounds on\MessageBreak%
             input line \the\inputlineno.\MessageBreak%
@@ -2908,7 +2921,7 @@
   \gdef\@anim@end{#1}%
 }
 \define@key{anim@user}{every}{% embed every #1th frame
-  \ifnum#1<\@ne\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
+  \ifnum#1<\@ne\relax\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
 }
 \define@key{anim@user}{bb}{%
   \if@anim@grxloaded\g@addto@macro\@anim@gropts{, bb=#1}%
@@ -3032,7 +3045,7 @@
   \@anim@colours#1:\@nil%
   \xdef\@anim@@bgcolour{\@anim@colour}%
   \if@anim@dvips
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@@bg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -3044,7 +3057,7 @@
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@@bg{\@anim@colour\space g}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -3069,7 +3082,7 @@
   \@anim@colours#1:\@nil%
   \xdef\@anim@@fgcolour{\@anim@colour}%
   \if@anim@dvips%
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@@fg{\@anim@colour\space setgray}%
     \else%
       \ifnum\@anim@tmpcnt=3\relax%
@@ -3081,7 +3094,7 @@
       \fi%
     \fi%
   \else% pdftex and dvipdfmx
-    \ifnum\@anim@tmpcnt=\@ne%
+    \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@@fg{\@anim@colour\space G}%
       \xdef\@anim@@@@fg{\@anim@colour\space g}%
     \else%
@@ -3183,7 +3196,7 @@
       }{%
         \gdef\@anim@@poster{-2}%
       }{%
-        \ifnum#1<\z@%
+        \ifnum#1<\z@\relax%
           \PackageError{animate}{%
             Poster frame `#1' is out-of-bounds on\MessageBreak%
             input line \the\inputlineno.\MessageBreak%
@@ -3253,6 +3266,32 @@
 \ifpdf\else\if@anim@dvipdfmx\else % dvips, by default, uses Widget based method
   \def\@anim@@method{\@ne}
 \fi\fi
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% useful macros for XObject generation and usage
+% \PDFXForm, \PDFRefXForm, \PDFLastXForm modelled after
+% PDFTeX's builtins \pdfxform, \pdfrefxform, \pdflastxform
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\def\PDFXForm#1{% #1 box number
+  \begingroup%
+  \edef\@anim@mywd{\the\wd#1}%
+  \edef\@anim@myht{\the\ht#1}%
+  \edef\@anim@mydp{\the\dp#1}%
+  \@anim@reset\@anim@xform{}{0}{#1}%
+  \global\let\PDFLastXForm\@anim@lastxform%
+  \expandafter\xdef\csname xform.\pdfLastXForm.wd\endcsname{\@anim@mywd}%
+  \expandafter\xdef\csname xform.\pdfLastXForm.ht\endcsname{\@anim@myht}%
+  \expandafter\xdef\csname xform.\pdfLastXForm.dp\endcsname{\@anim@mydp}%
+  \endgroup%
+}
+\def\PDFRefXForm#1{% #1 PDF XForm Object identifier
+  \makebox[\csname xform.#1.wd\endcsname][l]{%
+    \rule{0pt}{\csname xform.#1.ht\endcsname}%
+    \rule{0pt}{-\csname xform.#1.dp\endcsname}%
+    \@anim@refxform{#1}%
+  }%
+}%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %process package options
 \def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
@@ -3684,7 +3723,7 @@
         \ifnum\@anim@poster=\@anim@mtwo %poster=none
           var ret=app.setTimeOut('a#1.seekFrame(-2)',1);%
         \fi%
-        \ifnum\@anim@poster>\@anim@mone%poster=<num>|first
+        \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
           var ret=app.setTimeOut('a#1.seekFrame(\@anim@poster)',1);%
         \fi%
         \ifnum\@anim@poster=\@anim@mone %poster=last

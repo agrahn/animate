@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2009/01/26}
+\def\@anim@version{2009/02/11}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -3390,8 +3390,6 @@
           a#1.isPaused%
         ){a#1.actnPause();}%
         else{%
-      \fi%
-      \if@anim@step\else%
         \if@anim@controls
           a#1.playsRight=true;%
         \else%

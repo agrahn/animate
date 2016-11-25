@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/10/16}
+\def\@anim@version{2014/11/11}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -876,7 +876,7 @@
     }%
   \or% widget based
     %initial visibility
-    \def\@anim@annotflag{/F 2}%
+    \def\@anim@annotflag{/F 6}% default: hidden (2) + print (4)
     \ifx\@anim@poster\@anim@posternone\else%
       \ifnum#2=\z@%
         \ifx\@anim@poster\@anim@posterfirst%
@@ -1633,7 +1633,9 @@
 \def\@anim@animwidget#1{%
   \@anim@pojscript{#1}%
   \@anim@otherjscript{#1}%
+  \def\@anim@annotflag{}%
   \ifnum\@anim@method=\z@%
+    \def\@anim@annotflag{/F 4}% 4=allow printing
     \ifx\@anim@poster\@anim@posternone%
       \ifdefined\@anim@apdummy\else% empty appearance dummy
         \setbox\@anim@box=\hbox{\phantom{x}}%
@@ -1655,6 +1657,7 @@
   \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
     /Subtype/Widget%
     /FT/Btn/Ff \@anim@btnflag%
+    \@anim@annotflag%
     /BS <</W 0>>%
     /H/N%
     /T (anm#1)%
@@ -3193,11 +3196,11 @@
         a#1.stepBwd=function(){if(!a#1.playing){a#1.seekFrame(a#1.idx-1);}};%
         a#1.stepFwd=function(){if(!a#1.playing){a#1.seekFrame(a#1.idx+1);}};%
         a#1.playBwd=function(){%
-          if(a#1.idx==0){a#1.stopLast();}%
+          if(a#1.idx==0||!a#1.isPaused)a#1.stopLast();%
           a#1.playLeft();%
         };%
         a#1.playFwd=function(){%
-          if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
+          if(a#1.idx==\@anim@maxframe||!a#1.isPaused)a#1.stopFirst();%
           a#1.playRight();%
         };%
       \fi%
@@ -3284,9 +3287,10 @@
         \fi%
       \fi%
       \ifx\@anim@poster\@anim@posterlast
-        a#1.stopLast();%
+        %using app.setTimeOut as a workaround for NotAllowedError in AR-9
+        var ret=app.setTimeOut('a#1.stopLast()',1);%
       \else
-        a#1.stopFirst();%
+        var ret=app.setTimeOut('a#1.stopFirst()',1);%
       \fi%
       \if@anim@step\else%
         }%

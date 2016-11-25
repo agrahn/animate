@@ -1,4 +1,4 @@
-% Copyright 2007--today Alexander Grahn
+% Copyright 2007--2011 Alexander Grahn
 
 % This material is subject to the LaTeX Project Public License. See
 %   http://www.ctan.org/tex-archive/help/Catalogue/licenses.lppl.html
@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2012/12/06}
+\def\@anim@version{2011/12/20}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -130,26 +130,27 @@
   \fi
 \fi
 
+\catcode`\%=11\catcode`\#=14
 \edef\@anim@catcode{\the\catcode`\_}\catcode`\_=13
 \begingroup\let_\space
-\xdef\@anim@dpiwarning{%
+\xdef\@anim@dpiwarning{#
   {Resolution 1200 gt VResolution 1200 gt or product (Ghostscript)
-  search {pop pop pop true}{pop false}ifelse and {%
-  (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@____Warning:_DVI_resolution_greater_than_1200_dpi!_____@@\string\n%
-   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n%
-   @@_______________________________________________________@@\string\n%
-   @@_Animations_may_be_distorted_or_invisible._____________@@\string\n%
-   @@_Dvips_should_be_called_either_without_option_`-Ppdf':_@@\string\n%
-   @@_______________________________________________________@@\string\n%
+  search {pop pop pop true}{pop false}ifelse and {#
+  (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n#
+   @@____Warning:_DVI_resolution_greater_than_1200_dpi!_____@@\string\n#
+   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n#
+   @@_______________________________________________________@@\string\n#
+   @@_Animations_may_be_distorted_or_invisible._____________@@\string\n#
+   @@_Dvips_should_be_called_either_without_option_`-Ppdf':_@@\string\n#
+   @@_______________________________________________________@@\string\n#
    @@___dvips_\jobname\string\n
-   @@_______________________________________________________@@\string\n%
-   @@_or_with_a_different_resolution_setting:_______________@@\string\n%
-   @@_______________________________________________________@@\string\n%
+   @@_______________________________________________________@@\string\n#
+   @@_or_with_a_different_resolution_setting:_______________@@\string\n#
+   @@_______________________________________________________@@\string\n#
    @@___dvips_-Ppdf_-D1200_\jobname\string\n
-   @@_______________________________________________________@@\string\n%
+   @@_______________________________________________________@@\string\n#
    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n)
-   print} if} ?pdfmark
+   (%stderr) (w) file exch writestring} if} ?pdfmark
 }
 \endgroup
 \catcode`\%=14\catcode`\#=6\catcode`\_=\@anim@catcode
@@ -231,21 +232,21 @@
   \newcount\@anim@@ocgs
   \pdfobj reserveobjnum
   \@anim@@ocgs=\pdflastobj
-  \newcount\@anim@@offocgs
+  \newcount\@anim@@posterocgs
   \pdfobj reserveobjnum
-  \@anim@@offocgs=\pdflastobj
+  \@anim@@posterocgs=\pdflastobj
   \pdfcatalog{
     /AcroForm <</Fields \the\@anim@@fields\space 0 R>>
     /OCProperties <<
       /OCGs \the\@anim@@ocgs\space 0 R
       /D <<
-        /BaseState/ON /OFF \the\@anim@@offocgs\space 0 R
+        /BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
       >>
     >>
   }
   \def\@anim@fields{}
   \def\@anim@ocgs{}
-  \def\@anim@offocgs{}
+  \def\@anim@posterocgs{}
   \AtEndDocument{%
     \immediate\pdfobj useobjnum \@anim@@fields {%
       [\@anim@fields]%
@@ -253,8 +254,8 @@
     \immediate\pdfobj useobjnum \@anim@@ocgs {%
       [\@anim@ocgs]%
     }%
-    \immediate\pdfobj useobjnum \@anim@@offocgs {%
-      [\@anim@offocgs]%
+    \immediate\pdfobj useobjnum \@anim@@posterocgs {%
+      [\@anim@posterocgs]%
     }%
   }%
 \else
@@ -266,12 +267,12 @@
     %array which takes all ocgs (one per animation frame)
     \special{pdf:obj @anim@ocgs [ ]}
     %array which takes ocgs shown by default (the poster frames)
-    \special{pdf:obj @anim@offocgs [ ]}
+    \special{pdf:obj @anim@posterocgs [ ]}
     \special{pdf:put @catalog <<
       /AcroForm <</Fields @anim@fields>>
       /OCProperties <<
         /OCGs @anim@ocgs
-        /D <</BaseState/ON /OFF @anim@offocgs>>
+        /D <</BaseState/OFF /ON @anim@posterocgs>>
       >>
     >>}
   \else
@@ -281,11 +282,11 @@
     \fi\fi
     \special{ps:
       mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
-      mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
+      mark /_objdef {@anim@posterocgs} /type/array /OBJ pdfmark
       mark {Catalog} <<
         /OCProperties <<
           /OCGs {@anim@ocgs}
-          /D <</BaseState/ON /OFF {@anim@offocgs}>>
+          /D <</BaseState/OFF /ON {@anim@posterocgs}>>
         >>
       >> /PUT pdfmark
     }
@@ -568,12 +569,33 @@
     \xdef\@anim@curocg{\the\pdflastobj\space 0 R}%
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
+    %store ref to ocg if it's a poster
+    \ifx\@anim@poster\@anim@posternone\else%
+      \ifnum#2=\z@%
+        \ifx\@anim@poster\@anim@posterfirst%
+          \xdef\@anim@posterocg{\@anim@curocg}%
+        \fi%
+      \fi%
+      \ifx\@anim@poster\@anim@posterlast%
+        \xdef\@anim@posterocg{\@anim@curocg}%
+      \fi%
+    \fi%
   }
 \else
   \if@anim@@dvipdfmx
     \def\@anim@newocg#1#2{%
       \special{pdf:obj @anim@ocg@#1@#2 <</Type/OCG /Name (#1.#2)>>}%
       \special{pdf:put @anim@ocgs @anim@ocg@#1@#2}%
+      \ifx\@anim@poster\@anim@posternone\else%
+        \ifnum#2=\z@%
+          \ifx\@anim@poster\@anim@posterfirst%
+            \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+          \fi%
+        \fi%
+        \ifx\@anim@poster\@anim@posterlast%
+          \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+        \fi%
+      \fi%
     }
   \else
     \def\@anim@newocg#1#2{%
@@ -582,6 +604,16 @@
         mark {@anim@ocg@#1@#2} <</Type/OCG /Name (#1.#2)>> /PUT pdfmark
         mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
       }%
+      \ifx\@anim@poster\@anim@posternone\else%
+        \ifnum#2=\z@%
+          \ifx\@anim@poster\@anim@posterfirst%
+            \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+          \fi%
+        \fi%
+        \ifx\@anim@poster\@anim@posterlast%
+          \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+        \fi%
+      \fi%
     }
   \fi
 \fi
@@ -603,20 +635,6 @@
       /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
     \if@anim@useocg%
       \@anim@newocg{#1}{#2}%
-      \ifx\@anim@poster\@anim@posterlast%
-        \@anim@keytoaux{a#1.poster}{#2}%
-        \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-          \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
-        }%
-      \else%
-        \ifnum#2=\z@%
-          \ifx\@anim@poster\@anim@posternone%
-            \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
-          \fi%
-        \else%
-          \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@curocg}%
-        \fi%
-      \fi%
       \def\@anim@annotflag{/F 4}%, print, visibility set by OCG
     \else%
       %widget visibility state
@@ -668,20 +686,6 @@
       \special{pdf:exobj}%
       \if@anim@useocg%
         \@anim@newocg{#1}{#2}%
-        \ifx\@anim@poster\@anim@posterlast%
-          \@anim@keytoaux{a#1.poster}{#2}%
-          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-            \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
-          }%
-        \else%
-          \ifnum#2=\z@%
-            \ifx\@anim@poster\@anim@posternone%
-              \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
-            \fi%
-          \else%
-            \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
-          \fi%
-        \fi%
         \def\@anim@annotflag{/F 4}%
       \else%
         \def\@anim@annotflag{/F 2}%
@@ -730,20 +734,6 @@
       }%
       \if@anim@useocg%
         \@anim@newocg{#1}{#2}%
-        \ifx\@anim@poster\@anim@posterlast%
-          \@anim@keytoaux{a#1.poster}{#2}%
-          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-            \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
-          }%
-        \else%
-          \ifnum#2=\z@%
-            \ifx\@anim@poster\@anim@posternone%
-              \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
-            \fi%
-          \else%
-            \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
-          \fi%
-        \fi%
         \def\@anim@annotflag{/F 4}%
       \else%
         \def\@anim@annotflag{/F 2}%
@@ -806,8 +796,8 @@
     \edef\@anim@pauseocg{\the\pdflastobj\space 0 R}%
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@playocg\space\@anim@pauseocg}%
-    %set initial ocg state (off) for pause button
-    \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@pauseocg}%
+    %although not really necessary, append play button ocg to posterocg array
+    \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@playocg}%
     %new container XObject
     \immediate\pdfobj stream attr{%
       /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
@@ -829,7 +819,7 @@
       \special{pdf:obj @#1.Play#2 <</Type/OCG /Name (#1.Play#2)>>}%
       \special{pdf:obj @#1.Pause#2 <</Type/OCG /Name (#1.Pause#2)>>}%
       \special{pdf:put @anim@ocgs @#1.Play#2 @#1.Pause#2}%
-      \special{pdf:put @anim@offocgs @#1.Pause#2}%
+      \special{pdf:put @anim@posterocgs @#1.Play#2}%
       \special{pdf:stream @btn#1.PlayPause#2\space
         (/OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC) <<%
           /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
@@ -851,7 +841,7 @@
         mark {#1.Pause#2} <</Type/OCG /Name (#1.Pause#2)>> /PUT pdfmark
         mark {@anim@ocgs} {#1.Play#2} /APPEND pdfmark
         mark {@anim@ocgs} {#1.Pause#2} /APPEND pdfmark
-        mark {@anim@offocgs} {#1.Pause#2} /APPEND pdfmark
+        mark {@anim@posterocgs} {#1.Play#2} /APPEND pdfmark
         mark  /_objdef {btn#1.PlayPause#2} /type/stream /OBJ pdfmark
         mark {btn#1.PlayPause#2} (%
           /OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC%
@@ -1505,7 +1495,6 @@
 % #4: first frame (integer)
 % #5: last frame (integer)
 \newcommand{\animategraphics}[5][]{%
-  \@anim@endsanitize%
   \leavevmode%
   \ifpdf\else%
     \if@anim@grxloaded%
@@ -1558,11 +1547,9 @@
     }{}%
   \fi%
   \def\@anim@relop{>}%
-  \edef\@anim@numtemplate{\@anim@first}%
   \ifnum\@anim@first>\@anim@last%
     \edef\@anim@every{-\@anim@every}%
     \def\@anim@relop{<}%
-    \edef\@anim@numtemplate{\@anim@last}%
   \fi%
   \global\@anim@curframe=\@anim@first%
   \global\@anim@curframe@zb=\z@%
@@ -1608,7 +1595,7 @@
       \else%
         %get path to current file end its extension
         \@anim@getpath{%
-          \@anim@base\@anim@pad{\@anim@numtemplate}{\the\@anim@curframe}%
+          \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
         }%
         %embed graphics
         \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
@@ -1622,19 +1609,24 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \if@anim@timeline%
-      \@anim@sanitize\@anim@buildtmln{\the\@anim@num}\@anim@endsanitize%
-    \fi%
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
 }%
 %adjust catcodes of several characters within \animategraphics
 \let\@anim@animategraphics\animategraphics
-\def\animategraphics{\@anim@sanitize\@anim@animategraphics}
+\def\animategraphics{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \edef\@anim@star{\the\catcode`\*}\edef\@anim@comma{\the\catcode`\,}%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
+  \@anim@animategraphics%
+}
 
 %inserts animation and control button widgets
 \def\@anim@insertwidgets#1#2{%#1:@anim@num, #2 existing btn colour combination
@@ -1759,6 +1751,12 @@
     %create JavaScript objects
     \@anim@pojscript{#1}% to be executed on PO event
     \@anim@otherjscript{#1}% on other events in the AA dict
+    \if@anim@useocg%
+      %add poster to posterocg array
+      \ifx\@anim@poster\@anim@posternone\else%
+        \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
+      \fi%
+    \fi%
     \pdfannot
       width \@anim@animwidth\p@ height \@anim@animheight\p@
       depth \@anim@animdepth\p@
@@ -1788,6 +1786,11 @@
     \def\@anim@animwidget#1{%
       \@anim@pojscript{#1}%
       \@anim@otherjscript{#1}%
+      \if@anim@useocg%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \special{pdf:put @anim@posterocgs \@anim@posterocg}%
+        \fi%
+      \fi%
       \special{pdf:annot @annot@\the\@anim@fieldnum\space
         width \@anim@animwidth pt height \@anim@animheight pt
         depth \@anim@animdepth pt <<%
@@ -1832,6 +1835,13 @@
       \endgroup%
       \@anim@pojscript{#1}%
       \@anim@otherjscript{#1}%
+      \if@anim@useocg%
+        \ifx\@anim@poster\@anim@posternone\else%
+          \special{ps:
+            mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
+          }%
+        \fi%
+      \fi%
       \special{ps:
         mark
           /_objdef {annot@\the\@anim@fieldnum}%
@@ -1958,7 +1968,6 @@
 \newboolean{@anim@pauseframes} % true if \newframe* is being used
 \newboolean{@anim@chfps} % true if \newframe or \newframe* is being used
                          % with optional `new frame rate' argument
-\newboolean{@anim@usrjs} % true if user JavaScript provided by user
 
 \newcount\@anim@skipfram % counter for skipped frames
 
@@ -1966,7 +1975,6 @@
 % #1: options
 % #2: frame rate (fps)
 \newenvironment{animateinline}[2][]{%
-  \@anim@endsanitize%
   \leavevmode%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
@@ -2005,11 +2013,14 @@
   \fi%
   \global\@anim@curframe@zb=\z@%
   \global\@anim@skipfram=\z@%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \@anim@beginframe%
   \ignorespaces%
 }{%
   \unskip%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
   \global\advance\@anim@curframe@zb by \@ne%
   \if@anim@draft\else%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
@@ -2017,19 +2028,24 @@
     \global\advance\@anim@tmpcnt by -\@ne%
     \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
-    \if@anim@timeline%
-      \@anim@sanitize\@anim@buildtmln{\the\@anim@num}\@anim@endsanitize%
-    \fi%
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
+  \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \setboolean{@anim@inside}{false}%
 }
 \let\@anim@animateinline\animateinline
-\def\animateinline{\@anim@sanitize\@anim@animateinline}
+\def\animateinline{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \edef\@anim@star{\the\catcode`\*}\edef\@anim@comma{\the\catcode`\,}%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
+  \@anim@animateinline%
+}
 
 %usercommand for use within `animateinline' environment;
 %terminates the current frame and starts a new one
@@ -2333,56 +2349,6 @@
 \endgroup
 \catcode`\_=\@anim@catcode
 
-%macros for sanitizing characters read from timeline file
-\ifpdf
-  \begingroup
-  \catcode`\$=0 $catcode`$\=12
-  $gdef$@anim@bksl{\}
-  $endgroup
-\else
-  \begingroup
-  \catcode`\$=0 $catcode`$\=12
-  $gdef$@anim@bksl{\\}
-  $endgroup
-\fi
-\begingroup
-\catcode`\<=1 \catcode`\>=2
-\catcode`\{=12 \catcode`\}=12
-\catcode`\%=12
-\gdef\@anim@lbr<{> \gdef\@anim@rbr<}>
-\gdef\@anim@per<%>
-\endgroup
-
-\def\@anim@@sanitize#1#2\@nil{%
-  \expandafter\edef\csname @anim@\number`#1\endcsname{\the\catcode`#1}%
-  \catcode`#1=12%
-  \ifx\@empty#2\@empty%
-  \else%
-    \@anim@@sanitize#2\@nil%
-  \fi%
-  \catcode`\#=12%
-  \let\@anim@newline=\\\let\\=\@anim@bksl%
-  \let\@anim@leftbrace=\{\let\{=\@anim@lbr%
-  \let\@anim@rightbrace=\}\let\}=\@anim@rbr%
-  \let\@anim@percent=\%\let\%=\@anim@per%
-}
-\def\@anim@@endsanitize#1#2\@nil{%
-  \catcode`#1=\csname @anim@\number`#1\endcsname%
-  \ifx\@empty#2\@empty%
-  \else%
-    \@anim@@endsanitize#2\@nil%
-  \fi%
-  \let\%=\@anim@percent%
-  \let\}=\@anim@rightbrace%
-  \let\{=\@anim@leftbrace%
-  \let\\=\@anim@newline%
-  \catcode`\#=6%
-}
-\def\@anim@sanitize{%
-         \@anim@@sanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
-\def\@anim@endsanitize{%
-      \@anim@@endsanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
-
 %building timeline from timeline file
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
@@ -2390,7 +2356,6 @@
 \newcounter{@anim@ltxcnt} %scratch LaTeX counter for different uses
 \newcount\@anim@curlayer %takes the number of the current layer being processed
 \newcount\@anim@lineno %current input line No.
-\newcount\@anim@curfield %current field of input line processed
 
 \def\@anim@buildtmln#1{% #1:@anim@num
   \endlinechar=-1% suppress trailing space at input line end
@@ -2429,18 +2394,16 @@
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
   \global\@anim@lineno=\z@%
   \read\@anim@@tmlnfile to \@anim@inputline%
-  \edef\@anim@inputlinenospc{\@anim@inputline\space}%
-  \edef\@anim@inputlinenospc{%
-    \expandafter\zap@space\@anim@inputlinenospc\@empty}%
+  \edef\@anim@inputline{\@anim@inputline\space}%
+  \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
   \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
     \setboolean{@anim@eof}{false}\fi%
   \message{<building timeline a#1 from file `\@anim@tmlnfile':}%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \global\advance\@anim@lineno by \@ne%
-    \ifthenelse{\equal{\@anim@inputlinenospc}{}}{}{%
+    \ifthenelse{\equal{\@anim@inputline}{}}{}{%
       %process input line
-      \global\@anim@curfield=\z@%
-      \expandafter\@anim@parseline\@anim@inputline:\@nil%
+      \expandafter\@anim@parseline\@anim@inputline\@nil%
       %combine the layers of the current frame
       \global\@anim@curlayer=\z@%
       \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
@@ -2482,9 +2445,8 @@
       \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
-    \edef\@anim@inputlinenospc{\@anim@inputline\space}%
-    \edef\@anim@inputlinenospc{%
-      \expandafter\zap@space\@anim@inputlinenospc\@empty}%
+    \edef\@anim@inputline{\@anim@inputline\space}%
+    \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
     \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
       \setboolean{@anim@eof}{false}\fi%
   }%
@@ -2515,61 +2477,41 @@
 }
 
 %reads one line of timeline file and splits into its colon separated parts
-\def\@anim@parseline#1:#2\@nil{%
-  \ifcase\@anim@curfield\relax%
-    %first field: a star (pause frame)
-    \if@anim@step\else%
-      \edef\@anim@tmp{#1\space}%
-      \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-      \ifthenelse{\equal{\@anim@tmp}{*}}{%
-        \xdef\@anim@pauseat{%
-          \@anim@pauseat%
-          a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
-        }%
-        \setboolean{@anim@pauseframes}{true}%
-      }{}%
-    \fi%
-    \global\advance\@anim@curfield by \@ne%
-    \@anim@parseline#2\@nil%
-  \or%
-    \if@anim@step\else%
-      %second field: new frame rate
-      \xdef\@anim@pfps{\@anim@nfps}%
-      \xdef\@anim@nfps{#1\space}%
-      \xdef\@anim@nfps{\expandafter\zap@space\@anim@nfps\@empty}%
-      \ifx\@anim@nfps\@empty% no change of frame rate
-        \xdef\@anim@nfps{\@anim@pfps}%
-      \else%
-        \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
-          \ifnum\@anim@curframe@zb=\z@%
-            \xdef\@anim@fps{#1}%
-          \fi%
-          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-          \xdef\@anim@nfpsat{%
-            \@anim@nfpsat%
-            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-          }%
-          \xdef\@anim@pfpsat{%
-            \@anim@pfpsat%
-            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-          }%
-          \setboolean{@anim@chfps}{true}% change fps
+\def\@anim@parseline#1:#2:#3\@nil{%
+  \if@anim@step\else%
+    \ifthenelse{\equal{#1}{*}}{%first field is a star (pause frame)
+      \xdef\@anim@pauseat{%
+        \@anim@pauseat%
+        a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
+      }%
+      \setboolean{@anim@pauseframes}{true}%
+    }{}%
+    \xdef\@anim@pfps{\@anim@nfps}%
+    \xdef\@anim@nfps{#2}%
+    %treat the second field (new frame rate)
+    \ifx\@anim@nfps\@empty% no change of frame rate
+      \xdef\@anim@nfps{\@anim@pfps}%
+    \else%
+      \ifdim\@anim@nfps\p@=\@anim@pfps\p@\else%
+        \ifnum\@anim@curframe@zb=\z@%
+          \xdef\@anim@fps{#2}%
         \fi%
+        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+        \xdef\@anim@nfpsat{%
+          \@anim@nfpsat%
+          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#2);%
+        }%
+        \xdef\@anim@pfpsat{%
+          \@anim@pfpsat%
+          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+        }%
+        \setboolean{@anim@chfps}{true}% change fps
       \fi%
     \fi%
-    \global\advance\@anim@curfield by \@ne%
-    \@anim@parseline#2\@nil%
-  \or%
-    %parse the third field (list of layer specifications)
-    \global\@anim@curlayer=\z@%
-    \edef\@anim@tmp{#1\space}%
-    \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-    \expandafter\@anim@parsethird\@anim@tmp;\@nil%
-    \edef\@anim@tmp{#2\space}%
-    \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-    %fourth field: JavaScript provided by the user
-    \ifx\@anim@tmp\empty\else\@anim@parseforth#2\@nil\fi%
   \fi%
+  %parse the third field (list of layer specifications)
+  \global\@anim@curlayer=\z@%
+  \@anim@parsethird#3;\@nil%
 }
 
 %parses frame contents specification (semicolon separated list of layer
@@ -2583,19 +2525,6 @@
     \fi%
     \@anim@parsethird#2\@nil%
   }%
-}
-
-%process JavaScript field
-\def\@anim@parseforth#1:\@nil{%
-  \edef\@anim@tmp{#1\space}%
-  \edef\@anim@tmp{\expandafter\zap@space\@anim@tmp\@empty}%
-  \ifx\@anim@tmp\@empty\else%
-    \xdef\@anim@usrjsat{%
-      \@anim@usrjsat%
-      a\the\@anim@num.usrJSat[\the\@anim@curframe@zb]=function(){#1};%
-    }%
-    \setboolean{@anim@usrjs}{true}%
-  \fi%
 }
 
 %parses contents of one layer specification (comma separated list of transp.
@@ -2929,15 +2858,6 @@
 \define@key{anim@user}{useocg}[true]{%
   \setboolean{@anim@useocg}{#1}%
 }
-%\define@key{anim@user}{firstframejs}{%
-%  \@anim@firstjs{#1}%
-%}
-%\define@key{anim@user}{lastframejs}{%
-%  \@anim@lastjs{#1}%
-%}
-%\define@key{anim@user}{otherframejs}{%
-%  \@anim@otherjs{#1}%
-%}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -2962,17 +2882,13 @@
   \global\let\if@anim@step=\if@anim@@step%
   \global\let\if@anim@draft=\if@anim@@draft%
   \global\let\if@anim@useocg=\if@anim@@useocg%
+  \gdef\@anim@posterocg{}%
   \gdef\@anim@properties{}%
   \setboolean{@anim@pauseframes}{false}%
   \gdef\@anim@pauseat{}%
   \setboolean{@anim@chfps}{false}%
-  \setboolean{@anim@usrjs}{false}%
   \gdef\@anim@nfpsat{}%
   \gdef\@anim@pfpsat{}%
-  \gdef\@anim@usrjsat{}%
-%  \gdef\@anim@firstjs{}%
-%  \gdef\@anim@lastjs{}%
-%  \gdef\@anim@otherjs{}%
   \gdef\@anim@tmlnfile{}%
   \setboolean{@anim@timeline}{false}%
   \global\@anim@begin={}%
@@ -3265,11 +3181,6 @@
       \fi
       a#1.dt=1000/(1e-6+Math.abs(\@anim@fps));%
     \fi%
-    \if@anim@usrjs
-      %array to take frame numbers (array index) and user provided JavaScript
-      a#1.usrJSat=new Array();%
-      \@anim@usrjsat%
-    \fi%
     %actions
     a#1.actnEndLeft=function(){%
       \if@anim@step\else
@@ -3324,7 +3235,6 @@
           a#1.fr[++a#1.idx].display=display.visible;%
           curdoc.dirty=false;%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         --a#1.idx;%
@@ -3333,7 +3243,6 @@
             a#1.actnEndRight();%
             a#1.playsRight=false;%
           \else%
-            if(a#1.isPlaying){--a#1.idx;}%
             \if@anim@useocg
               a#1.fr[a#1.idx].state=true;%
             \else
@@ -3353,8 +3262,6 @@
                   a#1.fps=Math.abs(\@anim@fps);%
                   a#1.dt=1000/(1e-6+a#1.fps);%
                 \fi
-                a#1.actnEndLeft();%
-                \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
                 a#1.actnPlayRight();%
               }else{a#1.actnEndRight();}%
             \else
@@ -3394,7 +3301,6 @@
             curdoc.dirty=false;%
           \fi%
           \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
         }catch(e){%
           ++a#1.idx;%
           \if@anim@palindrome%
@@ -3402,7 +3308,6 @@
               a#1.actnEndLeft();%
               a#1.playsRight=true;%
             \else%
-              if(a#1.isPlaying){++a#1.idx;}%
               \if@anim@useocg
                 a#1.fr[a#1.idx].state=true;%
               \else
@@ -3422,8 +3327,6 @@
                     a#1.fps=Math.abs(\@anim@nfps);%
                     a#1.dt=1000/(1e-6+a#1.fps);%
                   \fi
-                  a#1.actnEndRight();%
-                  \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
                   a#1.actnPlayLeft();%
                 }else{a#1.actnEndLeft();}%
               \else
@@ -3464,6 +3367,7 @@
       };%
       a#1.actnPlayRight=function(){%
         try{app.clearInterval(a#1_int);}catch(e){}%
+        if(!a#1.isPaused){a#1.actnEndLeft();}%
         a#1.playsRight=true;%
         a#1.isPlaying=true;%
         a#1.isPaused=false;%
@@ -3481,6 +3385,7 @@
       \if@anim@ctrlorplndrm
         a#1.actnPlayLeft=function(){%
           try{app.clearInterval(a#1_int);}catch(e){}%
+          if(!a#1.isPaused){a#1.actnEndRight();}%
           a#1.playsRight=false;%
           a#1.isPlaying=true;%
           a#1.isPaused=false;%
@@ -3572,7 +3477,6 @@
           a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
         \fi%
       \fi%
-      \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
     \fi%
     \if@anim@autoresume
       if(a#1.isPaused){%
@@ -3593,7 +3497,6 @@
             a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
           \fi%
         \fi%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
       }%
     \fi%
   \fi%
@@ -3647,41 +3550,32 @@
       try{%
         \if@anim@step%
           \if@anim@palindrome
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.playsRight=false;%
-              a#1.actnPrev();%
-            }else if(a#1.idx==0){%
-              a#1.playsRight=true;%
-              a#1.actnNext();%
-            }else if(a#1.playsRight){%
+            if(a#1.playsRight){%
               a#1.actnNext();%
             }else{%
               a#1.actnPrev();%
             }%
-          \else
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.actnEndLeft();%
-              \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-            }else{%
-              a#1.actnNext();%
-            }%
+          \else%
+            \if@anim@loop
+              if(a#1.idx==\@anim@maxframe){%
+                a#1.actnEndLeft();%
+              }else{%
+            \fi
+                a#1.actnNext();%
+            \if@anim@loop%
+              }%
+            \fi%
           \fi%
         \else%
-          \if@anim@palindrome%
-            if(a#1.idx==\@anim@maxframe){%
-              a#1.actnPlayLeft();%
-            }else if(a#1.idx==0){%
-              a#1.actnPlayRight();%
-            }else if(a#1.playsRight){%
+          \if@anim@ctrlorplndrm
+            if(a#1.playsRight){%
               a#1.actnPlayRight();%
             }else{%
               a#1.actnPlayLeft();%
             }%
-          \else
-            if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
+          \else%
             a#1.actnPlayRight();%
           \fi%
-          \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
         \fi%
       }catch(e){}%
     )>>%
@@ -3706,32 +3600,22 @@
     \else%
     \ifx\@anim@action\@anim@StepLeft%
       \if@anim@step
-        if(a#1.idx!=0){a#1.actnPrev();}%
+        a#1.actnPrev();%
       \else
-        if(!a#1.isPlaying&&a#1.idx!=0){a#1.isPaused=true;a#1.actnPrev();}%
+        if(!a#1.isPlaying){a#1.isPaused=true;a#1.actnPrev();}%
       \fi%
     \else%
     \ifx\@anim@action\@anim@PlayPauseLeft
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==0){a#1.actnEndRight();}%
-        a#1.actnPlayLeft();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-      }%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayLeft();}%
     \else%
     \ifx\@anim@action\@anim@PlayPauseRight
-      if(a#1.isPlaying){a#1.actnPause();}else{%
-        if(a#1.idx==\@anim@maxframe){a#1.actnEndLeft();}%
-        a#1.actnPlayRight();%
-        \if@anim@usrjs try{a#1.usrJSat[a#1.idx]();}catch(e){}\fi%
-      }%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayRight();}%
     \else%
     \ifx\@anim@action\@anim@StepRight%
       \if@anim@step
-        if(a#1.idx!=\@anim@maxframe){a#1.actnNext();}%
+        a#1.actnNext();%
       \else
-        if(!a#1.isPlaying&&a#1.idx!=\@anim@maxframe){%
-          a#1.isPaused=true;a#1.actnNext();%
-        }%
+        if(!a#1.isPlaying){a#1.isPaused=true;a#1.actnNext();}%
       \fi%
     \else%
     \ifx\@anim@action\@anim@EndRight

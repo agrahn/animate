@@ -8,11 +8,12 @@
 % graphics files or inline graphics (e. g. LaTeX-picture, PSTricks,
 % pgf/TikZ, ...)
 
-% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx and pdfLaTeX workflows.
+% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx, LuaLatex and
+% pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/02/06}
+\def\@anim@version{2014/02/11}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -819,79 +820,6 @@
   \fi
 \fi
 
-%create container XObjects for play & pause button faces
-\ifpdf
-  \def\@anim@makeppcontainer#1#2#3{% #1: @anim@num, #2: Right or Left,
-    % #3: index of existing button face colour combination
-    \immediate\pdfobj{<</Type/OCG /Name (#1.Play#2)>>}%
-    \edef\@anim@playocg{\the\pdflastobj\space 0 R}%
-    \immediate\pdfobj{<</Type/OCG /Name (#1.Pause#2)>>}%
-    \edef\@anim@pauseocg{\the\pdflastobj\space 0 R}%
-    %append to ocg array
-    \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@playocg\space\@anim@pauseocg}%
-    %set initial ocg state (off) for pause button
-    \xdef\@anim@offocgs{\@anim@offocgs\space\@anim@pauseocg}%
-    %new container XObject
-    \immediate\pdfobj stream attr{%
-      /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
-      /Resources <<%
-        /Properties <</oc0 \@anim@playocg /oc1 \@anim@pauseocg>>%
-        /XObject <<%
-          /im0 \@anim@getkeyval{btnPlay#2:#3}
-          /im1 \@anim@getkeyval{btnPause#2:#3}%
-        >>%
-      >>%
-    }{%
-      /OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC%
-    }%
-    \@anim@newkey{btn#1.PlayPause#2}{\the\pdflastobj\space 0 R}%
-  }
-\else
-  \if@anim@@dvipdfmx
-    \def\@anim@makeppcontainer#1#2#3{%
-      \special{pdf:obj @#1.Play#2 <</Type/OCG /Name (#1.Play#2)>>}%
-      \special{pdf:obj @#1.Pause#2 <</Type/OCG /Name (#1.Pause#2)>>}%
-      \special{pdf:put @anim@ocgs @#1.Play#2 @#1.Pause#2}%
-      \special{pdf:put @anim@offocgs @#1.Pause#2}%
-      \special{pdf:stream @btn#1.PlayPause#2\space
-        (/OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC) <<%
-          /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
-          /Resources <<%
-            /Properties <</oc0 @#1.Play#2 /oc1 @#1.Pause#2>>%
-            /XObject <</im0 @btnPlay#2:#3 /im1 @btnPause#2:#3>>%
-          >>%
-        >>%
-      }%
-      \@anim@newkey{btn#1.PlayPause#2}{@btn#1.PlayPause#2}%
-    }
-  \else
-    \def\@anim@makeppcontainer#1#2#3{%
-      \special{ps:
-        %OCGs
-        mark /_objdef {#1.Play#2} /type/dict /OBJ pdfmark
-        mark {#1.Play#2} <</Type/OCG /Name (#1.Play#2)>> /PUT pdfmark
-        mark /_objdef {#1.Pause#2} /type/dict /OBJ pdfmark
-        mark {#1.Pause#2} <</Type/OCG /Name (#1.Pause#2)>> /PUT pdfmark
-        mark {@anim@ocgs} {#1.Play#2} /APPEND pdfmark
-        mark {@anim@ocgs} {#1.Pause#2} /APPEND pdfmark
-        mark {@anim@offocgs} {#1.Pause#2} /APPEND pdfmark
-        mark  /_objdef {btn#1.PlayPause#2} /type/stream /OBJ pdfmark
-        mark {btn#1.PlayPause#2} (%
-          /OC/oc0 BDC q /im0 Do Q EMC /OC/oc1 BDC q /im1 Do Q EMC%
-        ) /PUT pdfmark
-        mark {btn#1.PlayPause#2} <<
-          /Type/XObject/Subtype/Form/FormType 1
-          /BBox [0 0 15 15]
-          /Resources <<%
-            /Properties <</oc0 {#1.Play#2} /oc1 {#1.Pause#2}>>%
-            /XObject <</im0 {btnPlay#2:#3} /im1 {btnPause#2:#3}>>%
-          >>%
-        >> /PUT pdfmark%
-      }%
-    }
-  \fi
-\fi
-
 %create XObjects of all button faces
 \if@anim@@dvips
   \def\@anim@btnend{%
@@ -1610,13 +1538,6 @@
         \@anim@makebuttons{\the\@anim@num}%
         \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
       \fi%
-      \if@anim@step\else%
-        %combine Pause & Play button faces into one XObject
-        \@anim@makeppcontainer{\the\@anim@num}{Right}{%
-          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
-        \@anim@makeppcontainer{\the\@anim@num}{Left}{%
-          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
-      \fi%
     \fi%
     \xdef\@anim@nfps{#2\space}% current frame rate
     \xdef\@anim@nfps{\expandafter\zap@space\@anim@nfps\@empty}%
@@ -1679,8 +1600,12 @@
         \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
         \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
         \if@anim@step\else%
-          \@anim@buttonwidget{#1}{PlayPauseLeft}{#1.PlayPauseLeft}%
-          \@anim@buttonwidget{#1}{PlayPauseRight}{#1.PlayPauseRight}%
+          \@anim@buttonwidget{#1}{PauseLeft}{PauseLeft:#2}%
+          \@anim@buttonwidget{#1}{PlayLeft}{PlayLeft:#2}%
+          \@anim@buttonwidget{#1}{PlayPauseLeft}{}%
+          \@anim@buttonwidget{#1}{PauseRight}{PauseRight:#2}%
+          \@anim@buttonwidget{#1}{PlayRight}{PlayRight:#2}%
+          \@anim@buttonwidget{#1}{PlayPauseRight}{}%
         \fi%
         \@anim@buttonwidget{#1}{StepRight}{StepRight:#2}%
         \@anim@buttonwidget{#1}{EndRight}{EndRight:#2}%
@@ -1889,63 +1814,113 @@
 \fi
 
 %creates control button widget
+\newboolean{@anim@js}
+\newboolean{@anim@mk}
 \ifpdf
   \def\@anim@buttonwidget#1#2#3{%#1:@anim@num, #2:action, #3:button face XObject
-    \@anim@upjscript{#1}{#2}% JavaScript actions for ButtonUp events
+    \def\@anim@annotflag{/F 0}% visible, but don't print
+    \def\@anim@buttonname{#2}\@anim@jstrue\@anim@mktrue%
+    \def\@anim@arg{PlayLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%                          _
+    \def\@anim@arg{PauseLeft}%                             %hidden, don't print |
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%_|
+    \def\@anim@arg{PlayRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%
+    \def\@anim@arg{PauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%
+    \def\@anim@arg{PlayPauseLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+    \def\@anim@arg{PlayPauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+    \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
     \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-    \hbox to \@anim@tmpdima {%
-      \pdfannot
-        width \@anim@tmpdima
-        height \@anim@tmpdima
-        depth 0pt
-      {%
-        /Subtype/Widget%
-        /FT/Btn/Ff 65536% push button
-        /BS <</W 0>>%
-        /H/I%
-        /MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>%
-        /T (#1.#2)%
-        \@anim@tooltip%
-        /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
-      }%
-      \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
-      \vrule width 0pt height \@anim@tmpdima depth 0pt%
-      \hss%
+    \pdfannot
+      width \@anim@tmpdima
+      height \@anim@tmpdima
+      depth 0pt
+    {%
+      /Subtype/Widget%
+      \@anim@annotflag%
+      /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
+      /H\if@anim@js/I\else/N\fi%
+      /BS <</W 0>>%
+      \if@anim@mk/MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>\fi%
+      /T (#1.#2)%
+      \@anim@tooltip%
+      \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
     }%
+    \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
+    \if@anim@js%
+      \hbox to \@anim@tmpdima {%
+        \vrule width 0pt height \@anim@tmpdima depth 0pt%
+        \hss%
+      }%
+    \fi%  
   }%
 \else
   \if@anim@@dvipdfmx
     \def\@anim@buttonwidget#1#2#3{%
-      \@anim@upjscript{#1}{#2}%
+    \def\@anim@annotflag{/F 0}% visible, but don't print
+    \def\@anim@buttonname{#2}\@anim@jstrue\@anim@mktrue%
+    \def\@anim@arg{PlayLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%                          _
+    \def\@anim@arg{PauseLeft}%                             %hidden, don't print |
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%_|
+    \def\@anim@arg{PlayRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%
+    \def\@anim@arg{PauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%
+    \def\@anim@arg{PlayPauseLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+    \def\@anim@arg{PlayPauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+      \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-      \hbox to \@anim@tmpdima {%
-        \special{pdf:annot @annot@\the\@anim@fieldnum\space
-          width \the\@anim@tmpdima\space height \the\@anim@tmpdima\space
-          depth 0pt <<%
-            /Subtype/Widget%
-            /FT/Btn/Ff 65536%
-            /BS <</W 0>>%
-            /H/I%
-            /MK <</TP 1/I @btn#3/IF<</S/A/FB true>>>>%
-            /T (#1.#2)%
-            \@anim@tooltip%
-            /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
-          >>%
-        }%
-        \xdef\@anim@fields{\@anim@fields @annot@\the\@anim@fieldnum\space}%
-        \global\advance\@anim@fieldnum by \@ne%
-        \vrule width 0pt height \@anim@tmpdima depth 0pt%
-        \hss%
+      \special{pdf:annot @annot@\the\@anim@fieldnum\space
+        width \the\@anim@tmpdima\space height \the\@anim@tmpdima\space
+        depth 0pt <<%
+          /Subtype/Widget%
+          \@anim@annotflag%
+          /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
+          /H\if@anim@js/I\else/N\fi%
+          /BS <</W 0>>%
+          \if@anim@mk/MK <</TP 1/I @btn#3/IF<</S/A/FB true>>>>\fi%
+          /T (#1.#2)%
+          \@anim@tooltip%
+          \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
+        >>%
       }%
+      \xdef\@anim@fields{\@anim@fields @annot@\the\@anim@fieldnum\space}%
+      \global\advance\@anim@fieldnum by \@ne%
+      \if@anim@js%
+        \hbox to \@anim@tmpdima {%
+          \vrule width 0pt height \@anim@tmpdima depth 0pt%
+          \hss%
+        }%
+      \fi%  
     }%
   \else
     \def\@anim@buttonwidget#1#2#3{%
-      \@anim@upjscript{#1}{#2}%
+    \def\@anim@annotflag{/F 0}% visible, but don't print
+    \def\@anim@buttonname{#2}\@anim@jstrue\@anim@mktrue%
+    \def\@anim@arg{PlayLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%                          _
+    \def\@anim@arg{PauseLeft}%                             %hidden, don't print |
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%_|
+    \def\@anim@arg{PlayRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\fi%
+    \def\@anim@arg{PauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@jsfalse\def\@anim@annotflag{/F 2}\fi%
+    \def\@anim@arg{PlayPauseLeft}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+    \def\@anim@arg{PlayPauseRight}%
+    \ifx\@anim@arg\@anim@buttonname\@anim@mkfalse\fi%
+      \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \begingroup%
         \setlength{\unitlength}{1pt}%
         \begin{picture}(0,0)%
-          \put(0,0){%
+        \put(0,0){%
           \special{ps:
             currentpoint /wid@lly exch def /wid@llx exch def
           }%
@@ -1961,22 +1936,25 @@
         mark
           /_objdef {annot@\the\@anim@fieldnum}
           /Rect [wid@llx wid@lly wid@urx wid@ury]
-          /Subtype/Widget
-          /FT/Btn/Ff 65536
-          /BS <</W 0>>
-          /H/I
-          /MK <</TP 1/I {btn#3}/IF<</S/A/FB true>>>>%
+          /Subtype/Widget%
+          \@anim@annotflag%
+          /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
+          /H\if@anim@js/I\else/N\fi%
+          /BS <</W 0>>%
+          \if@anim@mk/MK <</TP 1/I {btn#3}/IF<</S/A/FB true>>>>\fi%
           /T (#1.#2)%
           \@anim@tooltip%
-          /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
+          \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
         /ANN pdfmark%
       }%
       \xdef\@anim@fields{\@anim@fields{annot@\the\@anim@fieldnum}\space}%
       \global\advance\@anim@fieldnum by \@ne%
-      \hbox to \the\@anim@tmpdima {%
-        \vrule width 0pt height \the\@anim@tmpdima\space depth 0pt%
+      \if@anim@js%
+        \hbox to \@anim@tmpdima {%
+          \vrule width 0pt height \@anim@tmpdima depth 0pt%
           \hss%
-      }%
+        }%
+      \fi%  
     }
   \fi
 \fi
@@ -2025,12 +2003,6 @@
         btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\else%
         \@anim@makebuttons{\the\@anim@num}%
         \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
-      \fi%
-      \if@anim@step\else%
-        \@anim@makeppcontainer{\the\@anim@num}{Right}{%
-          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
-        \@anim@makeppcontainer{\the\@anim@num}{Left}{%
-          \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
       \fi%
     \fi%
     \if@anim@step\else%
@@ -3216,30 +3188,17 @@
     %takes references to frame ocgs/Field objects belonging to the current
     %animation
     a#1.fr=new Array();%
-    \if@anim@controls
-      a#1.btn=new Array();%takes references to control button face ocgs
-    \fi%
-    %initialize fr & btn properties
+    %initialize fr properties
     \if@anim@useocg
       %get array of ocgs of current page
       var ocg=this.getOCGs(this.pageNum);%
       for(var i in ocg){%
         var ocgName=ocg[i].name.split('.');%
         if(ocgName[0]==#1){%
-          \if@anim@controls\if@anim@step\else
-            if(ocgName[1].charAt(0)=='P'){% PlayLeft, PauseLeft, ...
-              a#1.btn[ocgName[1]]=ocg[i];%
-              %set basic button state
-              a#1.btn[ocgName[1]].state=ocg[i].initState;%
-            }else{% frame ocg
-          \fi\fi
-              %get array of animation frames
-              a#1.fr[ocgName[1]]=ocg[i];%
-              %set basic frame state
-              a#1.fr[ocgName[1]].state=ocg[i].initState;%
-          \if@anim@controls\if@anim@step\else%
-            }%
-          \fi\fi%
+          %get array of animation frames
+          a#1.fr[ocgName[1]]=ocg[i];%
+          %set basic frame state
+          a#1.fr[ocgName[1]].state=ocg[i].initState;%
         }%
       }%
     \else
@@ -3247,17 +3206,13 @@
       for(i=0;i<=\@anim@maxframe;i++){%
         a#1.fr[i]=this.getField('#1.'+i);%
       }%
-      \if@anim@controls\if@anim@step\else
-        var ocg=this.getOCGs(this.pageNum);%
-        for(var i in ocg){%
-          var ocgName=ocg[i].name.split('.');%
-          if(ocgName[0]==#1){%
-            a#1.btn[ocgName[1]]=ocg[i];%
-            a#1.btn[ocgName[1]].state=ocg[i].initState;%
-          }%
-        }%
-      \fi\fi%
     \fi%
+    \if@anim@controls\if@anim@step\else
+      a#1.btnPauseLeft=this.getField('#1.PauseLeft');%
+      a#1.btnPlayLeft=this.getField('#1.PlayLeft');%
+      a#1.btnPauseRight=this.getField('#1.PauseRight');%
+      a#1.btnPlayRight=this.getField('#1.PlayRight');%
+    \fi\fi%
     \ifx\@anim@poster\@anim@posterlast % set default frame
       %holds index of the frame to be displayed
       a#1.on=a#1.idx=\@anim@maxframe;%
@@ -3418,10 +3373,10 @@
         a#1.playing=false;%
         a#1.isPaused=true;%
         \if@anim@controls
-          a#1.btn['PauseLeft'].state=false;%
-          a#1.btn['PlayLeft'].state=true;%
-          a#1.btn['PauseRight'].state=false;%
-          a#1.btn['PlayRight'].state=true;%
+          a#1.btnPauseLeft.display=display.hidden;%
+          a#1.btnPlayLeft.display=display.visible;%
+          a#1.btnPauseRight.display=display.hidden;%
+          a#1.btnPlayRight.display=display.visible;%
         \fi%
       };%
       a#1.playRight=function(){%
@@ -3430,10 +3385,10 @@
         a#1.playing=true;%
         a#1.isPaused=false;%
         \if@anim@controls
-          a#1.btn['PauseLeft'].state=true;%
-          a#1.btn['PlayLeft'].state=false;%
-          a#1.btn['PauseRight'].state=true;%
-          a#1.btn['PlayRight'].state=false;%
+          a#1.btnPauseLeft.display=display.visible;%
+          a#1.btnPlayLeft.display=display.hidden;%
+          a#1.btnPauseRight.display=display.visible;%
+          a#1.btnPlayRight.display=display.hidden;%
         \fi%
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.gotoNext()',%
@@ -3446,10 +3401,10 @@
           a#1.playing=true;%
           a#1.isPaused=false;%
           \if@anim@controls
-            a#1.btn['PauseLeft'].state=true;%
-            a#1.btn['PlayLeft'].state=false;%
-            a#1.btn['PauseRight'].state=true;%
-            a#1.btn['PlayRight'].state=false;%
+            a#1.btnPauseLeft.display=display.visible;%
+            a#1.btnPlayLeft.display=display.hidden;%
+            a#1.btnPauseRight.display=display.visible;%
+            a#1.btnPlayRight.display=display.hidden;%
           \fi%
           \if@anim@meas a#1.startMeas();\fi
           a#1_int=app.setInterval('a#1.gotoPrev()',%

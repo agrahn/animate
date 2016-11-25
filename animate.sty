@@ -1,4 +1,4 @@
-% Copyright 2007--2008 Alexander Grahn
+% Copyright 2007--2011 Alexander Grahn
 
 % This material is subject to the LaTeX Project Public License. See
 %   http://www.ctan.org/tex-archive/help/Catalogue/licenses.lppl.html
@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/09/28}
+\def\@anim@version{2011/05/30}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -149,7 +149,9 @@
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
 \expandafter\ifx\csname pdfmdfivesum\endcsname\relax
-  \def\pdfmdfivesum file#1{#1}
+  \def\@anim@pdfmdfivesum file#1{#1}
+\else
+  \let\@anim@pdfmdfivesum\pdfmdfivesum
 \fi
 
 %creating and using global definitions
@@ -285,11 +287,11 @@
 %of xobj, otherwise returns `!'
 \def\@anim@fileknown#1#2{% #1 file name, pdf: #2 page No. ps: #2 @anim@num
   %identify file by md5sum
-  \ifcsname file:\pdfmdfivesum file{#1}.#2\endcsname%
-    \@anim@getkeyval{file:\pdfmdfivesum file{#1}.#2}\else!\fi%
+  \ifcsname file:\@anim@pdfmdfivesum file{#1}.#2\endcsname%
+    \@anim@getkeyval{file:\@anim@pdfmdfivesum file{#1}.#2}\else!\fi%
 }
 \def\@anim@makefileknown#1#2#3{%#1 file name, pdf: #2 page No. ps: #2 @anim@num,
-  \@anim@newkey{file:\pdfmdfivesum file{#1}.#2}{#3}%   #3 Form XObj ID
+  \@anim@newkey{file:\@anim@pdfmdfivesum file{#1}.#2}{#3}%   #3 Form XObj ID
 }
 
 %helper macro that typesets graphics file into savebox

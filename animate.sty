@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/10/04]
+\ProvidesPackage{animate}[2007/11/05]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -26,7 +26,7 @@
 \ifpdf
   %load MP to PDF converter
   \ifx\convertMPtoPDF\@undefined%
-    \InputIfFileExists{supp-df}{}{}%
+    \InputIfFileExists{supp-pdf}{}{}%
     \ifx\convertMPtoPDF\@undefined%
       \PackageWarningNoLine{animate}{%
         File `supp-pdf.tex', which is part of ConTeXt, is not%
@@ -98,8 +98,8 @@
   \@anim@@posterocgs=\pdflastobj
   \pdfcatalog{
     /OCProperties <<
-        /OCGs \the\@anim@@ocgs\space 0 R
-        /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
+      /OCGs \the\@anim@@ocgs\space 0 R
+      /D <</BaseState/OFF /ON \the\@anim@@posterocgs\space 0 R
         /Order \the\@anim@@ocgs\space 0 R>>
     >>
   }
@@ -1624,7 +1624,6 @@
 
 %parses 3rd column of timeline file (comma separated list of transp. specs)
 \def\@anim@parsethird#1,#2;{%
-  \def\@anim@firstarg{#1}%
   \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x:;}%process one transparency spec
   \ifthenelse{\equal{#2}{:}}{}{\@anim@parsethird#2;}%
 }

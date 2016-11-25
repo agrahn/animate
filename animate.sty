@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/13]
+\ProvidesPackage{animate}[2008/06/16]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -547,13 +547,15 @@
 \ifpdf
   \def\@anim@makeframe#1#2{% #1:@anim@num, #2:@anim@curframe@zb
     %container XObject for all transparencies that compose the frame
+    \begingroup%
     \setlength{\unitlength}{1pt}%
-    \global\setbox\@anim@box=\hbox{%
-      \pdfliteral{q}%
-      \begin{picture}(\@anim@framewidth,\@anim@frametotalheight)%
-      \end{picture}%
-      \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
-    }%
+      \global\setbox\@anim@box=\hbox{%
+        \pdfliteral{q}%
+        \begin{picture}(\@anim@framewidth,\@anim@frametotalheight)%
+        \end{picture}%
+        \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
+      }%
+    \endgroup%
     \immediate\pdfxform resources {%
       /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
     \if@anim@useocg%
@@ -596,7 +598,6 @@
 \else
   \if@anim@@dvipdfmx
     \def\@anim@makeframe#1#2{%
-      \setlength{\unitlength}{1pt}%
       %container XObject
       \global\setbox\@anim@box=\hbox{%
         \special{pdf:content \@anim@getkeyval{frmcontent@#2}}%
@@ -676,19 +677,21 @@
         \fi%
       \fi%
       %frame widget
-      \setlength{\unitlength}{1pt}%
-      \begin{picture}(0,0)% mark annotation rectangle
-        \put(0,-\@anim@animdepth){%
-        \special{ps:
-          currentpoint /wid@lly exch def /wid@llx exch def
+      \begingroup%
+        \setlength{\unitlength}{1pt}%
+        \begin{picture}(0,0)% mark annotation rectangle
+          \put(0,-\@anim@animdepth){%
+          \special{ps:
+            currentpoint /wid@lly exch def /wid@llx exch def
+          }%
         }%
-      }%
-      \put(\@anim@animwidth,\@anim@animheight){%
-        \special{ps:
-          currentpoint /wid@ury exch def /wid@urx exch def
+        \put(\@anim@animwidth,\@anim@animheight){%
+          \special{ps:
+            currentpoint /wid@ury exch def /wid@urx exch def
+          }%
         }%
-      }%
-      \end{picture}%
+        \end{picture}%
+      \endgroup%
       \special{ps:
         mark
           /_objdef {annot@\the\@anim@fieldnum}%
@@ -1341,6 +1344,7 @@
 
 %draftbox from savebox
 \def\@anim@draftbox#1{% #1: box number
+  \begingroup%
   \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
@@ -1399,6 +1403,7 @@
       }%
     \fi%
   }%
+  \endgroup%
 }
 
 \ifpdf
@@ -1469,12 +1474,12 @@
       \fi%
     \else%
       \ifcsname XeTeXrevision\endcsname%
-        \@anim@missing[xetex]{graphics}%
+        \@anim@missing[xetex]{graphicx}%
       \else%
         \if@anim@@dvipdfmx%
-          \@anim@missing[dvipdfm]{graphics}%
+          \@anim@missing[dvipdfmx]{graphicx}%
         \else%
-          \@anim@missing{graphics}%
+          \@anim@missing{graphicx}%
         \fi%
       \fi%
     \fi%
@@ -1773,20 +1778,22 @@
     }%
   \else
     \def\@anim@animwidget#1{%
+      \begingroup%
       \setlength{\unitlength}{1pt}%
-      %mark annotation rectangle
-      \begin{picture}(0,0)%
-        \put(0,-\@anim@animdepth){%
-        \special{ps:
-          currentpoint /wid@lly exch def /wid@llx exch def
+        %mark annotation rectangle
+        \begin{picture}(0,0)%
+          \put(0,-\@anim@animdepth){%
+          \special{ps:
+            currentpoint /wid@lly exch def /wid@llx exch def
+          }%
         }%
-      }%
-      \put(\@anim@animwidth,\@anim@animheight){%
-        \special{ps:
-          currentpoint /wid@ury exch def /wid@urx exch def
+        \put(\@anim@animwidth,\@anim@animheight){%
+          \special{ps:
+            currentpoint /wid@ury exch def /wid@urx exch def
+          }%
         }%
-      }%
-      \end{picture}%
+        \end{picture}%
+      \endgroup%
       \@anim@pojscript{#1}%
       \@anim@otherjscript{#1}%
       \if@anim@useocg%
@@ -1876,19 +1883,21 @@
     \def\@anim@buttonwidget#1#2#3{%
       \@anim@upjscript{#1}{#2}%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-      \setlength{\unitlength}{1pt}%
-      \begin{picture}(0,0)%
-        \put(0,0){%
-        \special{ps:
-          currentpoint /wid@lly exch def /wid@llx exch def
+      \begingroup%
+        \setlength{\unitlength}{1pt}%
+        \begin{picture}(0,0)%
+          \put(0,0){%
+          \special{ps:
+            currentpoint /wid@lly exch def /wid@llx exch def
+          }%
         }%
-      }%
-      \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdima){%
-        \special{ps:
-          currentpoint /wid@ury exch def /wid@urx exch def
+        \put(\strip@pt\@anim@tmpdima,\strip@pt\@anim@tmpdima){%
+          \special{ps:
+            currentpoint /wid@ury exch def /wid@urx exch def
+          }%
         }%
-      }%
-      \end{picture}%
+        \end{picture}%
+      \endgroup%
       \special{ps:
         mark
           /_objdef {annot@\the\@anim@fieldnum}

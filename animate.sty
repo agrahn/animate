@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/03/25}
+\def\@anim@version{2014/04/25}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -250,7 +250,7 @@
       \AtEndDvi{%
         \ifx\empty\@anim@ocgs\empty\else%
           \immediate\pdfobj{[\@anim@ocgs]}%
-          \edef\@anim@@ocgss{\the\pdflastobj}%
+          \edef\@anim@@ocgs{\the\pdflastobj}%
           \immediate\pdfobj{[\@anim@offocgs]}%
           \edef\@anim@@offocgs{\the\pdflastobj}%
           \pdfcatalog{%
@@ -258,6 +258,11 @@
               /OCGs \@anim@@ocgs\space 0 R%
               /D <<%
                 /BaseState/ON /OFF \@anim@@offocgs\space 0 R%
+                /AS [% 
+                  <</Event/View  /Category[/View]  /OCGs \@anim@@ocgs\space 0 R>>%
+                  <</Event/Print /Category[/Print] /OCGs \@anim@@ocgs\space 0 R>>%
+                  <</Event/Export/Category[/Export]/OCGs \@anim@@ocgs\space 0 R>>%
+                ]%
               >>%
             >>%
           }%
@@ -295,7 +300,14 @@
             \special{pdf:put @catalog <<%
               /OCProperties <<%
                 /OCGs @anim@ocgs
-                /D <</BaseState/ON /OFF @anim@offocgs>>
+                /D <<
+                  /BaseState/ON /OFF @anim@offocgs%
+                  /AS[% 
+                    <</Event/View  /Category[/View]  /OCGs @anim@ocgs>>%
+                    <</Event/Print /Category[/Print] /OCGs @anim@ocgs>>%
+                    <</Event/Export/Category[/Export]/OCGs @anim@ocgs>>%
+                  ]%
+                >>%  
               >>%
             >>}%
           \fi%
@@ -332,7 +344,14 @@
               mark {Catalog} <<%
                 /OCProperties <<%
                   /OCGs {@anim@ocgs}%
-                  /D <</BaseState/ON /OFF {@anim@offocgs}>>%
+                  /D <<%
+                    /BaseState/ON /OFF {@anim@offocgs}%
+                    /AS[% 
+                      <</Event/View  /Category[/View]  /OCGs {@anim@ocgs}>>%
+                      <</Event/Print /Category[/Print] /OCGs {@anim@ocgs}>>%
+                      <</Event/Export/Category[/Export]/OCGs {@anim@ocgs}>>%
+                    ]%
+                  >>%
                 >>%
               >> /PUT pdfmark%
             }%
@@ -463,9 +482,9 @@
   \def\@anim@xinline#1#2#3#4{%
     \ifthenelse{\equal{#4}{!}}{%
       %put graphics into XObject
-      \global\setbox\@anim@box=\hbox{%
-        \raisebox{-\dp#3}[\@anim@frameheight\p@][\@anim@framedepth\p@]{\box#3}%
-      }%
+      %\global\setbox\@anim@box=\hbox{%
+      %  \raisebox{-\dp#3}[\@anim@frameheight\p@][\@anim@framedepth\p@]{\box#3}%
+      %}%
       \immediate\pdfxform resources {\the\pdfpageresources}\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
       %keep a record of XObject number
@@ -473,11 +492,7 @@
     }{%
       \@anim@newkey{img@#2}{#4\space 0 R}%
     }%
-    \if@anim@timeline\else%
-      \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
-      \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
-      \@anim@makeframe{#1}{#2}%
-    \fi%
+    \if@anim@timeline\else\@anim@makeframe{#1}{#2}\fi%
   }
 \else
   \if@anim@@dvipdfmx
@@ -510,11 +525,7 @@
       }{%
         \@anim@newkey{img@#2}{#4}%
       }%
-      \if@anim@timeline\else%
-        \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
-        \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
-        \@anim@makeframe{#1}{#2}%
-      \fi%
+      \if@anim@timeline\else\@anim@makeframe{#1}{#2}\fi%
     }
   \else
     \def\@anim@xinline#1#2#3#4{%
@@ -592,11 +603,7 @@
       }{%
         \@anim@newkey{img@#2}{{#4}}%
       }%
-      \if@anim@timeline\else%
-        \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
-        \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
-        \@anim@makeframe{#1}{#2}%
-      \fi%
+      \if@anim@timeline\else\@anim@makeframe{#1}{#2}\fi%
     }
   \fi
 \fi
@@ -633,18 +640,20 @@
 %non-interactive Widget annotation, representing one frame of the animation
 \ifpdf
   \def\@anim@makeframe#1#2{% #1:@anim@num, #2:@anim@curframe@zb
-    %container XObject for all transparencies that compose the frame
-    \begingroup%
-    \setlength{\unitlength}{1pt}%
-      \global\setbox\@anim@box=\hbox{%
-        \pdfliteral{q}%
-        \begin{picture}(\@anim@framewidth,\@anim@frametotalheight)%
-        \end{picture}%
-        \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
-      }%
-    \endgroup%
-    \immediate\pdfxform resources {%
-      /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
+    \if@anim@timeline%
+      %container XObject for all transparencies that compose the frame
+      \begingroup%
+        \setlength{\unitlength}{1pt}%
+        \global\setbox\@anim@box=\hbox{%
+          \pdfliteral{q}%
+          \begin{picture}(\@anim@framewidth,\@anim@frametotalheight)%
+          \end{picture}%
+          \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
+        }%
+      \endgroup%
+      \immediate\pdfxform resources {%
+        /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
+    \fi%
     \if@anim@useocg%
       \@anim@newocg{#1}{#2}%
       \ifx\@anim@poster\@anim@posterlast%
@@ -679,7 +688,8 @@
         \fi%
       \fi%
     \fi%
-    %frame widget, using the container XObject as its Appearance
+    %frame widget, using an XObject (timeline: container, else: single image)
+    %as its Appearance
     \pdfannot
       width \@anim@animwidth\p@ height \@anim@animheight\p@
       depth \@anim@animdepth\p@
@@ -691,8 +701,13 @@
       \fi%
       /FT/Btn/Ff 65537% non-interactive push button
       /BS <</W 0>>%
-      /AP <</N \the\pdflastxform\space 0 R>>%
-      /MK <</TP 1/I \the\pdflastxform\space 0 R/IF<</S/A/FB true>>>>%
+      \if@anim@timeline%
+        /AP <</N \the\pdflastxform\space 0 R>>%
+        /MK <</TP 1/I \the\pdflastxform\space 0 R/IF<</S/A/FB true>>>>%
+      \else%
+        /AP <</N \@anim@getkeyval{img@#2}>>%
+        /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
+      \fi%  
       /T (#1.#2)%
     }%
     \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
@@ -700,17 +715,19 @@
 \else
   \if@anim@@dvipdfmx
     \def\@anim@makeframe#1#2{%
-      %container XObject
-      \global\setbox\@anim@box=\hbox{%
-        \special{pdf:content \@anim@getkeyval{frmcontent@#2}}%
-      }%
-      \special{pdf:bxobj @anim@anmfrm@#1@#2 width \@anim@framewidth pt
-        height \@anim@frameheight pt depth \@anim@framedepth pt}%
-      \begin{picture}(0,0)\put(0,0){\box\@anim@box}\end{picture}%
-      \special{pdf:put @resources <<
-        /XObject <<\@anim@getkeyval{frmxobject@#2}>>%
-      >>}%
-      \special{pdf:exobj}%
+      \if@anim@timeline%
+        %container XObject
+        \global\setbox\@anim@box=\hbox{%
+          \special{pdf:content \@anim@getkeyval{frmcontent@#2}}%
+        }%
+        \special{pdf:bxobj @anim@anmfrm@#1@#2 width \@anim@framewidth pt
+          height \@anim@frameheight pt depth \@anim@framedepth pt}%
+        \begin{picture}(0,0)\put(0,0){\box\@anim@box}\end{picture}%
+        \special{pdf:put @resources <<
+          /XObject <<\@anim@getkeyval{frmxobject@#2}>>%
+        >>}%
+        \special{pdf:exobj}%
+      \fi%
       \if@anim@useocg%
         \@anim@newocg{#1}{#2}%
         \ifx\@anim@poster\@anim@posterlast%
@@ -753,8 +770,13 @@
           \if@anim@useocg/OC @anim@ocg@#1@#2\fi%
           /FT/Btn/Ff 65537%
           /BS <</W 0>>%
-          /AP <</N @anim@anmfrm@#1@#2>>%
-          /MK <</TP 1/I @anim@anmfrm@#1@#2/IF<</S/A/FB true>>>>%
+          \if@anim@timeline%
+            /AP <</N @anim@anmfrm@#1@#2>>%
+            /MK <</TP 1/I @anim@anmfrm@#1@#2/IF<</S/A/FB true>>>>%
+          \else%
+            /AP <</N \@anim@getkeyval{img@#2}>>%
+            /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
+          \fi%  
           /T (#1.#2)%
         >>%
       }%
@@ -763,17 +785,19 @@
     }
   \else
     \def\@anim@makeframe#1#2{%
-      %container XObject
-      \special{ps:
-        mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
-        mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
-          pdfmark
-        mark {@anim@anmfrm@#1@#2} <<
-          /Type/XObject/Subtype/Form/FormType 1
-          /BBox [frame@llx frame@lly frame@urx frame@ury]
-          /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
-        >> /PUT pdfmark%
-      }%
+      \if@anim@timeline%
+        %container XObject
+        \special{ps:
+          mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
+          mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
+            pdfmark
+          mark {@anim@anmfrm@#1@#2} <<
+            /Type/XObject/Subtype/Form/FormType 1
+            /BBox [frame@llx frame@lly frame@urx frame@ury]
+            /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
+          >> /PUT pdfmark%
+        }%
+      \fi%
       \if@anim@useocg%
         \@anim@newocg{#1}{#2}%
         \ifx\@anim@poster\@anim@posterlast%
@@ -832,8 +856,13 @@
           \if@anim@useocg/OC {@anim@ocg@#1@#2}\fi%
           /FT/Btn/Ff 65537
           /BS <</W 0>>%
-          /AP <</N {@anim@anmfrm@#1@#2}>>%
-          /MK <</TP 1/I {@anim@anmfrm@#1@#2}/IF<</S/A/FB true>>>>%
+          \if@anim@timeline%
+            /AP <</N {@anim@anmfrm@#1@#2}>>%
+            /MK <</TP 1/I {@anim@anmfrm@#1@#2}/IF<</S/A/FB true>>>>%
+          \else%
+            /AP <</N \@anim@getkeyval{img@#2}>>%
+            /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
+          \fi%  
           /T (#1.#2)%
         /ANN pdfmark%
       }%
@@ -1008,19 +1037,23 @@
   }
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
-      gsave [1 0 0 1 0 0] setmatrix
+      gsave
+      %[1 0 0 1 0 0] setmatrix
       mark
         /_objdef {btn#1:#3}
         /BBox [0 0 15 15]
       /BP pdfmark
       {%
         %landscape mode (powerdot, geometry /w landscape option)
-        isls{%
-          [0 -1 1 0 0 15] concat % rotate by 270 degrees
-          [-1 0 0 1 15 0] concat%  flip around vertical axis
-        }if
+        %isls{%
+        %  [0 -1 1 0 0 15] concat % rotate by 270 degrees
+        %  [-1 0 0 1 15 0] concat%  flip around vertical axis
+        %}if
         #2
-      }?pdfmark mark /EP pdfmark
+      }?pdfmark
+      mark /EP pdfmark
+      % this avoids the `[1 0 0 1 0 0] setmatrix' and `isls{}{}if' codes above
+      mark {btn#1:#3} <</Matrix null>> /PUT pdfmark
       grestore%
     }%
   }

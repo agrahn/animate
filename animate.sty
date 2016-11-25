@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/06/20}
+\def\@anim@version{2014/07/02}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -258,7 +258,7 @@
               /OCGs \@anim@@ocgs\space 0 R%
               /D <<%
                 /BaseState/ON /OFF \@anim@@offocgs\space 0 R%
-                /AS [% 
+                /AS [%
                   <</Event/View  /Category[/View]  /OCGs \@anim@@ocgs\space 0 R>>%
                   <</Event/Print /Category[/Print] /OCGs \@anim@@ocgs\space 0 R>>%
                   <</Event/Export/Category[/Export]/OCGs \@anim@@ocgs\space 0 R>>%
@@ -302,12 +302,12 @@
                 /OCGs @anim@ocgs
                 /D <<
                   /BaseState/ON /OFF @anim@offocgs%
-                  /AS[% 
+                  /AS[%
                     <</Event/View  /Category[/View]  /OCGs @anim@ocgs>>%
                     <</Event/Print /Category[/Print] /OCGs @anim@ocgs>>%
                     <</Event/Export/Category[/Export]/OCGs @anim@ocgs>>%
                   ]%
-                >>%  
+                >>%
               >>%
             >>}%
           \fi%
@@ -346,7 +346,7 @@
                   /OCGs {@anim@ocgs}%
                   /D <<%
                     /BaseState/ON /OFF {@anim@offocgs}%
-                    /AS[% 
+                    /AS[%
                       <</Event/View  /Category[/View]  /OCGs {@anim@ocgs}>>%
                       <</Event/Print /Category[/Print] /OCGs {@anim@ocgs}>>%
                       <</Event/Export/Category[/Export]/OCGs {@anim@ocgs}>>%
@@ -707,7 +707,7 @@
       \else%
         /AP <</N \@anim@getkeyval{img@#2}>>%
         /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
-      \fi%  
+      \fi%
       /T (#1.#2)%
     }%
     \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
@@ -776,7 +776,7 @@
           \else%
             /AP <</N \@anim@getkeyval{img@#2}>>%
             /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
-          \fi%  
+          \fi%
           /T (#1.#2)%
         >>%
       }%
@@ -862,7 +862,7 @@
           \else%
             /AP <</N \@anim@getkeyval{img@#2}>>%
             /MK <</TP 1/I \@anim@getkeyval{img@#2}/IF<</S/A/FB true>>>>%
-          \fi%  
+          \fi%
           /T (#1.#2)%
         /ANN pdfmark%
       }%
@@ -2416,34 +2416,34 @@
 \endgroup
 
 \def\@anim@@sanitize#1#2\@nil{%
-  \expandafter\edef\csname @anim@\number`#1\endcsname{\the\catcode`#1}%
-  \catcode`#1=12%
+  \expandafter\xdef\csname @anim@\number`#1\endcsname{\the\catcode`#1}%
+  \global\catcode`#1=12%
   \ifx\@empty#2\@empty%
   \else%
     \@anim@@sanitize#2\@nil%
   \fi%
-  \catcode`\#=12%
-  \let\@anim@newline=\\\let\\=\@anim@bksl%
-  \let\@anim@leftbrace=\{\let\{=\@anim@lbr%
-  \let\@anim@rightbrace=\}\let\}=\@anim@rbr%
-  \let\@anim@percent=\%\let\%=\@anim@per%
+  \global\catcode`\#=12%
+  \global\let\@anim@newline=\\\global\let\\=\@anim@bksl%
+  \global\let\@anim@leftbrace=\{\global\let\{=\@anim@lbr%
+  \global\let\@anim@rightbrace=\}\global\let\}=\@anim@rbr%
+  \global\let\@anim@percent=\%\global\let\%=\@anim@per%
 }
 \def\@anim@@endsanitize#1#2\@nil{%
-  \catcode`#1=\csname @anim@\number`#1\endcsname%
+  \global\catcode`#1=\csname @anim@\number`#1\endcsname%
   \ifx\@empty#2\@empty%
   \else%
     \@anim@@endsanitize#2\@nil%
   \fi%
-  \let\%=\@anim@percent%
-  \let\}=\@anim@rightbrace%
-  \let\{=\@anim@leftbrace%
-  \let\\=\@anim@newline%
-  \catcode`\#=6%
+  \global\let\%=\@anim@percent%
+  \global\let\}=\@anim@rightbrace%
+  \global\let\{=\@anim@leftbrace%
+  \global\let\\=\@anim@newline%
+  \global\catcode`\#=6%
 }
-\def\@anim@sanitize{%
-         \@anim@@sanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
-\def\@anim@endsanitize{%
-      \@anim@@endsanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
+\def\@anim@sanitize{{%
+         \@anim@@sanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}}%
+\def\@anim@endsanitize{{%
+      \@anim@@endsanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}}%
 
 %building timeline from timeline file
 \newread\@anim@@tmlnfile

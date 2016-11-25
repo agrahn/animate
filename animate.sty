@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/07/01}
+\def\@anim@version{2008/07/03}
 \ProvidesPackage{animate}[\@anim@version]
 
 %test for e-TeX
@@ -61,7 +61,7 @@
 \fi
 
 \DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
-%(package options will be processed near end of this file)
+%(remaining package options will be processed near end of this file)
 
 \ifpdf
   %test for correct pdfTeX version
@@ -83,7 +83,16 @@
     }
   }
 \else
-  \if@anim@@dvipdfmx\else
+  \if@anim@@dvipdfmx\else % dvips
+    %if geometry package is loaded, execute `\geometry{dvips}' right before
+    %  `\begin{document}'
+    \let\@anim@document\document
+    \def\document{%
+      \endgroup%
+      \@ifpackageloaded{geometry}{\geometry{dvips}}{}%
+      \begingroup%
+      \@anim@document%
+    }
     %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
     \AtBeginDvi{%
       \expandafter\ifx\csname pdfmark\endcsname\relax%
@@ -149,6 +158,10 @@
     }{}%
   }%
 }
+
+\newboolean{@anim@powerdot}
+\setboolean{@anim@powerdot}{false}
+\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
 
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
@@ -418,11 +431,12 @@
         \endgroup%
         \special{ps:
           gsave
+          %translate graphics to lower left page corner
           {%
-            %translate graphics to lower left page corner (only if mag=1000)
-            \the\mag\space 1000 eq {frame@llx neg frame@lly neg translate
-            one@inch@x neg one@inch@y neg translate
-            0 paper@height translate}if%
+            frame@llx neg frame@lly neg translate
+            one@inch@x DVImag div neg one@inch@y DVImag div neg translate
+            0 paper@height DVImag div \if@anim@powerdot 2.0 div\space\fi
+            translate
           }?pdfmark
           %distill graphics into XObject
           mark
@@ -1414,12 +1428,7 @@
 % #3: basename of graphics file sequence (without frame number and extension)
 % #4: first frame (integer)
 % #5: last frame (integer)
-\def\animategraphics{%
-  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
-  \catcode`\:=12\catcode`\;=12%
-  \@anim@animategraphics%
-}%
-\newcommand{\@anim@animategraphics}[5][]{%
+\newcommand{\animategraphics}[5][]{%
   \leavevmode%
   \ifpdf\else%
     \if@anim@grxloaded%
@@ -1533,7 +1542,16 @@
   \fi%
   \global\advance\@anim@num by \@ne%
   \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
 }%
+%adjust catcodes of several characters within \animategraphics
+\let\@anim@animategraphics\animategraphics
+\def\animategraphics{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \edef\@anim@star{\the\catcode`\*}\edef\@anim@comma{\the\catcode`\,}%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
+  \@anim@animategraphics%
+}
 
 %inserts animation and control button widgets
 \def\@anim@insertwidgets#1#2{%#1:@anim@num, #2 existing btn colour combination
@@ -1894,14 +1912,7 @@
 %user environment for animating inline graphics
 % #1: options
 % #2: frame rate (fps)
-\newenvironment{animateinline}{%
-  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
-  \catcode`\:=12\catcode`\;=12%
-  \@anim@animateinline%
-}{%
-  \end@anim@animateinline%
-}%
-\newenvironment{@anim@animateinline}[2][]{%
+\newenvironment{animateinline}[2][]{%
   \leavevmode%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
@@ -1933,12 +1944,13 @@
   \global\@anim@curframe@zb=0%
   \global\@anim@skipfram=0%
   \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \@anim@beginframe%
   \ignorespaces%
 }{%
   \unskip%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
-  \catcode`\:=12\catcode`\;=12%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
   \global\advance\@anim@curframe@zb by \@ne%
   \if@anim@draft\else%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
@@ -1953,7 +1965,16 @@
   \fi%
   \global\advance\@anim@num by \@ne%
   \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
+  \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \setboolean{@anim@inside}{false}%
+}
+%adjust catcodes of several characters within \animategraphics
+\let\@anim@animateinline\animateinline
+\def\animateinline{%
+  \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%
+  \edef\@anim@star{\the\catcode`\*}\edef\@anim@comma{\the\catcode`\,}%
+  \catcode`\:=12\catcode`\;=12\catcode`\*=12\catcode`\,=12%
+  \@anim@animateinline%
 }
 
 %usercommand for use within `animateinline' environment;

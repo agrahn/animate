@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/08/31}
+\def\@anim@version{2016/09/07}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2236,7 +2236,7 @@
   \ifx\@anim@tmp\@empty\else%
     \xdef\@anim@usrjsat{%
       \@anim@usrjsat%
-      a\the\@anim@num_usrJSat[\the\@anim@curframe@zb]=function(){#1};%
+      var a\the\@anim@num_usrJSat_\the\@anim@curframe@zb=function(){#1};%
     }%
     \setboolean{@anim@usrjs}{true}%
   \fi%
@@ -2935,9 +2935,9 @@
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%
-  var curdoc=this,a#1_idx\if@anim@step\else,a#1_int\fi;%
-  if(typeof a#1==='undefined'){% initialize animation
-    var a#1={};%
+  if(typeof a#1_idx==='undefined'){% initialize animation
+    var a#1_idx\ifnum\@anim@method>\z@,a#1_on=0\fi%
+      \if@anim@step\else,a#1_int\fi;%
     %takes references to frame ocgs/Field objects belonging to the current
     %animation
     var a#1_fr=new Array();%
@@ -3005,7 +3005,6 @@
     \fi%
     \if@anim@usrjs
       %array to take frame numbers (array index) and user provided JavaScript
-      var a#1_usrJSat=new Array();%
       \@anim@usrjsat%
     \fi%
     %actions
@@ -3014,11 +3013,11 @@
         if(f<-1){%
           \ifcase\@anim@method %icon based
             a#1_wid.buttonSetIcon(blnk);%
-            curdoc.dirty=false;%
+            this.dirty=false;%
           \or %widget based
             a#1_on=0;%
             a#1_fr[0].display=display.hidden;%
-            curdoc.dirty=false;%
+            this.dirty=false;%
           \or %ocg based
             a#1_on=0;%
             a#1_fr[0].state=false;%
@@ -3029,19 +3028,20 @@
       if(f>\@anim@maxframe||f<0){return -1;}%
       a#1_idx=f;%
       \if@anim@usrjs
-        if(a#1_usrJSat[f]){%
-          cmd='try{a#1_usrJSat['+f+']();}catch(e){console.println(e);}';%
-          ret=app.setTimeOut(cmd,1);%
+        if(typeof this['a#1_usrJSat_'+f]!=='undefined'){%
+          ret=app.setTimeOut(% execute JS in "parallel"
+            'try{a#1_usrJSat_'+f+'();}catch(e){console.println(e);}',1%
+          );%
         }%
       \fi%
       \ifcase\@anim@method %icon based
         a#1_wid.buttonSetIcon(a#1_fr[f]);%
-        curdoc.dirty=false;%
+        this.dirty=false;%
       \or %widget based
         a#1_fr[a#1_on].display=display.hidden;%
         a#1_fr[f].display=display.visible;%
         a#1_on=f;%
-        curdoc.dirty=false;%
+        this.dirty=false;%
       \or %ocg based
         a#1_fr[a#1_on].state=false;%
         a#1_fr[f].state=true;%
@@ -3152,7 +3152,7 @@
           a#1_btnPlayLeft.display=display.visible;%
           a#1_btnPauseRight.display=display.hidden;%
           a#1_btnPlayRight.display=display.visible;%
-          curdoc.dirty=false;%
+          this.dirty=false;%
         \fi%
       };%
       var a#1_playRight=function(){%
@@ -3169,7 +3169,7 @@
           a#1_btnPlayLeft.display=display.hidden;%
           a#1_btnPauseRight.display=display.visible;%
           a#1_btnPlayRight.display=display.hidden;%
-          curdoc.dirty=false;%
+          this.dirty=false;%
         \fi%
       };%
       var a#1_playLeft=function(){%
@@ -3186,7 +3186,7 @@
           a#1_btnPlayLeft.display=display.hidden;%
           a#1_btnPauseRight.display=display.visible;%
           a#1_btnPlayRight.display=display.hidden;%
-          curdoc.dirty=false;%
+          this.dirty=false;%
         \fi%
       };%
       \if@anim@controls
@@ -3288,16 +3288,13 @@
         };%
       }%
     \fi%
-    \ifnum\@anim@method>\z@ var a#1_on=0;\fi%initialize a#1_on here!!!
-    \ifnum\@anim@poster=\@anim@mtwo %poster=none
-      ret=app.setTimeOut('a#1_seekFrame(-2)',1);%
-    \fi%
-    \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
-      ret=app.setTimeOut('a#1_seekFrame(\@anim@poster)',1);%
-    \fi%
-    \ifnum\@anim@poster=\@anim@mone %poster=last
-      ret=app.setTimeOut('a#1_seekFrame(\@anim@maxframe)',1);%
-    \fi%
+%    \ifnum\@anim@method>\z@ var a#1_on=0;\fi%
+    %poster=none
+    \ifnum\@anim@poster=\@anim@mtwo a#1_seekFrame(-2);\fi%
+    %poster=<num>|first
+    \ifnum\@anim@poster>\@anim@mone a#1_seekFrame(\@anim@poster);\fi%
+    %poster=last
+    \ifnum\@anim@poster=\@anim@mone a#1_seekFrame(\@anim@maxframe);\fi%
   }%
   \if@anim@step\else%
     \if@anim@autoplayorresume%
@@ -3332,15 +3329,12 @@
   \fi
   %re-display poster frame
   if(!a#1_isPaused){% i.e. if stopped
-    \ifnum\@anim@poster=\@anim@mtwo %poster=none
-      ret=app.setTimeOut('a#1_seekFrame(-2)',1);%
-    \fi%
-    \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
-      ret=app.setTimeOut('a#1_seekFrame(\@anim@poster)',1);%
-    \fi%
-    \ifnum\@anim@poster=\@anim@mone %poster=last
-      ret=app.setTimeOut('a#1_seekFrame(\@anim@maxframe)',1);%
-    \fi%
+    %poster=none
+    \ifnum\@anim@poster=\@anim@mtwo a#1_seekFrame(-2);\fi%
+    %poster=<num>|first
+    \ifnum\@anim@poster>\@anim@mone a#1_seekFrame(\@anim@poster);\fi%
+    %poster=last
+    \ifnum\@anim@poster=\@anim@mone a#1_seekFrame(\@anim@maxframe);\fi%
   }%
 }
 

@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/05/09]
+\ProvidesPackage{animate}[2008/05/16]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -83,6 +83,24 @@
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
 \def\@anim@getkeyval#1{\ifcsname#1\endcsname\csname#1\endcsname\fi}
 
+%macro for writing global defs to external *.aux file
+\def\@anim@keytoaux#1#2{%
+  \@bsphack\protected@write\@auxout{}{%
+    \string\@anim@newkey{#1}{#2}%
+  }\@esphack%
+  \ifcsname#1\endcsname\else%
+    \ifx\@anim@rerunwarned\@undefined%
+      \gdef\@anim@rerunwarned{}%
+      \AtEndDocument{%
+        \PackageWarningNoLine{animate}{%
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+        @@ Rerun to get object references right! @@\MessageBreak
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+      }%
+    \fi%
+  \fi%
+}
+
 %missing package error message
 \def\@anim@missing#1{%
   \PackageError{animate}{%
@@ -102,8 +120,10 @@
   }{}%
 }
 
-%animation method if any of autoplay, autopause, autoresume options is used
+%alternative animation method using OCGs (option `useocg')
 \newboolean{@anim@useocg}
+% true if any of `autoplay' or `autoresume' options is set
+\newboolean{@anim@autoplayorresume}
 
 %add AcroForm and OCProperties entries to Catalog
 \ifpdf
@@ -252,7 +272,7 @@
   }
 }
 
-\newboolean{@anim@timeline} %true if `timeline' option was set
+\newboolean{@anim@timeline} %true if `timeline' option is set
 
 %creates Form XObject from box contents
 \ifpdf%
@@ -352,13 +372,18 @@
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
     %store ref to ocg if it's a poster
-    \ifnum#2=0
-      \def\@anim@posterframe{first}%
-    \else%
+    \def\@anim@posterframe{none}%
+    \ifx\@anim@poster\@anim@posterframe\else% no poster
+      \ifnum#2=0
+        \def\@anim@posterframe{first}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \xdef\@anim@posterocg{\@anim@curocg}%
+        \fi%
+      \fi%
       \def\@anim@posterframe{last}%
-    \fi%
-    \ifx\@anim@poster\@anim@posterframe%
-      \xdef\@anim@posterocg{\@anim@curocg}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \xdef\@anim@posterocg{\@anim@curocg}%
+      \fi%
     \fi%
   }
 \else
@@ -370,13 +395,18 @@
       >> /PUT pdfmark
       mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
     }%
-    \ifnum#2=0
-      \def\@anim@posterframe{first}%
-    \else%
+    \def\@anim@posterframe{none}%
+    \ifx\@anim@poster\@anim@posterframe\else% no poster
+      \ifnum#2=0
+        \def\@anim@posterframe{first}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+        \fi%
+      \fi%
       \def\@anim@posterframe{last}%
-    \fi%
-    \ifx\@anim@poster\@anim@posterframe%
-      \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+      \ifx\@anim@poster\@anim@posterframe%
+        \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
+      \fi%
     \fi%
   }
 \fi
@@ -394,38 +424,45 @@
     }%
     \immediate\pdfxform resources {%
       /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
-    %
-    %frame widget, using the container XObject as its Appearance
     \if@anim@useocg%
-      \@anim@newocg{#1}{#2}% create new opt. content group (OCG)
+      \@anim@newocg{#1}{#2}%
+      \def\@anim@annotflag{/F 4}%, print, visibility set by OCG
+    \else%
+      %widget visibility state
+      \def\@anim@annotflag{/F 2}%default: hidden (no view, no print)
+      \def\@anim@posterframe{none}%
+      \ifx\@anim@poster\@anim@posterframe\else% no poster
+        \ifnum#2=0
+          \def\@anim@posterframe{first}%
+          \ifx\@anim@poster\@anim@posterframe%
+            \def\@anim@annotflag{/F 4}% visible, print, Locked
+          \fi%
+        \fi%
+        \def\@anim@posterframe{last}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@keytoaux{a#1.poster}{#2}%
+          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
+            \def\@anim@annotflag{/F 4}%
+          }{}%
+        \fi%
+      \fi%
     \fi%
+    %frame widget, using the container XObject as its Appearance
     \pdfannot
       width \@anim@animwidth\p@ height \@anim@animheight\p@
       depth \@anim@animdepth\p@
     {%
       /Subtype/Widget%
+      \@anim@annotflag
       \if@anim@useocg%
-        /OC \@anim@curocg %associated with the just created OCG
+        /OC \@anim@curocg %associate widget with the just created OCG
       \fi%
-      /F 4 % allow printing
       /FT/Btn/Ff 65537% non-interactive push button
       /BS <</W 0>>%
       /AP <</N \the\pdflastxform\space 0 R>>%
       /T (#1.#2)%
     }%
-    %for initialization of visibility if non-ocg method is used
-    \if@anim@useocg\else%
-      \ifnum#2=0
-        \def\@anim@posterframe{first}%
-      \else%
-        \def\@anim@posterframe{last}%
-      \fi%
-      \ifx\@anim@poster\@anim@posterframe%
-        \xdef\@anim@posterwidget{\the\pdflastannot\space 0 R}%
-      \fi%
-      \xdef\@anim@hidewidget{%
-        \@anim@hidewidget\space\the\pdflastannot\space 0 R}%
-    \fi%
+    \xdef\@anim@fields{\@anim@fields\space\the\pdflastannot\space 0 R}%
   }
 \else
   \def\@anim@makeframe#1#2{%
@@ -440,7 +477,28 @@
         /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
       >> /PUT pdfmark
     }%
-    %
+    \if@anim@useocg%
+      \@anim@newocg{#1}{#2}%
+      \def\@anim@annotflag{/F 4}%, print, visibility set by OCG, Locked
+    \else%
+      \def\@anim@annotflag{/F 2}%
+      \def\@anim@posterframe{none}%
+      \ifx\@anim@poster\@anim@posterframe\else% no poster
+        \ifnum#2=0
+          \def\@anim@posterframe{first}%
+          \ifx\@anim@poster\@anim@posterframe%
+            \def\@anim@annotflag{/F 4}% visible, print, Locked
+          \fi%
+        \fi%
+        \def\@anim@posterframe{last}%
+        \ifx\@anim@poster\@anim@posterframe%
+          \@anim@keytoaux{a#1.poster}{#2}%
+          \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
+            \def\@anim@annotflag{/F 4}% visible, print, Locked
+          }{}%
+        \fi%
+      \fi%
+    \fi%
     %frame widget
     \setlength{\unitlength}{1pt}%
     \begin{picture}(0,0)% mark annotation rectangle
@@ -455,36 +513,22 @@
       }%
     }%
     \end{picture}%
-    \if@anim@useocg%
-      \@anim@newocg{#1}{#2}%
-    \fi%
     \special{ps:
       mark
         /_objdef {annot@\the\@anim@fieldnum}%
         /Rect [wid@llx wid@lly wid@urx wid@ury]%
         /Subtype/Widget%
+        \@anim@annotflag
         \if@anim@useocg%
           /OC {@anim@ocg@#1@#2}
         \fi%
-        /F 4
         /FT/Btn/Ff 65537
         /BS <</W 0>>%
         /AP <</N {@anim@anmfrm@#1@#2}>>%
-        /T (anm#1fr#2)%
+        /T (#1.#2)%
       /ANN pdfmark
+      mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
     }%
-    \if@anim@useocg\else%
-      \ifnum#2=0
-        \def\@anim@posterframe{first}%
-      \else%
-        \def\@anim@posterframe{last}%
-      \fi%
-      \ifx\@anim@poster\@anim@posterframe%
-        \xdef\@anim@posterwidget{{annot@\the\@anim@fieldnum}}%
-      \fi%
-      \xdef\@anim@hidewidget{%
-        \@anim@hidewidget\space{annot@\the\@anim@fieldnum}}%
-    \fi%
     \global\advance\@anim@fieldnum by \@ne%
   }
 \fi
@@ -1003,11 +1047,10 @@
 
 %current frame
 \newcount\@anim@curframe
-\newcount\@anim@curframe@zb% zero based
+\newcount\@anim@curframe@zb %zero based
 
 %draftbox from savebox
 \def\@anim@draftbox#1{% #1: box number
-  %get size
   \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
@@ -1124,6 +1167,9 @@
   \fi%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
+  \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
+    \setboolean{@anim@autoplayorresume}{true}%
+  }{}%
   \def\@anim@base{#3}%
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
@@ -1141,6 +1187,8 @@
       \@anim@getext{\@anim@base\@anim@first}%
       \@anim@filebox{\@anim@base\@anim@first\@anim@ext}{1}%
     \fi%
+    \@anim@getsize{\@anim@box}%
+    \@anim@scale%
     %draw draftbox according to dimensions of the first frame
     \@anim@draftbox{\@anim@box}%
   \else%
@@ -1330,10 +1378,12 @@
     %create JavaScript objects
     \@anim@pojscript{#1}% to be executed on PO event
     \@anim@otherjscript{#1}% on other events in the AA dict
-    %add poster to posterocg array
-    \def\@anim@posterframe{none}%
-    \ifx\@anim@poster\@anim@posterframe\else%
-      \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
+    \if@anim@useocg%
+      %add poster to posterocg array
+      \def\@anim@posterframe{none}%
+      \ifx\@anim@poster\@anim@posterframe\else%
+        \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
+      \fi%
     \fi%
     \pdfannot
       width \@anim@animwidth\p@ height \@anim@animheight\p@
@@ -1346,17 +1396,7 @@
       /T (anm#1)%
       /AA <<% bind actions to trigger events
         /PO <<%
-          \if@anim@useocg\else%
-            /S/Hide/T [\@anim@hidewidget]%
-            /Next <<%
-              /S/Hide/H false/T \@anim@posterwidget%
-              /Next <<%
-          \fi%
-                /S/JavaScript/JS \@anim@pojscriptobj%
-          \if@anim@useocg\else%
-              >>%
-            >>%
-          \fi%
+          /S/JavaScript/JS \@anim@pojscriptobj%
         >>%
         \@anim@otherjscriptkey%
       >>%
@@ -1386,12 +1426,14 @@
     \end{picture}%
     \@anim@pojscript{#1}%
     \@anim@otherjscript{#1}%
-    \def\@anim@posterframe{none}%
-    \ifx\@anim@poster\@anim@posterframe\else%
-      \special{ps:
-        mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
-      }%
-    \fi
+    \if@anim@useocg%
+      \def\@anim@posterframe{none}%
+      \ifx\@anim@poster\@anim@posterframe\else%
+        \special{ps:
+          mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
+        }%
+      \fi%
+    \fi%
     \special{ps:
       mark
         /_objdef {annot@\the\@anim@fieldnum}%
@@ -1403,17 +1445,7 @@
         /T (anm#1)%
         /AA <<% bind actions to trigger events
           /PO <<%
-            \if@anim@useocg\else%
-              /S/Hide/T [\@anim@hidewidget]%
-              /Next <<%
-                /S/Hide/H false/T \@anim@posterwidget%
-                /Next <<%
-            \fi%
-                  /S/JavaScript/JS {a#1@pojscript}%
-            \if@anim@useocg\else%
-                >>%
-              >>%
-            \fi%
+            /S/JavaScript/JS {a#1@pojscript}%
           >>%
           \@anim@otherjscriptkey%
         >>%
@@ -1472,6 +1504,7 @@
     \end{picture}%
     \special{ps:
       mark
+        /_objdef {annot@\the\@anim@fieldnum}
         /Rect [wid@llx wid@lly wid@urx wid@ury]
         /Subtype/Widget
         /FT/Btn/Ff 65536
@@ -1508,6 +1541,9 @@
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
+  \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
+    \setboolean{@anim@autoplayorresume}{true}%
+  }{}%
   \if@anim@draft\else%
     %create button faces if necessary
     \if@anim@controls%
@@ -2102,7 +2138,6 @@
   \setboolean{@anim@autoplay}{#1}%
   \if@anim@autoplay%
     \setboolean{@anim@autoresume}{false}%
-    \setboolean{@anim@useocg}{true}%
   \fi%
 }
 \newboolean{@anim@autoresume}
@@ -2111,21 +2146,18 @@
   \setboolean{@anim@autoresume}{#1}%
   \if@anim@autoresume%
     \setboolean{@anim@autoplay}{false}%
-    \setboolean{@anim@useocg}{true}%
   \fi%
 }
 \newboolean{@anim@autopause}
 \setboolean{@anim@autopause}{false}
 \define@key{anim@user}{autopause}[true]{%
   \setboolean{@anim@autopause}{#1}%
-  \if@anim@autopause\setboolean{@anim@useocg}{true}\fi%
 }
 \newboolean{@anim@palindrome}
 \setboolean{@anim@palindrome}{false}
 \define@key{anim@user}{palindrome}[true]{%
   \setboolean{@anim@palindrome}{#1}%
 }
-%default frame to be shown if animation is not activated
 \define@key{anim@user}{poster}[first]{% | none | last
   \ifthenelse{% correct wrong input to `none'
     \equal{#1}{first}\OR%
@@ -2191,6 +2223,9 @@
 \define@key{anim@user}{measure}[true]{%
   \setboolean{@anim@meas}{#1}%
 }
+\define@key{anim@user}{useocg}[true]{%
+  \setboolean{@anim@useocg}{#1}%
+}
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
@@ -2213,6 +2248,7 @@
   \global\let\if@anim@palindrome=\if@anim@@palindrome%
   \global\let\if@anim@step=\if@anim@@step%
   \global\let\if@anim@draft=\if@anim@@draft%
+  \global\let\if@anim@useocg=\if@anim@@useocg%
   \gdef\@anim@posterocg{}%
   \gdef\@anim@properties{}%
   \setboolean{@anim@pauseframes}{false}%
@@ -2228,17 +2264,7 @@
   \gdef\@anim@gropts{}%
   \setboolean{@anim@multipdf}{false}%
   \setboolean{@anim@meas}{false}%
-  \gdef\@anim@posterwidget{}%
-  \gdef\@anim@hidewidget{}%
-  \ifthenelse{%
-    \boolean{@anim@autoplay}\OR%
-    \boolean{@anim@autopause}\OR%
-    \boolean{@anim@autoresume}%
-  }{%
-    \setboolean{@anim@useocg}{true}%
-  }{%
-    \setboolean{@anim@useocg}{false}%
-  }%
+  \setboolean{@anim@autoplayorresume}{false}%
 }
 
 %package options
@@ -2379,6 +2405,11 @@
     \setboolean{@anim@@draft}{true}%
   }%
 }
+\newboolean{@anim@@useocg}
+\setboolean{@anim@@useocg}{false}
+\define@key{anim@pkg}{useocg}[true]{%
+  \setboolean{@anim@@useocg}{#1}%
+}
 
 %process package options
 \def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
@@ -2401,35 +2432,63 @@
   }
 \fi
 \def\@anim@posterlast{last}% helper macro
+\def\@anim@posternone{none}% helper macro
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%
+  \if@anim@useocg\else
+    if(typeof(curdoc)=='undefined'){var curdoc=this;}% ref to the Doc object
+  \fi
   if(typeof(a#1)=='undefined'){% initialize animation
     a#1=new Object();%
-    %takes references to frame ocgs belonging to the current animation
+    %takes references to frame ocgs/Field objects belonging to the current
+    %animation
     a#1.fr=new Array();%
     %takes references to control button face ocgs
     \if@anim@controls a#1.btn=new Array();\fi
-    %get array of ocgs of current page
-    var ocg=this.getOCGs(this.pageNum);%
-    for(var i=0;i<ocg.length;i++){%
-      var ocgName=ocg[i].name.split('.');%
-      if(ocgName[0]==#1){%
-        \if@anim@controls
-          if(ocgName[1].charAt(0)=='P'){% PlayLeft, PauseLeft, ...
+    %initialize fr & btn properties
+    \if@anim@useocg
+      %get array of ocgs of current page
+      var ocg=this.getOCGs(this.pageNum);%
+      for(var i=0;i<ocg.length;i++){%
+        var ocgName=ocg[i].name.split('.');%
+        if(ocgName[0]==#1){%
+          \if@anim@controls
+            if(ocgName[1].charAt(0)=='P'){% PlayLeft, PauseLeft, ...
+              a#1.btn[ocgName[1]]=ocg[i];%
+              %set basic button state
+              a#1.btn[ocgName[1]].state=ocg[i].initState;%
+            }else{% frame ocg
+          \fi
+              a#1.fr[ocgName[1]]=ocg[i];%
+              %set basic frame state
+              a#1.fr[ocgName[1]].state=ocg[i].initState;%
+          \if@anim@controls%
+            }%
+          \fi%
+        }%
+      }%
+    \else
+      %get array of Field objects (frame widgets) of current page
+      for(i=0;i<this.numFields;i++){%
+        var fldName=this.getNthFieldName(i).split('.');%
+        if(fldName[0]==#1){%
+          a#1.fr[fldName[1]]=this.getField(this.getNthFieldName(i));%
+        }%
+      }%
+      \if@anim@controls
+        %get array of ocgs of current page
+        var ocg=this.getOCGs(this.pageNum);%
+        for(var i=0;i<ocg.length;i++){%
+          var ocgName=ocg[i].name.split('.');%
+          if(ocgName[0]==#1){%
             a#1.btn[ocgName[1]]=ocg[i];%
             %set basic button state
             a#1.btn[ocgName[1]].state=ocg[i].initState;%
-          }else{% frame ocg
-        \fi
-            a#1.fr[ocgName[1]]=ocg[i];%
-            %set basic frame state
-            a#1.fr[ocgName[1]].state=ocg[i].initState;%
-        \if@anim@controls%
           }%
-        \fi%
-      }%
-    }%
+        }%
+      \fi%
+    \fi%
     \ifx\@anim@poster\@anim@posterlast % set default frame
       %holds index of the frame to be displayed
       a#1.idx=\@anim@frames-1;%
@@ -2466,10 +2525,17 @@
       \if@anim@step\else
         a#1.actnPause();%
         a#1.isPaused=false;% because it has been explicitly stopped
-      \fi
-      a#1.fr[a#1.idx].state=false;%
-      a#1.idx=0;%
-      a#1.fr[0].state=true;%
+      \fi%
+      \if@anim@useocg
+        a#1.fr[a#1.idx].state=false;%
+        a#1.idx=0;%
+        a#1.fr[0].state=true;%
+      \else
+        a#1.fr[a#1.idx].display=display.hidden;%
+        a#1.idx=0;%
+        a#1.fr[0].display=display.visible;%
+		curdoc.dirty=false;%
+      \fi%
       \if@anim@chfps
         a#1.fpsDeflt=Math.abs(\@anim@fps);%
         a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
@@ -2480,10 +2546,17 @@
       \if@anim@step\else
         a#1.actnPause();%
         a#1.isPaused=false;%
-      \fi
-      a#1.fr[a#1.idx].state=false;%
-      a#1.idx=\@anim@frames-1;%
-      a#1.fr[a#1.idx].state=true;%
+      \fi%
+      \if@anim@useocg
+        a#1.fr[a#1.idx].state=false;%
+        a#1.idx=\@anim@frames-1;%
+        a#1.fr[a#1.idx].state=true;%
+      \else
+        a#1.fr[a#1.idx].display=display.hidden;%
+        a#1.idx=\@anim@frames-1;%
+        a#1.fr[a#1.idx].display=display.visible;%
+		curdoc.dirty=false;%
+      \fi%
       \if@anim@chfps %frame rate from the last fps change (\@anim@nfps)
         a#1.fpsDeflt=Math.abs(\@anim@nfps);%
         a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
@@ -2491,9 +2564,18 @@
       \fi%
     };%
     a#1.actnNext=function(){%
-      a#1.fr[a#1.idx].state=false;%
+      \if@anim@useocg
+        a#1.fr[a#1.idx].state=false;%
+      \else
+        a#1.fr[a#1.idx].display=display.hidden;%
+      \fi
       try{%
-        a#1.fr[++a#1.idx].state=true;%
+        \if@anim@useocg
+          a#1.fr[++a#1.idx].state=true;%
+        \else
+          a#1.fr[++a#1.idx].display=display.visible;%
+		  curdoc.dirty=false;%
+        \fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         --a#1.idx;%
@@ -2501,8 +2583,13 @@
           \if@anim@step
             a#1.actnEndRight();%
             a#1.playsRight=false;%
-          \else
-            a#1.fr[a#1.idx].state=true;%
+          \else%
+            \if@anim@useocg
+              a#1.fr[a#1.idx].state=true;%
+            \else
+              a#1.fr[a#1.idx].display=display.visible;%
+		      curdoc.dirty=false;%
+            \fi%
             \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
           \fi%
@@ -2543,9 +2630,18 @@
       \fi%
     };%
     a#1.actnPrev=function(){%
-      a#1.fr[a#1.idx].state=false;%
+      \if@anim@useocg
+        a#1.fr[a#1.idx].state=false;%
+      \else
+        a#1.fr[a#1.idx].display=display.hidden;%
+      \fi
       try{%
-        a#1.fr[--a#1.idx].state=true;%
+        \if@anim@useocg
+          a#1.fr[--a#1.idx].state=true;%
+        \else
+          a#1.fr[--a#1.idx].display=display.visible;%
+		  curdoc.dirty=false;%
+        \fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
         ++a#1.idx;%
@@ -2553,8 +2649,13 @@
           \if@anim@step
             a#1.actnEndLeft();%
             a#1.playsRight=true;%
-          \else
-            a#1.fr[a#1.idx].state=true;%
+          \else%
+            \if@anim@useocg
+              a#1.fr[a#1.idx].state=true;%
+            \else
+              a#1.fr[a#1.idx].display=display.visible;%
+		      curdoc.dirty=false;%
+            \fi%
             \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
           \fi%
@@ -2693,51 +2794,96 @@
         };%
       \fi%
     \fi%
+    \if@anim@useocg\else%
+      %actnEndLeft()/actnEndRight() & actnEndLeft()/actnEndRight() versions
+      %that also work in recent Readers,
+      %to be invoked by a#1_intd=app.setInterval(...)
+      a#1.actnSecEndLeft=function(){%
+        try{app.clearInterval(a#1_intd);}catch(e){}%
+        a#1.actnEndLeft();%
+      };%
+      a#1.actnSecEndRight=function(){%
+        try{app.clearInterval(a#1_intd);}catch(e){}%
+        a#1.actnEndRight();%
+      };%
+      \if@anim@autoplayorresume
+        a#1.actnSecPlayLeft=function(){%
+          try{app.clearInterval(a#1_intd);}catch(e){}%
+          a#1.actnPlayLeft();%
+        };%
+        a#1.actnSecPlayRight=function(){%
+          try{app.clearInterval(a#1_intd);}catch(e){}%
+          a#1.actnPlayRight();%
+        };%
+      \fi%
+    \fi%
   }%
   \if@anim@step\else%
-    \if@anim@autoplay
-      if(a#1.playsRight){%
-        a#1.actnPlayRight();%
-      }else{%
-        a#1.actnPlayLeft();%
-      }%
+    \if@anim@autoplay%
+      \if@anim@useocg
+        if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
+      \else
+        if(a#1.playsRight){%
+          a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+        }else{%
+          a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
+        }%
+      \fi%
     \fi%
     \if@anim@autoresume
       if(a#1.isPaused){%
-        if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
+        \if@anim@useocg
+          if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
+        \else
+          if(a#1.playsRight){%
+            a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+          }else{%
+            a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
+          }%
+        \fi%
       }%
     \fi%
   \fi%
 }
+
 %other trigger events in the anim widget's AA dictionary
 \def\@anim@otherjscript#1{%
   \def\@anim@posterframe{last}%
   \xdef\@anim@otherjscriptkey{%
     /PC <</S/JavaScript/JS (% PageClose
-      \if@anim@autopause%
-        \if@anim@step\else
-          if(a#1.isPlaying||a#1.isPaused){a#1.actnPause();}%
-          else{%
-        \fi%
+      \if@anim@step\else
+        if(%
+          \if@anim@autopause
+            a#1.isPlaying||%
+          \fi
+          a#1.isPaused%
+        ){a#1.actnPause();}%
+        else{%
       \fi%
       \if@anim@step\else%
         \if@anim@controls
-            a#1.playsRight=true;%
+          a#1.playsRight=true;%
         \else%
           \if@anim@palindrome
             a#1.playsRight=true;%
           \fi%
         \fi%
       \fi%
-      \ifx\@anim@poster\@anim@posterframe
-            a#1.actnEndRight();%
-      \else
-            a#1.actnEndLeft();%
-      \fi%
-      \if@anim@autopause%
-        \if@anim@step\else
-          }
+      \ifx\@anim@poster\@anim@posterframe%
+        \if@anim@useocg
+          a#1.actnEndRight();%
+        \else
+          a#1_intd=app.setInterval('a#1.actnSecEndRight()',1);%
         \fi%
+      \else%
+        \if@anim@useocg
+          a#1.actnEndLeft();%
+        \else
+          a#1_intd=app.setInterval('a#1.actnSecEndLeft()',1);%
+        \fi%
+      \fi%
+      \if@anim@step\else%
+        }%
       \fi%
     )>>%
     \if@anim@step\else%

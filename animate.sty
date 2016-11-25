@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/03/22}
+\def\@anim@version{2016/04/15}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -431,7 +431,13 @@
 }
 
 \def\@anim@insertfrmcontent#1,#2\@nil{%
-  \ifthenelse{\equal{#1}{}}{}{\@anim@refxform{#1}}%
+  \ifthenelse{\equal{#1}{}}{}{%
+    \if@anim@dvips%
+      \@anim@refxform{{#1}}%
+    \else%
+      \@anim@refxform{#1}%
+    \fi%
+  }%
   \ifthenelse{\equal{#2}{}}{}{\@anim@insertfrmcontent#2\@nil}%
 }
 
@@ -443,9 +449,10 @@
 % animation
 \def\@anim@makeframe#1#2{%
   %container box
+  \edef\@anim@tmpvar{\@anim@getkeyval{frmcontent@#2},}%
   \global\setbox\@anim@box=\hbox to \@anim@zframewd{%
     \vrule width \z@ height \@anim@zframeht depth \@anim@zframedp%
-    \expandafter\@anim@insertfrmcontent\@anim@getkeyval{frmcontent@#2},\@nil%
+    \expandafter\@anim@insertfrmcontent\@anim@tmpvar\@nil%
     \hss%
   }%
   \ifcase\@anim@method% icon based
@@ -2450,7 +2457,7 @@
   \gdef\@anim@colour{}%
   \@anim@colours#1:\@nil%
   \xdef\@anim@bgcolour{\@anim@colour}%
-  \if@anim@dvips
+  \if@anim@dvips%
     \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@bg{\@anim@colour\space setgray}%
     \else%
@@ -2481,7 +2488,7 @@
   \gdef\@anim@colour{}%
   \@anim@colours#1:\@nil%
   \xdef\@anim@fgcolour{\@anim@colour}%
-  \if@anim@dvips
+  \if@anim@dvips%
     \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@fg{\@anim@colour\space setgray}%
     \else%
@@ -2730,7 +2737,7 @@
   \gdef\@anim@colour{}%
   \@anim@colours#1:\@nil%
   \xdef\@anim@@bgcolour{\@anim@colour}%
-  \if@anim@dvips
+  \if@anim@dvips%
     \ifnum\@anim@tmpcnt=\@ne\relax%
       \xdef\@anim@@bg{\@anim@colour\space setgray}%
     \else%

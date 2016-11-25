@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/11/30]
+\ProvidesPackage{animate}[2007/12/21]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -222,31 +222,15 @@
       }%
       \immediate\pdfxform\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
-      \if@anim@timeline%
-        %keep a record of XObject number
-        \@anim@newkey{img@#2}{\@anim@lastxform\space 0 R}%
-      \else%
-        \xdef\@anim@xobject{%XObject resource entry of container XObject
-          \@anim@xobject\space/im#2\space\@anim@lastxform\space 0 R%
-        }%
-      \fi%
+      %keep a record of XObject number
+      \@anim@newkey{img@#2}{\@anim@lastxform\space 0 R}%
     }{%
-      \if@anim@timeline%
-        \@anim@newkey{img@#2}{#4\space 0 R}%
-      \else%
-        \xdef\@anim@xobject{\@anim@xobject\space/im#2\space #4\space 0 R}%
-      \fi%
+      \@anim@newkey{img@#2}{#4\space 0 R}%
     }%
     \if@anim@timeline\else%
-      \@anim@newocg{#1}{#2}%
-      %Properties entry for use in container XObject
-      \xdef\@anim@properties{%
-        \@anim@properties\space/oc#2\space\@anim@curocg%
-      }%
-      %content stream of container XObject
-      \xdef\@anim@content{%
-        \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
-      }%
+	  \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+      \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
+      \@anim@makeframe{#1}{#2}%
     \fi%
   }
 \else
@@ -312,32 +296,14 @@
         grestore
       }%
       \xdef\@anim@lastxform{@anim@frm@#1@#2}%
-      \if@anim@timeline%
-        \@anim@newkey{img@#2}{{@anim@frm@#1@#2}}%
-      \else%
-        \xdef\@anim@xobject{% XObject resource entry of container XObject
-          \@anim@xobject\space/im#2\space {@anim@frm@#1@#2}%
-        }%
-      \fi%
+      \@anim@newkey{img@#2}{{@anim@frm@#1@#2}}%
     }{%
-      \if@anim@timeline%
-        \@anim@newkey{img@#2}{{#4}}%
-      \else%
-        \xdef\@anim@xobject{% XObject resource entry of container XObject
-          \@anim@xobject\space/im#2\space {#4}%
-        }%
-      \fi%
+      \@anim@newkey{img@#2}{{#4}}%
     }%
     \if@anim@timeline\else%
-      \@anim@newocg{#1}{#2}%
-      %Properties entry for use in container XObject
-      \xdef\@anim@properties{%
-        \@anim@properties\space/oc#2\space {@anim@ocg@#1@#2}%
-      }%
-      %content stream of container XObject
-      \xdef\@anim@content{%
-        \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
-      }%
+	  \@anim@newkey{frmxobject@#2}{/im#2\space\@anim@getkeyval{img@#2}}%
+      \@anim@newkey{frmcontent@#2}{ q /im#2\space Do Q}%
+      \@anim@makeframe{#1}{#2}%
     \fi%
   }
 \fi
@@ -389,10 +355,7 @@
       \end{picture}%
       \pdfliteral{Q\@anim@content}%
     }%
-    \immediate\pdfxform resources {%
-      \if@anim@timeline\else/Properties <<\@anim@properties>>\fi
-      /XObject <<\@anim@xobject>>
-    }\@anim@box%
+    \immediate\pdfxform resources {/XObject <<\@anim@xobject>>}\@anim@box%
     \xdef\@anim@container{\the\pdflastxform\space 0 R}%
   }
 \else
@@ -403,18 +366,14 @@
       mark {@anim@xobj#1} <<
         /Type/XObject/Subtype/Form/FormType 1
         /BBox [frame@llx frame@lly frame@urx frame@ury]
-        /Resources <<
-          \if@anim@timeline\else/Properties <<\@anim@properties>>\fi
-          /XObject <<\@anim@xobject>>
-        >>
+        /Resources <</XObject <<\@anim@xobject>>>>
       >> /PUT pdfmark
     }%
   }
 \fi
 
-%intermediate container XObject, for use with the timeline option, which
-%represents one animation frame and which contains all the transparencies
-%that compose the frame
+%intermediate container XObject, which represents one animation frame
+%containing all the transparencies that compose the frame
 \ifpdf
   \def\@anim@makeframe#1#2{% #1:@anim@num, #2:@anim@curframe@zb
     \@anim@newocg{#1}{#2}%

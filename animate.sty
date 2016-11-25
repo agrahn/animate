@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/11/05]
+\ProvidesPackage{animate}[2007/11/20]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -59,7 +59,7 @@
 \ifpdf
   \ifnum\pdftexversion<120
     \PackageError{animate}{%
-      pdfeTeX, version >= 1.20, required%
+      pdfTeX, version >= 1.20, required%
     }{%
       Install a newer version!%
     }%
@@ -75,7 +75,11 @@
 
 %creating and using global definitions
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
-\def\@anim@getkeyval#1{\csname#1\endcsname}
+\def\@anim@getkeyval#1{%
+  \expandafter\ifx\csname#1\endcsname\relax\else%
+    \csname#1\endcsname%
+  \fi%
+}
 
 %missing package error message
 \def\@anim@missing#1{%
@@ -179,8 +183,7 @@
 
 \newboolean{@anim@timeline} %true if `timeline' option was set
 
-%creates Form XObject from box contents and associates it with a newly
-%created OCG
+%creates Form XObject from box contents
 \ifpdf%
   %#1: @anim@num, #2:@anim@curframe@zb, #3: empty (`') or box number,
   %#4: `!' or form xobj identifier
@@ -200,15 +203,28 @@
       }%
       \immediate\pdfxform\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
-      \xdef\@anim@xobject{%XObject resource entry of container XObject
-        \@anim@xobject\space/im#2\space\@anim@lastxform\space 0 R%
-      }%
+      \if@anim@timeline%
+        %keep a record of XObject number
+        \@anim@newkey{img@#2}{\@anim@lastxform\space 0 R}%
+      \else%
+        \xdef\@anim@xobject{%XObject resource entry of container XObject
+          \@anim@xobject\space/im#2\space\@anim@lastxform\space 0 R%
+        }%
+      \fi%
     }{%
-      \xdef\@anim@xobject{\@anim@xobject\space/im#2\space #4\space 0 R}%
+      \if@anim@timeline%
+        \@anim@newkey{img@#2}{#4\space 0 R}%
+      \else%
+        \xdef\@anim@xobject{\@anim@xobject\space/im#2\space #4\space 0 R}%
+      \fi%
     }%
     \if@anim@timeline\else%
-      \@anim@newocg{#1}{#2}%new ocg
-      %compose content stream of container XObject
+      \@anim@newocg{#1}{#2}%
+      %Properties entry for use in container XObject
+      \xdef\@anim@properties{%
+        \@anim@properties\space/oc#2\space\@anim@curocg%
+      }%
+      %content stream of container XObject
       \xdef\@anim@content{%
         \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
       }%
@@ -257,10 +273,9 @@
             /frame@dydx {1 frame@dxdy div} bind def
             /frame@cx {frame@urx frame@llx add 2 div} bind def
             /frame@cy {frame@ury frame@lly add 2 div} bind def
-            [% graphics needs to be rescaled for some reason ...
-              frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
-              1 frame@dydx sub frame@cy mul%
-            ] concat
+            % graphics needs to be rescaled for some reason ...
+            [frame@dxdy 0 0 frame@dydx 1 frame@dxdy sub frame@cx mul
+              1 frame@dydx sub frame@cy mul] concat
             %... rotated by 270 degrees ...
             [0 -1 1 0 frame@cx frame@cy sub frame@cx frame@cy add] concat
             %... and flipped around vertical axis
@@ -278,17 +293,29 @@
         grestore
       }%
       \xdef\@anim@lastxform{@anim@frm@#1@#2}%
-      \xdef\@anim@xobject{% XObject resource entry of container XObject
-        \@anim@xobject\space/im#2\space {@anim@frm@#1@#2}%
-      }%
+      \if@anim@timeline%
+        \@anim@newkey{img@#2}{{@anim@frm@#1@#2}}%
+      \else%
+        \xdef\@anim@xobject{% XObject resource entry of container XObject
+          \@anim@xobject\space/im#2\space {@anim@frm@#1@#2}%
+        }%
+      \fi%
     }{%
-      \xdef\@anim@xobject{% XObject resource entry of container XObject
-        \@anim@xobject\space/im#2\space {#4}%
-      }%
+      \if@anim@timeline%
+        \@anim@newkey{img@#2}{{#4}}%
+      \else%
+        \xdef\@anim@xobject{% XObject resource entry of container XObject
+          \@anim@xobject\space/im#2\space {#4}%
+        }%
+      \fi%
     }%
     \if@anim@timeline\else%
-      \@anim@newocg{#1}{#2}% new ocg
-      %compose content stream of container XObject
+      \@anim@newocg{#1}{#2}%
+      %Properties entry for use in container XObject
+      \xdef\@anim@properties{%
+        \@anim@properties\space/oc#2\space {@anim@ocg@#1@#2}%
+      }%
+      %content stream of container XObject
       \xdef\@anim@content{%
         \@anim@content\space /OC/oc#2\space BDC q /im#2\space Do Q EMC%
       }%
@@ -296,7 +323,7 @@
   }
 \fi
 
-%creates OCG and builds Properties entry for use in container XObject
+%creates OCG
 \ifpdf
   \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
     \immediate\pdfobj{<</Type/OCG /Name (#1.#2)>>}% new ocg
@@ -312,10 +339,6 @@
     \ifx\@anim@poster\@anim@posterframe%
       \xdef\@anim@posterocg{\@anim@curocg}%
     \fi%
-    %compose Properties entry for use in container XObject
-    \xdef\@anim@properties{%
-      \@anim@properties\space/oc#2\space\@anim@curocg%
-    }%
   }
 \else
   \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
@@ -334,9 +357,6 @@
     \ifx\@anim@poster\@anim@posterframe%
       \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
     \fi%
-    \xdef\@anim@properties{%
-      \@anim@properties\space/oc#2\space {@anim@ocg@#1@#2}%
-    }%
   }
 \fi
 
@@ -351,8 +371,8 @@
       \pdfliteral{Q\@anim@content}%
     }%
     \immediate\pdfxform resources {%
-        /Properties <<\@anim@properties>>
-        /XObject <<\@anim@xobject>>
+      \if@anim@timeline\else/Properties <<\@anim@properties>>\fi
+      /XObject <<\@anim@xobject>>
     }\@anim@box%
     \xdef\@anim@container{\the\pdflastxform\space 0 R}%
   }
@@ -365,7 +385,7 @@
         /Type/XObject/Subtype/Form/FormType 1
         /BBox [frame@llx frame@lly frame@urx frame@ury]
         /Resources <<
-          /Properties <<\@anim@properties>>
+          \if@anim@timeline\else/Properties <<\@anim@properties>>\fi
           /XObject <<\@anim@xobject>>
         >>
       >> /PUT pdfmark
@@ -373,7 +393,45 @@
   }
 \fi
 
-%create container XObjects for play & pause button faces;
+%intermediate container XObject, for use with the timeline option, which
+%represents one animation frame and which contains all the transparencies
+%that compose the frame
+\ifpdf
+  \def\@anim@makeframe#1#2{% #1:@anim@num, #2:@anim@curframe@zb
+    \@anim@newocg{#1}{#2}%
+    \setlength{\unitlength}{1pt}%
+    \global\setbox\@anim@box=\hbox{%
+      \pdfliteral{q}%
+      \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
+      \end{picture}%
+      \pdfliteral{Q\@anim@getkeyval{frmcontent@#2}}%
+    }%
+    \immediate\pdfxform attr {/OC\space\@anim@curocg} resources {%
+      /XObject <<\@anim@getkeyval{frmxobject@#2}>>}\@anim@box%
+    \xdef\@anim@xobject{\@anim@xobject\space /fr#2\space%
+      \the\pdflastxform\space 0 R}%
+    \xdef\@anim@content{\@anim@content\space q /fr#2\space Do Q}%
+  }
+\else
+  \def\@anim@makeframe#1#2{%
+    \@anim@newocg{#1}{#2}%
+    \special{ps:
+      mark  /_objdef {@anim@anmfrm@#1@#2} /type/stream /OBJ pdfmark
+      mark {@anim@anmfrm@#1@#2} (\@anim@getkeyval{frmcontent@#2}) /PUT
+        pdfmark
+      mark {@anim@anmfrm@#1@#2} <<
+        /Type/XObject/Subtype/Form/FormType 1
+        /BBox [frame@llx frame@lly frame@urx frame@ury]
+        /OC {@anim@ocg@#1@#2}
+        /Resources <</XObject <<\@anim@getkeyval{frmxobject@#2}>>>>
+      >> /PUT pdfmark
+    }%
+    \xdef\@anim@xobject{\@anim@xobject\space /fr#2\space {@anim@anmfrm@#1@#2}}%
+    \xdef\@anim@content{\@anim@content\space q /fr#2\space Do Q}%
+  }
+\fi
+
+%create container XObjects for play & pause button faces
 \ifpdf
   \def\@anim@makeppcontainer#1#2#3{% #1: @anim@num, #2: Right or Left,
     % #3: index of existing button face colour combination
@@ -1530,6 +1588,9 @@
 %building timeline from timeline file
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
+\newcount\@anim@tmpcnt %scratch counter for different uses
+\newcount\@anim@curlayer %takes the number of the current layer being processed
+
 \def\@anim@buildtmln#1{% #1:@anim@num
   \endlinechar=-1% suppress trailing space at input line end
   \global\@anim@curframe@zb=0%
@@ -1543,8 +1604,9 @@
     \setboolean{@anim@eof}{false}\fi%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
-      %initialise contents of each frame (to be filled with refs to XObjects
-      \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%  to be drawn)
+      %initialise contents and resource list of each frame
+      \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
+      \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
@@ -1557,6 +1619,7 @@
   \xdef\@anim@transp{\@anim@frames}% total number of transp
   \xdef\@anim@frames{\the\@anim@curframe@zb}%total number of actual frames
   \global\@anim@curframe@zb=0%
+  \gdef\@anim@maxlayer{0}% highest layer index
   %reopen timeline file and build timeline
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
   \read\@anim@@tmlnfile to \@anim@inputline%
@@ -1566,16 +1629,24 @@
     \setboolean{@anim@eof}{false}\fi%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
-      \expandafter\@anim@parseline\@anim@inputline;%
-      %create OCG and compose Properties entry
-      \@anim@newocg{#1}{\the\@anim@curframe@zb}%
-      %compose content stream of container XObject
-      \xdef\@anim@content{%
-        \@anim@content\space%
-        /OC/oc\the\@anim@curframe@zb\space%
-        BDC\@anim@getkeyval{@anim@content@\the\@anim@curframe@zb} EMC%
-      }%
-      \@anim@newkey{@anim@content@\the\@anim@curframe@zb}{}%
+	  %process input line
+      \expandafter\@anim@parseline\@anim@inputline\@nil%
+	  %combine layers of the current frame
+	  \@anim@curlayer=0%
+	  \loop\ifnum\@anim@curlayer>\@anim@maxlayer\else%
+        \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{%
+          \@anim@getkeyval{frmcontent@\the\@anim@curframe@zb}%
+          \@anim@getkeyval{%
+		    layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}%
+		}%
+        \@anim@newkey{%
+		  layercontent@\the\@anim@curframe@zb.\the\@anim@curlayer}{}%
+	    \advance\@anim@curlayer by \@ne%
+      \repeat%		
+	  %build frame xobject
+      \@anim@makeframe{#1}{\the\@anim@curframe@zb}%
+      \@anim@newkey{frmxobject@\the\@anim@curframe@zb}{}%
+      \@anim@newkey{frmcontent@\the\@anim@curframe@zb}{}%
       \global\advance\@anim@curframe@zb by \@ne%
     }%
     \read\@anim@@tmlnfile to \@anim@inputline%
@@ -1588,9 +1659,9 @@
 }
 
 %reads one line of timeline file and splits into its colon separated parts
-\def\@anim@parseline#1:#2:#3;{%
+\def\@anim@parseline#1:#2:#3\@nil{%
   \if@anim@step\else%
-    \ifthenelse{\equal{#1}{*}}{%first column is a star (pause frame)
+    \ifthenelse{\equal{#1}{*}}{%first field is a star (pause frame)
       \xdef\@anim@pauseat{%
         \@anim@pauseat%
         a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
@@ -1618,25 +1689,38 @@
       \setboolean{@anim@chfps}{true}% change fps
     \fi%
   \fi%
-  %parse the third column
-  \@anim@parsethird#3,:;%
+  %parse the third field (list of layer specifications)
+  \global\@anim@curlayer=0
+  \@anim@parsethird#3;:\@nil%
 }
 
-%parses 3rd column of timeline file (comma separated list of transp. specs)
-\def\@anim@parsethird#1,#2;{%
-  \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x:;}%process one transparency spec
-  \ifthenelse{\equal{#2}{:}}{}{\@anim@parsethird#2;}%
+%parses frame contents specification (semicolon separated list of layer
+%specifications)
+\def\@anim@parsethird#1;#2\@nil{%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@parselayer#1,:\@nil}%process one layer spec
+  \ifthenelse{\equal{#2}{:}}{}{%
+    \global\advance\@anim@curlayer by \@ne%
+	\ifnum\@anim@curlayer>\@anim@maxlayer
+	  \xdef\@anim@maxlayer{\the\@anim@curlayer}%
+	\fi%
+    \@anim@parsethird#2\@nil%
+  }%
 }
 
-\newcount\@anim@tmpcnt %scratch counter for different uses
+%parses contents of one layer specification (comma separated list of transp.
+%specs)
+\def\@anim@parselayer#1,#2\@nil{%
+  \ifthenelse{\equal{#1}{}}{}{\@anim@process#1x:\@nil}%process one transp spec
+  \ifthenelse{\equal{#2}{:}}{}{\@anim@parselayer#2\@nil}%
+}
 
 %process transparency spec, such as 123 or 456x78 or 9x0
-\def\@anim@process#1x#2;{%
+\def\@anim@process#1x#2\@nil{%
   %determine number of repetitions of current transparency
   \ifthenelse{\equal{#2}{:}}{%
     \gdef\@anim@repeats{1}%
   }{%
-    \@anim@processsecond#2;%
+    \@anim@processsecond#2\@nil%
   }%
   \ifnum\@anim@repeats=0 %0= means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
@@ -1649,14 +1733,19 @@
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
     \fi%
   \fi%
-  %build contents of animation frames according to transparency specifications
+  %build contents of animation layer and update frame xobject resource list
+  %according to transparency specifications
   \ifnum\@anim@transp<#1\else%ignore non-existing transparencies
     \ifnum\@anim@transp=#1\else%
       \@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
-        \@anim@newkey{@anim@content@\the\@anim@tmpcnt}{%
-          \@anim@getkeyval{@anim@content@\the\@anim@tmpcnt}
-          q /im#1\space Do Q%
+        \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
+          \@anim@getkeyval{frmxobject@\the\@anim@tmpcnt}\space%
+          /im#1\space\@anim@getkeyval{img@#1}%
+        }%
+        \@anim@newkey{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}{%
+          \@anim@getkeyval{layercontent@\the\@anim@tmpcnt.\the\@anim@curlayer}
+		    q /im#1\space Do Q%
         }%
         \advance\@anim@tmpcnt by \@ne%
       \repeat%
@@ -1665,7 +1754,7 @@
 }
 
 %get number of repetitions of frame
-\def\@anim@processsecond#1x:;{%
+\def\@anim@processsecond#1x:\@nil{%
   \gdef\@anim@repeats{#1}%
 }
 
@@ -1689,11 +1778,11 @@
 \define@key{anim@user}{buttonsize}{%
   \gdef\@anim@btnsize{#1}%
 }
-\def\@anim@colours#1:#2;{% helper macro to get number of colour components and
+\def\@anim@colours#1:#2\@nil{% helper macro to get number of colour components and
   \xdef\@anim@colour{\@anim@colour\space #1}% to replace : by ` ' in the arg
   \ifthenelse{\equal{#2}{!}}{}{%
     \global\advance\@anim@tmpcnt by \@ne%
-    \@anim@colours#2;%
+    \@anim@colours#2\@nil%
   }%
 }
 \ifpdf %background frame of buttons
@@ -1716,7 +1805,7 @@
 \define@key{anim@user}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!;%
+  \@anim@colours#1:!\@nil%
   \xdef\@anim@bgcolour{\@anim@colour}%
   \ifpdf%
     \ifnum\@anim@tmpcnt=\@ne
@@ -1747,7 +1836,7 @@
 \define@key{anim@user}{buttonfg}{%stroking colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!;%
+  \@anim@colours#1:!\@nil%
   \xdef\@anim@fgcolour{\@anim@colour}%
   \ifpdf%
     \ifthenelse{\the\@anim@tmpcnt=\@ne}{%
@@ -1904,7 +1993,7 @@
 \define@key{anim@pkg}{buttonbg}{%background colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!;%
+  \@anim@colours#1:!\@nil%
   \xdef\@anim@@bgcolour{\@anim@colour}%
   \ifpdf%
     \ifnum\@anim@tmpcnt=\@ne
@@ -1937,7 +2026,7 @@
 \define@key{anim@pkg}{buttonfg}{%stroking colour of buttons
   \global\@anim@tmpcnt=\@ne%
   \gdef\@anim@colour{}%
-  \@anim@colours#1:!;%
+  \@anim@colours#1:!\@nil%
   \xdef\@anim@@fgcolour{\@anim@colour}%
   \ifpdf%
     \ifthenelse{\the\@anim@tmpcnt=\@ne}{%

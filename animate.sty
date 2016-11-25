@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/05/21]
+\ProvidesPackage{animate}[2008/05/30]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -233,7 +233,7 @@
 %create Form XObject from graphics file
 \ifthenelse{\boolean{pdf}}{
   \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
-    %#4: page number of multipage pdf
+    %#4: page number of multipage file
     \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
       \@anim@filebox{#3}{#4}% store file in a box
       \@anim@getsize{\@anim@box}%
@@ -241,7 +241,7 @@
         \@anim@scale% scale animation widget
       \fi%
       \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-      \ifx\@anim@gropts\@empty\if@anim@multipdf\message{<#4>}\fi\fi%
+      \ifx\@anim@gropts\@empty\if@anim@multipage\message{<#4>}\fi\fi%
       \@anim@makefileknown{#3}{#4}{\@anim@lastxform}% keep form xobject number
     }{% file known, re-use existing form xobject
       \ifnum#2=0
@@ -433,7 +433,7 @@
       \ifx\@anim@poster\@anim@posternone\else%
         \ifnum#2=0
           \ifx\@anim@poster\@anim@posterfirst%
-            \def\@anim@annotflag{/F 4}% visible, print, Locked
+            \def\@anim@annotflag{/F 4}% visible, print
           \fi%
         \fi%
         \ifx\@anim@poster\@anim@posterlast%
@@ -476,19 +476,19 @@
     }%
     \if@anim@useocg%
       \@anim@newocg{#1}{#2}%
-      \def\@anim@annotflag{/F 4}%, print, visibility set by OCG, Locked
+      \def\@anim@annotflag{/F 4}%, print, visibility set by OCG
     \else%
       \def\@anim@annotflag{/F 2}%
       \ifx\@anim@poster\@anim@posternone\else%
         \ifnum#2=0
           \ifx\@anim@poster\@anim@posterfirst%
-            \def\@anim@annotflag{/F 4}% visible, print, Locked
+            \def\@anim@annotflag{/F 4}% visible, print
           \fi%
         \fi%
         \ifx\@anim@poster\@anim@posterlast%
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
-            \def\@anim@annotflag{/F 4}% visible, print, Locked
+            \def\@anim@annotflag{/F 4}% visible, print
           }{}%
         \fi%
       \fi%
@@ -1009,7 +1009,7 @@
         `#1.jbig2',\MessageBreak%
         `#1.jb2',\MessageBreak%
         `#1.jp2',\MessageBreak%
-        `#1.j2k', or\MessageBreak%
+        `#1.j2k' or\MessageBreak%
         `#1.jpx',\MessageBreak%
         could be found.\MessageBreak%
         Wrong file type? Mis-spelled file name?%
@@ -1105,33 +1105,46 @@
   }%
 }
 
-\newboolean{@anim@multipdf} % multipage PDF?
+\newboolean{@anim@multipage} % multipage document?
 
 \ifpdf
   %detects multipage PDF and corrects user supplied page range
-  \def\@anim@checkmultipdf#1{% #1: file base name
+  \def\@anim@checkmultipage#1{% #1: file base name
     \IfFileExists{#1.pdf}{%
+      \setboolean{@anim@multipage}{true}%
       \gdef\@anim@ext{.pdf}%
-      \@anim@filebox{#1.pdf}{1}%
+    }{%
+      \IfFileExists{#1.jbig2}{%
+        \setboolean{@anim@multipage}{true}%
+        \gdef\@anim@ext{.jbig2}%
+      }{%
+        \IfFileExists{#1.jb2}{%
+          \setboolean{@anim@multipage}{true}%
+          \gdef\@anim@ext{.jb2}%
+        }{}%
+      }%
+    }%
+    \if@anim@multipage%
+      \@anim@filebox{#1\@anim@ext}{1}%
       \ifx\@anim@first\@empty%
-        \@anim@curframe=\@ne%
+        \global\@anim@curframe=\@ne%
       \else%
         \ifnum\@anim@first<0 \gdef\@anim@first{0}\fi%
-        \@anim@curframe=\@anim@first%
-        \advance\@anim@curframe by \@ne% because pdfximage pages are 1-based
+        \global\@anim@curframe=\@anim@first%
+        \global\advance\@anim@curframe by \@ne%since pdfximage pages are 1-based
         \ifnum\@anim@curframe>\pdflastximagepages
-          \@anim@curframe=\pdflastximagepages% correct wrong user input
+          \global\@anim@curframe=\pdflastximagepages% correct wrong user input
         \fi%
       \fi%
       \xdef\@anim@first{\the\@anim@curframe}%
       \ifx\@anim@last\@empty%
-        \@anim@curframe=\pdflastximagepages%
+        \global\@anim@curframe=\pdflastximagepages%
       \else%
         \ifnum\@anim@last<0 \gdef\@anim@last{0}\fi%
-        \@anim@curframe=\@anim@last%
-        \advance\@anim@curframe by \@ne%
+        \global\@anim@curframe=\@anim@last%
+        \global\advance\@anim@curframe by \@ne%
         \ifnum\@anim@curframe>\pdflastximagepages
-          \@anim@curframe=\pdflastximagepages%
+          \global\@anim@curframe=\pdflastximagepages%
         \fi%
       \fi%
       \ifnum\@anim@first>\@anim@curframe
@@ -1140,11 +1153,10 @@
       \else%
         \xdef\@anim@last{\the\@anim@curframe}%
       \fi%
-      \setboolean{@anim@multipdf}{true}%
-    }{}%
-  }
+    \fi%
+  }%
 \else
-  \def\@anim@checkmultipdf#1{}% no-op in dvi mode
+  \def\@anim@checkmultipage#1{}% no-op in dvi mode
 \fi
 
 %user command for embedding animation sequence
@@ -1171,14 +1183,25 @@
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
   %
-  \@anim@checkmultipdf{\@anim@base}%test for multipage pdf
-  \@anim@curframe=\@anim@first%
+  \@anim@checkmultipage{\@anim@base}%test for multipage file
+  \if@anim@multipage\else% cope with wrong user input
+    \ifnum\@anim@first>\@anim@last
+      \edef\@anim@temp{\@anim@first}\edef\@anim@first{\@anim@last}%
+      \edef\@anim@last{\@anim@temp}%
+    \fi%
+    \ifthenelse{\@anim@first<0\OR\@anim@last<0}{%
+      \PackageError{animate}{%
+        Negative frame numbers not allowed%
+      }{}%
+    }{}%
+  \fi%
+  \global\@anim@curframe=\@anim@first%
   \global\@anim@curframe@zb=0%
   %
   \if@anim@draft%
-    \if@anim@multipdf%
+    \if@anim@multipage%
       %store file in a box
-      \@anim@filebox{\@anim@base.pdf}{\@anim@first}%
+      \@anim@filebox{\@anim@base\@anim@ext}{\@anim@first}%
     \else%
       %get file name extension
       \@anim@getext{\@anim@base\@anim@first}%
@@ -1209,10 +1232,10 @@
     %
     %read all frames of the sequence
     \loop\ifnum\@anim@curframe>\@anim@last\else%
-      \if@anim@multipdf%
+      \if@anim@multipage%
         %embed graphics
-        \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{\@anim@base.pdf}{%
-          \the\@anim@curframe}%
+        \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
+          \@anim@base\@anim@ext}{\the\@anim@curframe}%
       \else%
         %get file name extension of current file
         \@anim@getext{%
@@ -1223,10 +1246,13 @@
           \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
         }{1}%
       \fi%
-      \advance\@anim@curframe by \@anim@every%
+      \global\advance\@anim@curframe by \@anim@every%
       \global\advance\@anim@curframe@zb by \@ne%
     \repeat%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+    \global\@anim@tmpcnt=\@anim@frames%
+    \global\advance\@anim@tmpcnt by -\@ne%
+    \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
@@ -1570,6 +1596,9 @@
   \global\advance\@anim@curframe@zb by \@ne%
   \if@anim@draft\else%
     \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+    \global\@anim@tmpcnt=\@anim@frames%
+    \global\advance\@anim@tmpcnt by -\@ne%
+    \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
     %build timeline from optional timeline file
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
@@ -1604,20 +1633,22 @@
           \ifx\@anim@nfps\@empty%
             \edef\@anim@nfps{\@anim@pfps}%
           \else%
-            \ifnum\@anim@curframe@zb=0
-              \xdef\@anim@fps{#1}%
+            \ifnum\@anim@nfps=\@anim@pfps\else%
+              \ifnum\@anim@curframe@zb=0
+                \xdef\@anim@fps{#1}%
+              \fi%
+              %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+              \xdef\@anim@nfpsat{%
+                \@anim@nfpsat%
+                a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+              }%
+              \xdef\@anim@pfpsat{%
+                \@anim@pfpsat%
+                a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+                  Math.abs(\@anim@pfps);%
+              }%
+              \setboolean{@anim@chfps}{true}% change fps
             \fi%
-            %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-            \xdef\@anim@nfpsat{%
-              \@anim@nfpsat%
-              a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-            }%
-            \xdef\@anim@pfpsat{%
-              \@anim@pfpsat%
-              a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
-                Math.abs(\@anim@pfps);%
-            }%
-            \setboolean{@anim@chfps}{true}% change fps
           \fi%
         \fi%
       \fi%
@@ -1643,20 +1674,22 @@
           \ifx\@anim@nfps\@empty%
             \xdef\@anim@nfps{\@anim@pfps}%
           \else%
-            \ifnum\@anim@curframe@zb=0
-              \xdef\@anim@fps{#1}%
+            \ifnum\@anim@nfps=\@anim@pfps\else%
+              \ifnum\@anim@curframe@zb=0
+                \xdef\@anim@fps{#1}%
+              \fi%
+              %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+              \xdef\@anim@nfpsat{%
+                \@anim@nfpsat%
+                a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+              }%
+              \xdef\@anim@pfpsat{%
+                \@anim@pfpsat%
+                a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+                  Math.abs(\@anim@pfps);%
+              }%
+              \setboolean{@anim@chfps}{true}% change fps
             \fi%
-            %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-            \xdef\@anim@nfpsat{%
-              \@anim@nfpsat%
-              a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-            }%
-            \xdef\@anim@pfpsat{%
-              \@anim@pfpsat%
-              a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
-                Math.abs(\@anim@pfps);%
-            }%
-            \setboolean{@anim@chfps}{true}% change fps
           \fi%
         \fi%
       \fi%
@@ -1771,6 +1804,9 @@
   \closein\@anim@@tmlnfile%
   \xdef\@anim@transp{\@anim@frames}% total number of transparencies
   \xdef\@anim@frames{\the\@anim@curframe@zb}%total number of actual frames
+  \global\@anim@tmpcnt=\@anim@frames%
+  \global\advance\@anim@tmpcnt by -\@ne%
+  \xdef\@anim@maxframe{\the\@anim@tmpcnt}% highest frame index
   \global\@anim@curframe@zb=0%
   \gdef\@anim@maxlayer{0}% highest layer index
   %reopen timeline file and build timeline
@@ -1819,7 +1855,7 @@
   }%
   \closein\@anim@@tmlnfile%
   %check for unused transparencies
-  \@anim@tmpcnt=0%
+  \global\@anim@tmpcnt=0%
   \loop\ifnum\@anim@transp>\@anim@tmpcnt
     \ifcsname u@tr\the\@anim@tmpcnt\endcsname%
       {\expandafter\global\expandafter\let\csname
@@ -1850,7 +1886,7 @@
         \gdef\@anim@nusewarned{}%
       \fi%
     \fi%
-    \advance\@anim@tmpcnt by \@ne%
+    \global\advance\@anim@tmpcnt by \@ne%
   \repeat%
   \message{>}%
 }
@@ -1871,19 +1907,21 @@
     \ifx\@anim@nfps\@empty% no change of frame rate
       \xdef\@anim@nfps{\@anim@pfps}%
     \else%
-      \ifnum\@anim@curframe@zb=0
-        \xdef\@anim@fps{#2}%
+      \ifnum\@anim@nfps=\@anim@pfps\else%
+        \ifnum\@anim@curframe@zb=0
+          \xdef\@anim@fps{#2}%
+        \fi%
+        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+        \xdef\@anim@nfpsat{%
+          \@anim@nfpsat%
+          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#2);%
+        }%
+        \xdef\@anim@pfpsat{%
+          \@anim@pfpsat%
+          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
+        }%
+        \setboolean{@anim@chfps}{true}% change fps
       \fi%
-      %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-      \xdef\@anim@nfpsat{%
-        \@anim@nfpsat%
-        a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#2);%
-      }%
-      \xdef\@anim@pfpsat{%
-        \@anim@pfpsat%
-        a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-      }%
-      \setboolean{@anim@chfps}{true}% change fps
     \fi%
   \fi%
   %parse the third field (list of layer specifications)
@@ -1922,8 +1960,8 @@
   \ifnum\@anim@repeats=0 %0= means: repeat until end of timeline
     \edef\@anim@repeatuntil{\@anim@frames}%
   \else%
-    \@anim@tmpcnt=\@anim@curframe@zb%
-    \advance\@anim@tmpcnt by \@anim@repeats%
+    \global\@anim@tmpcnt=\@anim@curframe@zb%
+    \global\advance\@anim@tmpcnt by \@anim@repeats%
     \ifnum\@anim@frames<\@anim@tmpcnt
       \edef\@anim@repeatuntil{\@anim@frames}%
     \else%
@@ -1935,7 +1973,7 @@
   \ifnum\@anim@transp<#1\else%   ignore non-existing
     \ifnum\@anim@transp=#1\else% transparencies
       \@anim@newkey{u@tr#1}{}% mark current transp. as used within the animation
-      \@anim@tmpcnt=\@anim@curframe@zb%
+      \global\@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt
         %ressource list
         \@anim@newkey{frmxobject@\the\@anim@tmpcnt}{%
@@ -1951,7 +1989,7 @@
         %append transparency to list of transparencies used in the current frame
         \@anim@newkey{trlst@\the\@anim@tmpcnt}{%
           \@anim@getkeyval{trlst@\the\@anim@tmpcnt}#1,}%
-        \advance\@anim@tmpcnt by \@ne%
+        \global\advance\@anim@tmpcnt by \@ne%
       \repeat%
     \fi%
   \fi%
@@ -2260,7 +2298,7 @@
   \global\@anim@end={}%
   \gdef\@anim@every{1}% frames to be included
   \gdef\@anim@gropts{}%
-  \setboolean{@anim@multipdf}{false}%
+  \setboolean{@anim@multipage}{false}%
   \setboolean{@anim@meas}{false}%
   \setboolean{@anim@autoplayorresume}{false}%
   \setboolean{@anim@ctrlorplndrm}{false}%
@@ -2441,8 +2479,10 @@
     %takes references to frame ocgs/Field objects belonging to the current
     %animation
     a#1.fr=new Array();%
-    %takes references to control button face ocgs
-    \if@anim@controls a#1.btn=new Array();\fi
+    \if@anim@controls
+      a#1.btn=new Array();%takes references to control button face ocgs
+      a#1.sm=1;% speed multiplyer
+    \fi%
     %initialize fr & btn properties
     \if@anim@useocg
       %get array of ocgs of current page
@@ -2473,22 +2513,24 @@
           a#1.fr[fldName[1]]=this.getField(this.getNthFieldName(i));%
         }%
       }%
-      \if@anim@controls
-        %get array of ocgs of current page
-        var ocg=this.getOCGs(this.pageNum);%
-        for(var i=0;i<ocg.length;i++){%
-          var ocgName=ocg[i].name.split('.');%
-          if(ocgName[0]==#1){%
-            a#1.btn[ocgName[1]]=ocg[i];%
-            %set basic button state
-            a#1.btn[ocgName[1]].state=ocg[i].initState;%
+      \if@anim@controls%
+        \if@anim@step\else
+          %get array of ocgs of current page
+          var ocg=this.getOCGs(this.pageNum);%
+          for(var i=0;i<ocg.length;i++){%
+            var ocgName=ocg[i].name.split('.');%
+            if(ocgName[0]==#1){%
+              a#1.btn[ocgName[1]]=ocg[i];%
+              %set basic button state
+              a#1.btn[ocgName[1]].state=ocg[i].initState;%
+            }%
           }%
-        }%
+        \fi%
       \fi%
     \fi%
     \ifx\@anim@poster\@anim@posterlast % set default frame
       %holds index of the frame to be displayed
-      a#1.idx=\@anim@frames-1;%
+      a#1.idx=\@anim@maxframe;%
     \else % first & none
       a#1.idx=0;%
     \fi%
@@ -2512,10 +2554,9 @@
         \@anim@nfpsat%
         a#1.pFpsAt=new Array();%
         \@anim@pfpsat%
-        a#1.fpsDeflt=Math.abs(\@anim@fps);%
+        a#1.fps=Math.abs(\@anim@fps);%
       \fi
-      a#1.dtDeflt=1000/(1e-6+Math.abs(\@anim@fps));%
-      a#1.dt=a#1.dtDeflt;%
+      a#1.dt=1000/(1e-6+Math.abs(\@anim@fps));%
     \fi%
     %actions
     a#1.actnEndLeft=function(){%
@@ -2534,9 +2575,8 @@
         curdoc.dirty=false;%
       \fi%
       \if@anim@chfps
-        a#1.fpsDeflt=Math.abs(\@anim@fps);%
-        a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-        a#1.dt=a#1.dtDeflt;%
+        a#1.fps=Math.abs(\@anim@fps);%
+        a#1.dt=1000/(1e-6+a#1.fps);%
       \fi%
     };%
     a#1.actnEndRight=function(){%
@@ -2546,18 +2586,17 @@
       \fi%
       \if@anim@useocg
         a#1.fr[a#1.idx].state=false;%
-        a#1.idx=\@anim@frames-1;%
+        a#1.idx=\@anim@maxframe;%
         a#1.fr[a#1.idx].state=true;%
       \else
         a#1.fr[a#1.idx].display=display.hidden;%
-        a#1.idx=\@anim@frames-1;%
+        a#1.idx=\@anim@maxframe;%
         a#1.fr[a#1.idx].display=display.visible;%
         curdoc.dirty=false;%
       \fi%
       \if@anim@chfps %frame rate from the last fps change (\@anim@nfps)
-        a#1.fpsDeflt=Math.abs(\@anim@nfps);%
-        a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-        a#1.dt=a#1.dtDeflt;%
+        a#1.fps=Math.abs(\@anim@nfps);%
+        a#1.dt=1000/(1e-6+a#1.fps);%
       \fi%
     };%
     a#1.actnNext=function(){%
@@ -2597,9 +2636,8 @@
             \if@anim@loop
               if(a#1.isPlaying){%
                 \if@anim@chfps
-                  a#1.fpsDeflt=Math.abs(\@anim@fps);%
-                  a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-                  a#1.dt=a#1.dtDeflt;%
+                  a#1.fps=Math.abs(\@anim@fps);%
+                  a#1.dt=1000/(1e-6+a#1.fps);%
                 \fi
                 a#1.actnPlayRight();%
               }else{a#1.actnEndRight();}%
@@ -2613,11 +2651,10 @@
         \if@anim@chfps
           if(%
             a#1.nFpsAt[a#1.idx]>=0&&%
-            a#1.nFpsAt[a#1.idx]!=a#1.fpsDeflt%
+            a#1.nFpsAt[a#1.idx]!=a#1.fps%
           ){%
-            a#1.fpsDeflt=a#1.nFpsAt[a#1.idx];%
-            a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-            a#1.dt=a#1.dtDeflt;%
+            a#1.fps=a#1.nFpsAt[a#1.idx];%
+            a#1.dt=1000/(1e-6+a#1.fps);%
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
           }%
         \fi%
@@ -2664,9 +2701,8 @@
               \if@anim@loop
                 if(a#1.isPlaying){%
                   \if@anim@chfps
-                    a#1.fpsDeflt=Math.abs(\@anim@nfps);%
-                    a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-                    a#1.dt=a#1.dtDeflt;%
+                    a#1.fps=Math.abs(\@anim@nfps);%
+                    a#1.dt=1000/(1e-6+a#1.fps);%
                   \fi
                   a#1.actnPlayLeft();%
                 }else{a#1.actnEndLeft();}%
@@ -2680,11 +2716,10 @@
           \if@anim@chfps
             if(%
               a#1.pFpsAt[a#1.idx]>=0&&%
-              a#1.pFpsAt[a#1.idx]!=a#1.fpsDeflt%
+              a#1.pFpsAt[a#1.idx]!=a#1.fps%
             ){%
-              a#1.fpsDeflt=a#1.pFpsAt[a#1.idx];%
-              a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-              a#1.dt=a#1.dtDeflt;%
+              a#1.fps=a#1.pFpsAt[a#1.idx];%
+              a#1.dt=1000/(1e-6+a#1.fps);%
               if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
             }%
           \fi%
@@ -2720,7 +2755,9 @@
           a#1.btn['PlayRight'].state=false;%
         \fi%
         \if@anim@meas a#1.startMeas();\fi
-        a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
+        a#1_int=app.setInterval(%
+          'a#1.actnNext()',a#1.dt\if@anim@controls/a#1.sm\fi%
+        );%
       };%
       \if@anim@ctrlorplndrm
         a#1.actnPlayLeft=function(){%
@@ -2736,40 +2773,42 @@
             a#1.btn['PlayRight'].state=false;%
           \fi%
           \if@anim@meas a#1.startMeas();\fi
-          a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
+          a#1_int=app.setInterval(%
+            'a#1.actnPrev()',a#1.dt\if@anim@controls/a#1.sm\fi%
+          );%
         };%
       \fi%
       \if@anim@controls
         a#1.actnIncr=function(){% speed up animation
           try{app.clearInterval(a#1_int);}catch(e){}%
-          a#1.dt/=1.2;%
+          a#1.sm*=1.2;%
           if(a#1.isPlaying){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
         a#1.actnDecr=function(){% slow down animation
           try{app.clearInterval(a#1_int);}catch(e){}%
-          a#1.dt*=1.2;%
+          a#1.sm/=1.2;%
           if(a#1.isPlaying){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
         a#1.actnReset=function(){% reset to default speed
-          a#1.dt=a#1.dtDeflt;%
+          a#1.sm=1;%
           try{app.clearInterval(a#1_int);}catch(e){}%
           if(a#1.isPlaying){%
             if(a#1.playsRight){%
-              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnNext()',a#1.dt/a#1.sm);%
             }else{%
-              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
+              a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt/a#1.sm);%
             }%
           }%
         };%
@@ -2796,9 +2835,9 @@
       \fi%
     \fi%
     \if@anim@useocg\else%
-      %actnEndLeft()/actnEndRight() & actnEndLeft()/actnEndRight() versions
-      %that also work in recent Readers,
-      %to be invoked by a#1_intd=app.setInterval(...)
+      %actnEndLeft()/actnEndRight() & actnPlayLeft()/actnPlayRight() versions
+      %that also work in recent Readers, to be invoked by
+      %a#1_intd=app.setInterval(...)
       a#1.actnSecEndLeft=function(){%
         try{app.clearInterval(a#1_intd);}catch(e){}%
         a#1.actnEndLeft();%
@@ -2910,35 +2949,37 @@
       /D <</S/JavaScript/JS (% pause on MouseDown
         %disable focus rectangle
         app.focusRect=false;%
-        if(a#1.isPlaying){a#1.actnPause();}%
+        try{if(a#1.isPlaying){a#1.actnPause();}}catch(e){}%
       )>>%
     \fi%
     /U <</S/JavaScript/JS (% play/resume on MouseUp
-      \if@anim@step%
-        \if@anim@palindrome
-          if(a#1.playsRight){%
-            a#1.actnNext();%
-          }else{%
-            a#1.actnPrev();%
-          }%
-        \else
-          if(a#1.idx==\@anim@frames-1){%
-            a#1.actnEndLeft();%
-          }else{%
-            a#1.actnNext();%
-          }%
-        \fi%
-      \else%
-        \if@anim@ctrlorplndrm
-          if(a#1.playsRight){%
-            a#1.actnPlayRight();%
-          }else{%
-            a#1.actnPlayLeft();%
-          }%
+      try{%
+        \if@anim@step%
+          \if@anim@palindrome
+            if(a#1.playsRight){%
+              a#1.actnNext();%
+            }else{%
+              a#1.actnPrev();%
+            }%
+          \else
+            if(a#1.idx==\@anim@maxframe){%
+              a#1.actnEndLeft();%
+            }else{%
+              a#1.actnNext();%
+            }%
+          \fi%
         \else%
-          a#1.actnPlayRight();%
+          \if@anim@ctrlorplndrm
+            if(a#1.playsRight){%
+              a#1.actnPlayRight();%
+            }else{%
+              a#1.actnPlayLeft();%
+            }%
+          \else%
+            a#1.actnPlayRight();%
+          \fi%
         \fi%
-      \fi%
+      }catch(e){}%
     )>>%
   }%
 }
@@ -2967,12 +3008,10 @@
       \fi%
     \else%
     \ifx\@anim@action\@anim@PlayPauseLeft
-      if(a#1.isPlaying){a#1.actnPause();}%
-      else{a#1.actnPlayLeft();}%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayLeft();}%
     \else%
     \ifx\@anim@action\@anim@PlayPauseRight
-      if(a#1.isPlaying){a#1.actnPause();}%
-      else{a#1.actnPlayRight();}%
+      if(a#1.isPlaying){a#1.actnPause();}else{a#1.actnPlayRight();}%
     \else%
     \ifx\@anim@action\@anim@StepRight%
       \if@anim@step

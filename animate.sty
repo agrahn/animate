@@ -1,19 +1,19 @@
 % Copyright 2007--today Alexander Grahn
 
 % This material is subject to the LaTeX Project Public License. See
-%   http://www.ctan.org/tex-archive/help/Catalogue/licenses.lppl.html
+%   http://mirrors.ctan.org/help/Catalogue/licenses.lppl.html
 % for the details of that license.
 
 % Package for creating portable, JavaScript driven animations from sets of
 % graphics files or inline graphics (e. g. LaTeX-picture, PSTricks,
 % pgf/TikZ, ...)
 
-% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx, LuaLatex and
+% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx, LuaLaTeX and
 % pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/02/11}
+\def\@anim@version{2014/03/25}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -33,6 +33,7 @@
 \RequirePackage{ifluatex}
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
+\RequirePackage{atenddvi}%to really get certain \specials into the dvi
 \RequirePackage{animfp}
 
 \newboolean{@anim@powerdot} %to cope with some powerdot oddity
@@ -224,101 +225,120 @@
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
 
-%add AcroForm and OCProperties entries to Catalog
+%macros for adding AcroForm and OCProperties dicts to PDF Catalog
 \ifdefined\@anim@fields\else\def\@anim@fields{}\fi %takes Field object refs
+\ifdefined\@anim@ocgs\else\def\@anim@ocgs{}\fi %takes ocg object refs
+\ifdefined\@anim@offocgs\else\def\@anim@offocgs{}\fi
 \ifpdf
-  \newcount\@anim@@ocgs
-  \pdfobj reserveobjnum
-  \@anim@@ocgs=\pdflastobj
-  \newcount\@anim@@offocgs
-  \pdfobj reserveobjnum
-  \@anim@@offocgs=\pdflastobj
-  \pdfcatalog{
-    /OCProperties <<
-      /OCGs \the\@anim@@ocgs\space 0 R
-      /D <<
-        /BaseState/ON /OFF \the\@anim@@offocgs\space 0 R
-      >>
-    >>
-  }
-  %macro for adding AcroForm entry to PDF Catalog
+  %AcroForm dict
   \def\@anim@acroform{%
     \ifdefined\Acro@Form@added\else%
-      \newcount\@anim@@fields%
-      \pdfobj reserveobjnum%
-      \global\@anim@@fields=\pdflastobj%
-      \pdfcatalog{%
-        /AcroForm <</Fields \the\@anim@@fields\space 0 R /NeedAppearances true>>%
-      }%
-      \AtEndDocument{%
-        \immediate\pdfobj useobjnum \@anim@@fields {%
-          [\@anim@fields]%
-        }%
+      \AtEndDvi{%
+        \ifx\empty\@anim@fields\empty\else%
+          \immediate\pdfobj{[\@anim@fields]}%
+          \pdfcatalog{%
+            /AcroForm <</Fields \the\pdflastobj\space 0 R /NeedAppearances false>>%
+          }%
+        \fi%
       }%
       \gdef\Acro@Form@added{}%
     \fi%
   }
-  \def\@anim@ocgs{}
-  \def\@anim@offocgs{}
-  \AtEndDocument{%
-    \immediate\pdfobj useobjnum \@anim@@ocgs {%
-      [\@anim@ocgs]%
-    }%
-    \immediate\pdfobj useobjnum \@anim@@offocgs {%
-      [\@anim@offocgs]%
-    }%
-  }%
+  %OCProperties dict
+  \def\@anim@ocprops{%
+    \ifdefined\oc@props@added\else%
+      \AtEndDvi{%
+        \ifx\empty\@anim@ocgs\empty\else%
+          \immediate\pdfobj{[\@anim@ocgs]}%
+          \edef\@anim@@ocgss{\the\pdflastobj}%
+          \immediate\pdfobj{[\@anim@offocgs]}%
+          \edef\@anim@@offocgs{\the\pdflastobj}%
+          \pdfcatalog{%
+            /OCProperties <<%
+              /OCGs \@anim@@ocgs\space 0 R%
+              /D <<%
+                /BaseState/ON /OFF \@anim@@offocgs\space 0 R%
+              >>%
+            >>%
+          }%
+        \fi%
+      }%
+      \gdef\oc@props@added{}%
+    \fi%
+  }
 \else
   %counts inserted widget annots
-  \newcount\@anim@fieldnum\@anim@fieldnum=\z@%
+  \newcount\@anim@fieldnum\@anim@fieldnum=\z@
   \if@anim@@dvipdfmx
-    %array which takes all ocgs (one per animation frame)
-    \special{pdf:obj @anim@ocgs [ ]}
-    %array which takes ocgs shown by default (the poster frames)
-    \special{pdf:obj @anim@offocgs [ ]}
-    \special{pdf:put @catalog <<
-      /OCProperties <<
-        /OCGs @anim@ocgs
-        /D <</BaseState/ON /OFF @anim@offocgs>>
-      >>
-    >>}
-    %macro for adding AcroForm entry to PDF Catalog
     \def\@anim@acroform{%
       \ifdefined\Acro@Form@added\else%
-        %array which takes refs to all widget annotations
-        \special{pdf:obj @anim@fields [ ]}%
-        \special{pdf:put @catalog <<%
-          /AcroForm <</Fields @anim@fields /NeedAppearances true>>>>}%
-        \AtEndDocument{%
-          \special{pdf:put @anim@fields \@anim@fields}%
+        \AtEndDvi{%
+          \ifx\empty\@anim@fields\empty\else%
+            %array which takes refs to all widget annotations
+            \special{pdf:obj @anim@fields []}%
+            \special{pdf:put @anim@fields \@anim@fields}%
+            \special{pdf:put @catalog <<%
+              /AcroForm <</Fields @anim@fields /NeedAppearances false>>>>}%
+          \fi%
         }%
         \gdef\Acro@Form@added{}%
       \fi%
     }
-  \else
-    \special{ps:
-      mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
-      mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
-      mark {Catalog} <<
-        /OCProperties <<
-          /OCGs {@anim@ocgs}
-          /D <</BaseState/ON /OFF {@anim@offocgs}>>
-        >>
-      >> /PUT pdfmark%
+    \def\@anim@ocprops{%
+      \ifdefined\oc@props@added\else%
+        \AtEndDvi{%
+          \ifx\empty\@anim@ocgs\empty\else%
+            \special{pdf:obj @anim@ocgs []}%
+            \special{pdf:put @anim@ocgs \@anim@ocgs}%
+            \special{pdf:obj @anim@offocgs []}%
+            \special{pdf:put @anim@offocgs \@anim@offocgs}%
+            \special{pdf:put @catalog <<%
+              /OCProperties <<%
+                /OCGs @anim@ocgs
+                /D <</BaseState/ON /OFF @anim@offocgs>>
+              >>%
+            >>}%
+          \fi%
+        }%
+        \gdef\oc@props@added{}%
+      \fi%
     }
-    %macro for adding AcroForm entry to PDF Catalog
+  \else
     \def\@anim@acroform{%
       \ifdefined\Acro@Form@added\else%
-        \special{ps:
-          mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
-          mark {Catalog} <<%
-            /AcroForm <</Fields {@anim@fields} /NeedAppearances true>>
-          >> /PUT pdfmark%
-        }%
-        \AtEndDocument{%
-          \special{ps: mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark}%
+        \AtEndDvi{%
+          \ifx\empty\@anim@fields\empty\else%
+            \special{ps:
+              mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
+              mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark
+              mark {Catalog} <<%
+                /AcroForm <</Fields {@anim@fields} /NeedAppearances false>>
+              >> /PUT pdfmark%
+            }%
+          \fi%
         }%
         \gdef\Acro@Form@added{}%
+      \fi%
+    }
+    \def\@anim@ocprops{%
+      \ifdefined\oc@props@added\else%
+        \AtEndDvi{%
+          \ifx\empty\@anim@ocgs\empty\else%
+            \special{ps:
+              mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
+              mark {@anim@ocgs} 0 [\@anim@ocgs] /PUTINTERVAL pdfmark
+              mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
+              mark {@anim@offocgs} 0 [\@anim@offocgs] /PUTINTERVAL pdfmark
+              mark {Catalog} <<%
+                /OCProperties <<%
+                  /OCGs {@anim@ocgs}%
+                  /D <</BaseState/ON /OFF {@anim@offocgs}>>%
+                >>%
+              >> /PUT pdfmark%
+            }%
+          \fi%
+        }%
+        \gdef\oc@props@added{}%
       \fi%
     }
   \fi
@@ -597,15 +617,15 @@
   \if@anim@@dvipdfmx
     \def\@anim@newocg#1#2{%
       \special{pdf:obj @anim@ocg@#1@#2 <</Type/OCG /Name (#1.#2)>>}%
-      \special{pdf:put @anim@ocgs @anim@ocg@#1@#2}%
+      \xdef\@anim@ocgs{\@anim@ocgs\space @anim@ocg@#1@#2}%
     }
   \else
     \def\@anim@newocg#1#2{%
       \special{ps:
         mark /_objdef {@anim@ocg@#1@#2} /type/dict /OBJ pdfmark
         mark {@anim@ocg@#1@#2} <</Type/OCG /Name (#1.#2)>> /PUT pdfmark
-        mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark%
       }%
+      \xdef\@anim@ocgs{\@anim@ocgs\space {@anim@ocg@#1@#2}}%
     }
   \fi
 \fi
@@ -671,6 +691,7 @@
       \fi%
       /FT/Btn/Ff 65537% non-interactive push button
       /BS <</W 0>>%
+      /AP <</N \the\pdflastxform\space 0 R>>%
       /MK <</TP 1/I \the\pdflastxform\space 0 R/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
     }%
@@ -695,15 +716,15 @@
         \ifx\@anim@poster\@anim@posterlast%
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-            \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
+            \xdef\@anim@offocgs{\@anim@offocgs\space @anim@ocg@#1@#2}%
           }%
         \else%
           \ifnum#2=\z@%
             \ifx\@anim@poster\@anim@posternone%
-              \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
+              \xdef\@anim@offocgs{\@anim@offocgs\space @anim@ocg@#1@#2}%
             \fi%
           \else%
-            \special{pdf:put @anim@offocgs @anim@ocg@#1@#2}%
+            \xdef\@anim@offocgs{\@anim@offocgs\space @anim@ocg@#1@#2}%
           \fi%
         \fi%
         \def\@anim@annotflag{/F 4}%
@@ -732,6 +753,7 @@
           \if@anim@useocg/OC @anim@ocg@#1@#2\fi%
           /FT/Btn/Ff 65537%
           /BS <</W 0>>%
+          /AP <</N @anim@anmfrm@#1@#2>>%
           /MK <</TP 1/I @anim@anmfrm@#1@#2/IF<</S/A/FB true>>>>%
           /T (#1.#2)%
         >>%
@@ -757,15 +779,15 @@
         \ifx\@anim@poster\@anim@posterlast%
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{}{%
-            \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
+            \xdef\@anim@offocgs{\@anim@offocgs\space {@anim@ocg@#1@#2}}%
           }%
         \else%
           \ifnum#2=\z@%
             \ifx\@anim@poster\@anim@posternone%
-              \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
+              \xdef\@anim@offocgs{\@anim@offocgs\space {@anim@ocg@#1@#2}}%
             \fi%
           \else%
-            \special{ps: mark {@anim@offocgs} {@anim@ocg@#1@#2} /APPEND pdfmark}%
+            \xdef\@anim@offocgs{\@anim@offocgs\space {@anim@ocg@#1@#2}}%
           \fi%
         \fi%
         \def\@anim@annotflag{/F 4}%
@@ -810,6 +832,7 @@
           \if@anim@useocg/OC {@anim@ocg@#1@#2}\fi%
           /FT/Btn/Ff 65537
           /BS <</W 0>>%
+          /AP <</N {@anim@anmfrm@#1@#2}>>%
           /MK <</TP 1/I {@anim@anmfrm@#1@#2}/IF<</S/A/FB true>>>>%
           /T (#1.#2)%
         /ANN pdfmark%
@@ -1580,7 +1603,6 @@
   \fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
-  \@anim@acroform%
 }%
 %adjust catcodes of several characters within \animategraphics
 \let\@anim@animategraphics\animategraphics
@@ -1844,7 +1866,10 @@
       /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
       /H\if@anim@js/I\else/N\fi%
       /BS <</W 0>>%
-      \if@anim@mk/MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>\fi%
+      \if@anim@mk%
+        /AP <</N \@anim@getkeyval{btn#3}>>%
+        /MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>%
+      \fi%
       /T (#1.#2)%
       \@anim@tooltip%
       \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
@@ -1855,7 +1880,7 @@
         \vrule width 0pt height \@anim@tmpdima depth 0pt%
         \hss%
       }%
-    \fi%  
+    \fi%
   }%
 \else
   \if@anim@@dvipdfmx
@@ -1884,7 +1909,10 @@
           /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
           /H\if@anim@js/I\else/N\fi%
           /BS <</W 0>>%
-          \if@anim@mk/MK <</TP 1/I @btn#3/IF<</S/A/FB true>>>>\fi%
+          \if@anim@mk%
+            /AP <</N @btn#3>>%
+            /MK <</TP 1/I @btn#3/IF<</S/A/FB true>>>>%
+          \fi%
           /T (#1.#2)%
           \@anim@tooltip%
           \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
@@ -1897,7 +1925,7 @@
           \vrule width 0pt height \@anim@tmpdima depth 0pt%
           \hss%
         }%
-      \fi%  
+      \fi%
     }%
   \else
     \def\@anim@buttonwidget#1#2#3{%
@@ -1941,7 +1969,10 @@
           /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
           /H\if@anim@js/I\else/N\fi%
           /BS <</W 0>>%
-          \if@anim@mk/MK <</TP 1/I {btn#3}/IF<</S/A/FB true>>>>\fi%
+          \if@anim@mk%
+            /AP <</N {btn#3}>>%
+            /MK <</TP 1/I {btn#3}/IF<</S/A/FB true>>>>%
+          \fi%
           /T (#1.#2)%
           \@anim@tooltip%
           \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
@@ -1954,7 +1985,7 @@
           \vrule width 0pt height \@anim@tmpdima depth 0pt%
           \hss%
         }%
-      \fi%  
+      \fi%
     }
   \fi
 \fi
@@ -2032,7 +2063,6 @@
   \endgroup%
   \global\advance\@anim@num by \@ne%
   \setboolean{@anim@inside}{false}%
-  \@anim@acroform%
 }
 \let\@anim@animateinline\animateinline
 \def\animateinline{\@anim@sanitize\@anim@animateinline}
@@ -3178,10 +3208,7 @@
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%
-  \if@anim@useocg\else
-    var curdoc=this;%
-    var a#1_intd;%
-  \fi
+  var curdoc=this;%
   var a#1,a#1_int;%
   if(typeof(a#1)==='undefined'){% initialize animation
     a#1=new Object();% animation object
@@ -3256,8 +3283,9 @@
       var old=a#1.idx;a#1.idx=f;%
       \if@anim@usrjs
         if(a#1.usrJSat[f]){%
-          var ret=app.setTimeOut('try{a#1.usrJSat[a#1.idx]();}catch(e){%
-          console.show();console.println(e);}',1);%
+          var cmd='try{a#1.usrJSat['+f+']();}catch(e){%
+          console.show();console.println(e);}';%
+          var ret=app.setTimeOut(cmd,1);%
         }%
       \fi%
       \if@anim@useocg
@@ -3377,6 +3405,7 @@
           a#1.btnPlayLeft.display=display.visible;%
           a#1.btnPauseRight.display=display.hidden;%
           a#1.btnPlayRight.display=display.visible;%
+          curdoc.dirty=false;%
         \fi%
       };%
       a#1.playRight=function(){%
@@ -3389,6 +3418,7 @@
           a#1.btnPlayLeft.display=display.hidden;%
           a#1.btnPauseRight.display=display.visible;%
           a#1.btnPlayRight.display=display.hidden;%
+          curdoc.dirty=false;%
         \fi%
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.gotoNext()',%
@@ -3405,6 +3435,7 @@
             a#1.btnPlayLeft.display=display.hidden;%
             a#1.btnPauseRight.display=display.visible;%
             a#1.btnPlayRight.display=display.hidden;%
+            curdoc.dirty=false;%
           \fi%
           \if@anim@meas a#1.startMeas();\fi
           a#1_int=app.setInterval('a#1.gotoPrev()',%
@@ -3641,3 +3672,4 @@
     \fi\fi\fi\fi\fi\fi\fi\fi\fi%
   }%
 }
+\@anim@acroform\@anim@ocprops

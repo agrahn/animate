@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/07/03}
+\def\@anim@version{2008/07/04}
 \ProvidesPackage{animate}[\@anim@version]
 
 %test for e-TeX
@@ -159,7 +159,7 @@
   }%
 }
 
-\newboolean{@anim@powerdot}
+\newboolean{@anim@powerdot} %to cope with some powerdot oddity
 \setboolean{@anim@powerdot}{false}
 \@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
 
@@ -435,7 +435,7 @@
           {%
             frame@llx neg frame@lly neg translate
             one@inch@x DVImag div neg one@inch@y DVImag div neg translate
-            0 paper@height DVImag div \if@anim@powerdot 2.0 div\space\fi
+            0 paper@height DVImag div \if@anim@powerdot DVImag div\space\fi
             translate
           }?pdfmark
           %distill graphics into XObject
@@ -1968,7 +1968,6 @@
   \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
   \setboolean{@anim@inside}{false}%
 }
-%adjust catcodes of several characters within \animategraphics
 \let\@anim@animateinline\animateinline
 \def\animateinline{%
   \edef\@anim@colon{\the\catcode`\:}\edef\@anim@semicolon{\the\catcode`\;}%

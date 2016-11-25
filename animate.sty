@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2014/07/02}
+\def\@anim@version{2014/08/06}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2422,11 +2422,6 @@
   \else%
     \@anim@@sanitize#2\@nil%
   \fi%
-  \global\catcode`\#=12%
-  \global\let\@anim@newline=\\\global\let\\=\@anim@bksl%
-  \global\let\@anim@leftbrace=\{\global\let\{=\@anim@lbr%
-  \global\let\@anim@rightbrace=\}\global\let\}=\@anim@rbr%
-  \global\let\@anim@percent=\%\global\let\%=\@anim@per%
 }
 \def\@anim@@endsanitize#1#2\@nil{%
   \global\catcode`#1=\csname @anim@\number`#1\endcsname%
@@ -2434,16 +2429,23 @@
   \else%
     \@anim@@endsanitize#2\@nil%
   \fi%
-  \global\let\%=\@anim@percent%
-  \global\let\}=\@anim@rightbrace%
-  \global\let\{=\@anim@leftbrace%
-  \global\let\\=\@anim@newline%
-  \global\catcode`\#=6%
 }
-\def\@anim@sanitize{{%
-         \@anim@@sanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}}%
-\def\@anim@endsanitize{{%
-      \@anim@@endsanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}}%
+\def\@anim@sanitize{%
+  {\@anim@@sanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
+  \catcode`\#=12%
+  \let\@anim@newline=\\\let\\=\@anim@bksl%
+  \let\@anim@leftbrace=\{\let\{=\@anim@lbr%
+  \let\@anim@rightbrace=\}\let\}=\@anim@rbr%
+  \let\@anim@percent=\%\let\%=\@anim@per%
+}%
+\def\@anim@endsanitize{%
+  {\@anim@@endsanitize.:;?!/"'*+,->=<$&@][)(^_`|~\@nil}%
+  \let\%=\@anim@percent%
+  \let\}=\@anim@rightbrace%
+  \let\{=\@anim@leftbrace%
+  \let\\=\@anim@newline%
+  \catcode`\#=6%
+}%
 
 %building timeline from timeline file
 \newread\@anim@@tmlnfile

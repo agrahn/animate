@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2009/08/31}
+\def\@anim@version{2010/01/04}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -75,15 +75,18 @@
     }%
   \fi
   %load MP to PDF converter
+  \InputIfFileExists{supp-pdf.mkii}{}{%
   \InputIfFileExists{supp-pdf}{}{%
     \PackageWarningNoLine{animate}{%
-      File `supp-pdf.tex', which is part of ConTeXt, is not%
+      Neither of the files `supp-pdf.mkii' and `supp-pdf.tex',%
+	  \MessageBreak%
+	  which are part of ConTeXt, could be found.%
       \MessageBreak%
-      available. Therefore, MetaPost generated PS files%
+      Therefore, MetaPost generated PS files cannot%
       \MessageBreak%
-      cannot be embedded using pdfTeX%
+      be embedded using pdfTeX%
     }
-  }
+  }}
 \else
   \if@anim@@dvipdfmx\else % dvips
     %if geometry package is loaded, execute `\geometry{dvips}' right before
@@ -110,8 +113,37 @@
         }%
       \fi%
     }
+    %determine DVI resolution and output warning message if too big
+    \AtBeginDocument{%
+      \special{ps:\@anim@dpiwarning}%
+    }
   \fi
 \fi
+
+\catcode`\%=11\catcode`\#=14
+\edef\@anim@catcode{\the\catcode`\_}\catcode`\_=13
+\begingroup\let_\space
+\xdef\@anim@dpiwarning{#
+  {Resolution 1200 gt VResolution 1200 gt or product (Ghostscript)
+  search {pop pop pop true}{pop false}ifelse and {#
+  (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n#
+   @@____Warning:_DVI_resolution_greater_than_1200_dpi!_____@@\string\n#
+   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n#
+   @@_______________________________________________________@@\string\n#
+   @@_Animations_may_be_distorted_or_invisible._____________@@\string\n#
+   @@_Dvips_should_be_called_either_without_option_`-Ppdf':_@@\string\n#
+   @@_______________________________________________________@@\string\n#
+   @@___dvips_\jobname\string\n
+   @@_______________________________________________________@@\string\n#
+   @@_or_with_a_different_resolution_setting:_______________@@\string\n#
+   @@_______________________________________________________@@\string\n#
+   @@___dvips_-Ppdf_-D1200_\jobname\string\n
+   @@_______________________________________________________@@\string\n#
+   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\string\n)
+   (%stderr) (w) file exch writestring} if} ?pdfmark
+}
+\endgroup
+\catcode`\%=14\catcode`\#=6\catcode`\_=\@anim@catcode
 
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
@@ -1344,33 +1376,31 @@
     }%
     \if@anim@multipage%
       \@anim@filebox{#1\@anim@ext}{1}%
+      \@anim@curframe=\pdflastximagepages%
+      \advance\@anim@curframe by -\@ne%since \pdfximagepages is 1-based
+      \edef\@anim@lastpage{\the\@anim@curframe}%
       \ifx\@anim@first\@empty%
-        \global\@anim@curframe=\@ne%
+        \gdef\@anim@first{0}%
       \else%
         \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
-        \global\@anim@curframe=\@anim@first%
-        \global\advance\@anim@curframe by \@ne%since pdfximage pages are 1-based
-        \ifnum\@anim@curframe>\pdflastximagepages%
-          \global\@anim@curframe=\pdflastximagepages% correct wrong user input
+        \ifnum\@anim@first>\@anim@lastpage%
+          \xdef\@anim@first{\@anim@lastpage}%
         \fi%
       \fi%
-      \xdef\@anim@first{\the\@anim@curframe}%
       \ifx\@anim@last\@empty%
-        \global\@anim@curframe=\pdflastximagepages%
+        \xdef\@anim@last{\@anim@lastpage}%
       \else%
         \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
-        \global\@anim@curframe=\@anim@last%
-        \global\advance\@anim@curframe by \@ne%
-        \ifnum\@anim@curframe>\pdflastximagepages%
-          \global\@anim@curframe=\pdflastximagepages%
+        \ifnum\@anim@last>\@anim@lastpage%
+          \xdef\@anim@last{\@anim@lastpage}%
         \fi%
       \fi%
-      \ifnum\@anim@first>\@anim@curframe%
-        \xdef\@anim@last{\@anim@first}%
-        \xdef\@anim@first{\the\@anim@curframe}%
-      \else%
-        \xdef\@anim@last{\the\@anim@curframe}%
-      \fi%
+      \@anim@curframe=\@anim@first%
+      \advance\@anim@curframe by \@ne%
+      \xdef\@anim@first{\the\@anim@curframe}%
+      \@anim@curframe=\@anim@last%
+      \advance\@anim@curframe by \@ne%
+      \xdef\@anim@last{\the\@anim@curframe}%
     \fi%
   }%
 \else
@@ -1381,33 +1411,31 @@
         \gdef\@anim@ext{.pdf}%
       }{}%
       \if@anim@multipage%
+        \@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+        \advance\@anim@curframe by -\@ne%since XeTeXpdfpagecount is 1-based
+        \edef\@anim@lastpage{\the\@anim@curframe}%
         \ifx\@anim@first\@empty%
-          \global\@anim@curframe=\@ne%
+          \gdef\@anim@first{0}%
         \else%
           \ifnum\@anim@first<\z@\gdef\@anim@first{0}\fi%
-          \global\@anim@curframe=\@anim@first%
-          \global\advance\@anim@curframe by \@ne%\XeTeXpdfpagecount is 1-based
-          \ifnum\@anim@curframe>\XeTeXpdfpagecount "#1.pdf"\relax%
-            \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+          \ifnum\@anim@first>\@anim@lastpage%
+            \xdef\@anim@first{\@anim@lastpage}%
           \fi%
         \fi%
-        \xdef\@anim@first{\the\@anim@curframe}%
         \ifx\@anim@last\@empty%
-          \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+          \xdef\@anim@last{\@anim@lastpage}%
         \else%
           \ifnum\@anim@last<\z@\gdef\@anim@last{0}\fi%
-          \global\@anim@curframe=\@anim@last%
-          \global\advance\@anim@curframe by \@ne%
-          \ifnum\@anim@curframe>\XeTeXpdfpagecount "#1.pdf"\relax%
-            \global\@anim@curframe=\XeTeXpdfpagecount "#1.pdf"%
+          \ifnum\@anim@last>\@anim@lastpage%
+            \xdef\@anim@last{\@anim@lastpage}%
           \fi%
         \fi%
-        \ifnum\@anim@first>\@anim@curframe%
-          \xdef\@anim@last{\@anim@first}%
-          \xdef\@anim@first{\the\@anim@curframe}%
-        \else%
-          \xdef\@anim@last{\the\@anim@curframe}%
-        \fi%
+        \@anim@curframe=\@anim@first%
+        \advance\@anim@curframe by \@ne%
+        \xdef\@anim@first{\the\@anim@curframe}%
+        \@anim@curframe=\@anim@last%
+        \advance\@anim@curframe by \@ne%
+        \xdef\@anim@last{\the\@anim@curframe}%
       \fi%
     }%
   \else
@@ -1462,15 +1490,16 @@
         Missing frame number in \protect\animategraphics\space command%
       }{}%
     }{}%
-    \ifnum\@anim@first>\@anim@last%
-      \edef\@anim@temp{\@anim@first}\edef\@anim@first{\@anim@last}%
-      \edef\@anim@last{\@anim@temp}%
-    \fi%
     \ifthenelse{\@anim@first<\z@\OR\@anim@last<\z@}{%
       \PackageError{animate}{%
         Negative frame numbers not allowed%
       }{}%
     }{}%
+  \fi%
+  \def\@anim@relop{>}%
+  \ifnum\@anim@first>\@anim@last%
+    \edef\@anim@every{-\@anim@every}%
+    \def\@anim@relop{<}%
   \fi%
   \global\@anim@curframe=\@anim@first%
   \global\@anim@curframe@zb=\z@%
@@ -1508,7 +1537,7 @@
     \xdef\@anim@nfps{#2}%
     %
     %read all frames of the sequence
-    \loop\ifnum\@anim@curframe>\@anim@last\else%
+    \loop\ifnum\@anim@curframe\@anim@relop\@anim@last\else%
       \if@anim@multipage%
         %embed graphics
         \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
@@ -1807,7 +1836,7 @@
         /BS <</W 0>>%
         /H/I%
         /AP <</N \@anim@getkeyval{btn#3}>>%
-        /T (btn@#1@#2)%
+        /T (#1.#2)%
         \@anim@tooltip%
         /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
       }%
@@ -1830,7 +1859,7 @@
             /BS <</W 0>>%
             /H/I%
             /AP <</N @btn#3>>%
-            /T (btn@#1@#2)%
+            /T (#1.#2)%
             \@anim@tooltip%
             /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
           >>%
@@ -1869,7 +1898,7 @@
           /BS <</W 0>>
           /H/I
           /AP <</N {btn#3}>>%
-          /T (btn@#1@#2)%
+          /T (#1.#2)%
           \@anim@tooltip%
           /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
         /ANN pdfmark
@@ -2244,6 +2273,19 @@
   \fi%
 }%
 
+\edef\@anim@catcode{\the\catcode`\_}\catcode`\_=13
+\begingroup\let_\space
+\xdef\@anim@nusewarning{%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
+  @_There_were_unused_animation_transparencies._______@\MessageBreak%
+  @_See_the_transcript_file___________________________@\MessageBreak%
+  @___``\jobname.log''\MessageBreak%
+  @_for_additional_information!_______________________@\MessageBreak%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+}
+\endgroup
+\catcode`\_=\@anim@catcode
+
 %building timeline from timeline file
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
@@ -2359,20 +2401,7 @@
       }%
       \ifcsname @anim@nusewarned\endcsname\else%
         \AtEndDocument{%
-          \PackageWarningNoLine{animate}{%
-            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
-            @ There were unused animation transparencies.\space See\space\space%
-            \space @\MessageBreak%
-            @ the transcript file\space\space\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space\space\space\space%
-            \space\space @\MessageBreak%
-            @ ``\jobname.log''\MessageBreak%
-            @ for additional information!\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space @\MessageBreak%
-            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
-          }%
+          \PackageWarningNoLine{animate}{\@anim@nusewarning}%
         }%
         \gdef\@anim@nusewarned{}%
       \fi%
@@ -2503,6 +2532,22 @@
   }%
 }
 
+\edef\@anim@catcode{\the\catcode`\_}\catcode`\_=13
+\begingroup\let_\space
+\xdef\@anim@multwarning{%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
+  @_In_certain_animation_frames,_transparencies_were__@\MessageBreak%
+  @_multiply_included._This_may_considerably_slow_____@\MessageBreak%
+  @_down_animation_speed._Revise_the_timeline_file_of_@\MessageBreak%
+  @_the_corresponding_animation!_See_the_transcript___@\MessageBreak%
+  @_file______________________________________________@\MessageBreak%
+  @___``\jobname.log''\MessageBreak%
+  @_for_additional_information!_______________________@\MessageBreak%
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
+}%
+\endgroup
+\catcode`\_=\@anim@catcode
+
 %detects multiple inclusion of the same transparency
 \def\@anim@findmult#1.#2,#3\@nil{%
   \ifthenelse{\equal{#2}{}}{}{%
@@ -2516,23 +2561,7 @@
       }%
       \ifcsname @anim@multwarned\endcsname\else%
         \AtEndDocument{%
-          \PackageWarningNoLine{animate}{%
-            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
-            \MessageBreak%
-            @ In certain animation frames, transparencies were%
-            \space\space @\MessageBreak%
-            @ multiply included. This may considerably slow\space%
-            \space\space\space\space @\MessageBreak%
-            @ down animation speed. Revise the timeline file of\space @%
-            \MessageBreak%
-            @ the corresponding animation! See the transcript\space\space%
-            \space @\MessageBreak%
-            @ file ``\jobname.log''\MessageBreak%
-            @ for additional information!\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space\space\space%
-            \space\space\space\space\space\space\space\space @\MessageBreak%
-            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
-          }%
+          \PackageWarningNoLine{animate}{\@anim@multwarning}%
         }%
         \gdef\@anim@multwarned{}%
       \fi%
@@ -3024,43 +3053,37 @@
       for(var i in ocg){%
         var ocgName=ocg[i].name.split('.');%
         if(ocgName[0]==#1){%
-          \if@anim@controls
+          \if@anim@controls\if@anim@step\else
             if(ocgName[1].charAt(0)=='P'){% PlayLeft, PauseLeft, ...
               a#1.btn[ocgName[1]]=ocg[i];%
               %set basic button state
               a#1.btn[ocgName[1]].state=ocg[i].initState;%
             }else{% frame ocg
-          \fi
+          \fi\fi
+              %get array of animation frames
               a#1.fr[ocgName[1]]=ocg[i];%
               %set basic frame state
               a#1.fr[ocgName[1]].state=ocg[i].initState;%
-          \if@anim@controls%
+          \if@anim@controls\if@anim@step\else%
             }%
-          \fi%
+          \fi\fi%
         }%
       }%
     \else
-      %get array of Field objects (frame widgets) of current page
-      for(i=0;i<this.numFields;i++){%
-        var fldName=this.getNthFieldName(i).split('.');%
-        if(fldName[0]==#1){%
-          a#1.fr[fldName[1]]=this.getField(this.getNthFieldName(i));%
-        }%
+      %get array of animation frames
+      for(i=0;i<=\@anim@maxframe;i++){%
+        a#1.fr[i]=this.getField('#1.'+i);%
       }%
-      \if@anim@controls%
-        \if@anim@step\else
-          %get array of ocgs of current page
-          var ocg=this.getOCGs(this.pageNum);%
-          for(var i in ocg){%
-            var ocgName=ocg[i].name.split('.');%
-            if(ocgName[0]==#1){%
-              a#1.btn[ocgName[1]]=ocg[i];%
-              %set basic button state
-              a#1.btn[ocgName[1]].state=ocg[i].initState;%
-            }%
+      \if@anim@controls\if@anim@step\else
+        var ocg=this.getOCGs(this.pageNum);%
+        for(var i in ocg){%
+          var ocgName=ocg[i].name.split('.');%
+          if(ocgName[0]==#1){%
+            a#1.btn[ocgName[1]]=ocg[i];%
+            a#1.btn[ocgName[1]].state=ocg[i].initState;%
           }%
-        \fi%
-      \fi%
+        }%
+      \fi\fi%
     \fi%
     \ifx\@anim@poster\@anim@posterlast % set default frame
       %holds index of the frame to be displayed

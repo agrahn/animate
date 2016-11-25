@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2011/05/30}
+\def\@anim@version{2011/12/20}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -33,11 +33,18 @@
 \RequirePackage{calc}
 \RequirePackage{animfp}
 
-%driver options (the only package options we process immediately)
+\newboolean{@anim@powerdot} %to cope with some powerdot oddity
+\setboolean{@anim@powerdot}{false}
+\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
+
+%driver options + powerdot's `clock' option (the only package options
+%we process immediately)
 \newboolean{@anim@@dvips}
 \setboolean{@anim@@dvips}{false}
 \newboolean{@anim@@dvipdfmx}
 \setboolean{@anim@@dvipdfmx}{false}
+\newboolean{@anim@pdclock} %for compatibility with powerdot
+\setboolean{@anim@pdclock}{false}
 \ifpdf\else
   \setboolean{@anim@@dvips}{true}% default dvi mode
   \setboolean{@anim@@dvipdfmx}{false}
@@ -52,6 +59,9 @@
   \DeclareOption{xetex}{%
     \setboolean{@anim@@dvipdfmx}{true}
     \setboolean{@anim@@dvips}{false}
+  }
+  \DeclareOption{clock}{% for global `clock' option given to powerdot
+    \setboolean{@anim@pdclock}{true}
   }
 \fi
 \newboolean{@anim@xetex}
@@ -148,11 +158,12 @@
 %\pdfmdfivesum is used for hashing object references of embedded files based
 %on their MD5 digest (in order to avoid multiple inclusion); if it is not
 %available, hashing will be based on the file name
-\expandafter\ifx\csname pdfmdfivesum\endcsname\relax
-  \def\@anim@pdfmdfivesum file#1{#1}
+\ifcsname pdfmdfivesum\endcsname
+  \def\@anim@pdfmdfivesum#1{\pdfmdfivesum file {#1}}
 \else
-  \let\@anim@pdfmdfivesum\pdfmdfivesum
+  \def\@anim@pdfmdfivesum#1{#1}
 \fi
+
 
 %creating and using global definitions
 \def\@anim@newkey#1#2{{\expandafter\xdef\csname#1\endcsname{#2}}}
@@ -191,15 +202,16 @@
   }{}%
 }
 
-\newboolean{@anim@powerdot} %to cope with some powerdot oddity
-\setboolean{@anim@powerdot}{false}
-\@ifclassloaded{powerdot}{\setboolean{@anim@powerdot}{true}}{}%
-
 \newboolean{@anim@grxloaded}
 \setboolean{@anim@grxloaded}{false}
+\newboolean{@anim@pgfloaded}
+\setboolean{@anim@pgfloaded}{false}
 \AtBeginDocument{%
   \@ifpackageloaded{graphicx}{%
     \setboolean{@anim@grxloaded}{true}%
+  }{}%
+  \@ifpackageloaded{pgf}{%
+    \setboolean{@anim@pgfloaded}{true}%
   }{}%
 }
 
@@ -264,17 +276,27 @@
       >>
     >>}
   \else
+    \def\@anim@fields{@anim@fields}
+    \if@anim@powerdot\if@anim@pdclock
+      \def\@anim@fields{afields}
+    \fi\fi
     \special{ps:
-      mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
       mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
       mark /_objdef {@anim@posterocgs} /type/array /OBJ pdfmark
       mark {Catalog} <<
-        /AcroForm <</Fields {@anim@fields}>>
         /OCProperties <<
           /OCGs {@anim@ocgs}
           /D <</BaseState/OFF /ON {@anim@posterocgs}>>
         >>
       >> /PUT pdfmark
+    }
+    \ifthenelse{\boolean{@anim@powerdot}\AND\boolean{@anim@pdclock}}{}{
+      \special{ps:
+        mark /_objdef {\@anim@fields} /type/array /OBJ pdfmark
+        mark {Catalog} <<
+          /AcroForm <</Fields {\@anim@fields}>>
+        >> /PUT pdfmark
+      }
     }
   \fi
 \fi
@@ -287,11 +309,11 @@
 %of xobj, otherwise returns `!'
 \def\@anim@fileknown#1#2{% #1 file name, pdf: #2 page No. ps: #2 @anim@num
   %identify file by md5sum
-  \ifcsname file:\@anim@pdfmdfivesum file{#1}.#2\endcsname%
-    \@anim@getkeyval{file:\@anim@pdfmdfivesum file{#1}.#2}\else!\fi%
+  \ifcsname file:\@anim@pdfmdfivesum{#1}.#2\endcsname%
+    \@anim@getkeyval{file:\@anim@pdfmdfivesum{#1}.#2}\else!\fi%
 }
 \def\@anim@makefileknown#1#2#3{%#1 file name, pdf: #2 page No. ps: #2 @anim@num,
-  \@anim@newkey{file:\@anim@pdfmdfivesum file{#1}.#2}{#3}%   #3 Form XObj ID
+  \@anim@newkey{file:\@anim@pdfmdfivesum{#1}.#2}{#3}%   #3 Form XObj ID
 }
 
 %helper macro that typesets graphics file into savebox
@@ -422,6 +444,23 @@
         \special{pdf:bxobj @anim@frm@#1@#2 width \@anim@framewidth pt
           height \@anim@frameheight pt depth \@anim@framedepth pt}%
         \begin{picture}(0,0)\put(0,0){\box#3}\end{picture}%
+        \ifthenelse{\boolean{@anim@pgfloaded}}{%
+          \def\@anim@resources{}%
+          \ifthenelse{\boolean{pgf@sys@pdf@extgs@exists}}{%
+            \def\@anim@resources{/ExtGState @pgfextgs}}{}%
+          \ifthenelse{\boolean{pgf@sys@pdf@patterns@exists}}{%
+            \edef\@anim@resources{\@anim@resources/Pattern @pgfpatterns}}{}%
+          \ifthenelse{\boolean{pgf@sys@pdf@colorspaces@exists}}{%
+            \edef\@anim@resources{%
+              \@anim@resources/ColorSpace @pgfcolorspaces}}{}%
+          \ifthenelse{%
+            \boolean{pgf@sys@pdf@extgs@exists}%
+            \OR\boolean{pgf@sys@pdf@patterns@exists}%
+            \OR\boolean{pgf@sys@pdf@colorspaces@exists}%
+          }{%
+            \special{pdf:put @resources <<\@anim@resources>>}%
+          }{}%
+        }{}%
         \special{pdf:exobj}%
         \xdef\@anim@lastxform{@anim@frm@#1@#2}%
         \@anim@newkey{img@#2}{\@anim@lastxform}%
@@ -740,7 +779,7 @@
           /AP <</N {@anim@anmfrm@#1@#2}>>%
           /T (#1.#2)%
         /ANN pdfmark
-        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+        mark {\@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
       }%
       \global\advance\@anim@fieldnum by \@ne%
     }
@@ -1820,7 +1859,7 @@
             \@anim@otherjscriptkey%
           >>%
         /ANN pdfmark
-        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+        mark {\@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
       }%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \@anim@animwidth\p@ {%
@@ -1913,7 +1952,7 @@
           \@anim@tooltip%
           /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
         /ANN pdfmark
-        mark {@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
+        mark {\@anim@fields} {annot@\the\@anim@fieldnum} /APPEND pdfmark
       }%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \the\@anim@tmpdima {%
@@ -1939,7 +1978,8 @@
   \leavevmode%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
-  \begingroup% make use of graphic[xs] search path
+  \begingroup%
+  % make use of graphic[xs] search path
   \ifcsname Ginput@path\endcsname%
     \let\input@path\Ginput@path%
   \fi%

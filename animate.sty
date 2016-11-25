@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/05/30]
+\ProvidesPackage{animate}[2008/06/03]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -93,9 +93,9 @@
       \gdef\@anim@rerunwarned{}%
       \AtEndDocument{%
         \PackageWarningNoLine{animate}{%
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
-        @@ Rerun to get object references right! @@\MessageBreak
-        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+        @@ Rerun to get internal references right! @@\MessageBreak
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
       }%
     \fi%
   \fi%
@@ -304,8 +304,8 @@
     \ifthenelse{\equal{#4}{!}}{%
       \begingroup%
         \setlength{\unitlength}{1pt}%
-        %mark BBox of the graphics
         \begin{picture}(0,0)%
+        %mark BBox of the graphics
         \put(0,-\@anim@framedepth){%
           \special{ps:
             currentpoint /frame@lly exch def /frame@llx exch def
@@ -316,11 +316,26 @@
             currentpoint /frame@ury exch def /frame@urx exch def
           }%
         }%
+        %define some length values in current PS coordinate units
+        \put(72.27,-\@anim@framedepth){%
+          \special{ps:
+            /one@inch currentpoint pop frame@llx sub def
+          }%
+        }%
+        \put(\strip@pt\paperheight,-\@anim@framedepth){%
+          \special{ps:
+            /paper@height currentpoint pop frame@llx sub def
+          }%
+        }%
         \end{picture}%
       \endgroup%
-      %distill graphics into XObject
       \special{ps:
         gsave
+        %translate graphics to lower left page corner
+        frame@llx neg frame@lly neg translate
+        one@inch neg dup translate
+        0 paper@height translate
+        %distill graphics into XObject
         mark
           /_objdef {@anim@frm@#1@#2}
           /BBox [frame@llx frame@lly frame@urx frame@ury]

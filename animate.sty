@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/05/16]
+\ProvidesPackage{animate}[2008/05/21]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -124,6 +124,8 @@
 \newboolean{@anim@useocg}
 % true if any of `autoplay' or `autoresume' options is set
 \newboolean{@anim@autoplayorresume}
+% true if any of `controls' or `palindrome' options is set
+\newboolean{@anim@ctrlorplndrm}
 
 %add AcroForm and OCProperties entries to Catalog
 \ifpdf
@@ -364,6 +366,10 @@
   }
 \fi
 
+\def\@anim@posterlast{last}% helper macros
+\def\@anim@posterfirst{first}%
+\def\@anim@posternone{none}%
+
 %creates OCG
 \ifpdf
   \def\@anim@newocg#1#2{%#1:@anim@num, #2:@anim@curframe@zb
@@ -372,16 +378,13 @@
     %append to ocg array
     \xdef\@anim@ocgs{\@anim@ocgs\space\@anim@curocg}%
     %store ref to ocg if it's a poster
-    \def\@anim@posterframe{none}%
-    \ifx\@anim@poster\@anim@posterframe\else% no poster
+    \ifx\@anim@poster\@anim@posternone\else%
       \ifnum#2=0
-        \def\@anim@posterframe{first}%
-        \ifx\@anim@poster\@anim@posterframe%
+        \ifx\@anim@poster\@anim@posterfirst%
           \xdef\@anim@posterocg{\@anim@curocg}%
         \fi%
       \fi%
-      \def\@anim@posterframe{last}%
-      \ifx\@anim@poster\@anim@posterframe%
+      \ifx\@anim@poster\@anim@posterlast%
         \xdef\@anim@posterocg{\@anim@curocg}%
       \fi%
     \fi%
@@ -395,16 +398,13 @@
       >> /PUT pdfmark
       mark {@anim@ocgs} {@anim@ocg@#1@#2} /APPEND pdfmark
     }%
-    \def\@anim@posterframe{none}%
-    \ifx\@anim@poster\@anim@posterframe\else% no poster
+    \ifx\@anim@poster\@anim@posternone\else%
       \ifnum#2=0
-        \def\@anim@posterframe{first}%
-        \ifx\@anim@poster\@anim@posterframe%
+        \ifx\@anim@poster\@anim@posterfirst%
           \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
         \fi%
       \fi%
-      \def\@anim@posterframe{last}%
-      \ifx\@anim@poster\@anim@posterframe%
+      \ifx\@anim@poster\@anim@posterlast%
         \xdef\@anim@posterocg{@anim@ocg@#1@#2}%
       \fi%
     \fi%
@@ -430,16 +430,13 @@
     \else%
       %widget visibility state
       \def\@anim@annotflag{/F 2}%default: hidden (no view, no print)
-      \def\@anim@posterframe{none}%
-      \ifx\@anim@poster\@anim@posterframe\else% no poster
+      \ifx\@anim@poster\@anim@posternone\else%
         \ifnum#2=0
-          \def\@anim@posterframe{first}%
-          \ifx\@anim@poster\@anim@posterframe%
+          \ifx\@anim@poster\@anim@posterfirst%
             \def\@anim@annotflag{/F 4}% visible, print, Locked
           \fi%
         \fi%
-        \def\@anim@posterframe{last}%
-        \ifx\@anim@poster\@anim@posterframe%
+        \ifx\@anim@poster\@anim@posterlast%
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
             \def\@anim@annotflag{/F 4}%
@@ -482,16 +479,13 @@
       \def\@anim@annotflag{/F 4}%, print, visibility set by OCG, Locked
     \else%
       \def\@anim@annotflag{/F 2}%
-      \def\@anim@posterframe{none}%
-      \ifx\@anim@poster\@anim@posterframe\else% no poster
+      \ifx\@anim@poster\@anim@posternone\else%
         \ifnum#2=0
-          \def\@anim@posterframe{first}%
-          \ifx\@anim@poster\@anim@posterframe%
+          \ifx\@anim@poster\@anim@posterfirst%
             \def\@anim@annotflag{/F 4}% visible, print, Locked
           \fi%
         \fi%
-        \def\@anim@posterframe{last}%
-        \ifx\@anim@poster\@anim@posterframe%
+        \ifx\@anim@poster\@anim@posterlast%
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
             \def\@anim@annotflag{/F 4}% visible, print, Locked
@@ -1170,6 +1164,9 @@
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
   }{}%
+  \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
+    \setboolean{@anim@ctrlorplndrm}{true}%
+  }{}%
   \def\@anim@base{#3}%
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
@@ -1380,8 +1377,7 @@
     \@anim@otherjscript{#1}% on other events in the AA dict
     \if@anim@useocg%
       %add poster to posterocg array
-      \def\@anim@posterframe{none}%
-      \ifx\@anim@poster\@anim@posterframe\else%
+      \ifx\@anim@poster\@anim@posternone\else%
         \xdef\@anim@posterocgs{\@anim@posterocgs\space\@anim@posterocg}%
       \fi%
     \fi%
@@ -1427,8 +1423,7 @@
     \@anim@pojscript{#1}%
     \@anim@otherjscript{#1}%
     \if@anim@useocg%
-      \def\@anim@posterframe{none}%
-      \ifx\@anim@poster\@anim@posterframe\else%
+      \ifx\@anim@poster\@anim@posternone\else%
         \special{ps:
           mark {@anim@posterocgs} {\@anim@posterocg} /APPEND pdfmark
         }%
@@ -1543,6 +1538,9 @@
   \setkeys{anim@user}{#1}%
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
+  }{}%
+  \ifthenelse{\boolean{@anim@controls}\OR\boolean{@anim@palindrome}}{%
+    \setboolean{@anim@ctrlorplndrm}{true}%
   }{}%
   \if@anim@draft\else%
     %create button faces if necessary
@@ -2265,6 +2263,7 @@
   \setboolean{@anim@multipdf}{false}%
   \setboolean{@anim@meas}{false}%
   \setboolean{@anim@autoplayorresume}{false}%
+  \setboolean{@anim@ctrlorplndrm}{false}%
 }
 
 %package options
@@ -2431,8 +2430,6 @@
     }%
   }
 \fi
-\def\@anim@posterlast{last}% helper macro
-\def\@anim@posternone{none}% helper macro
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%
@@ -2534,7 +2531,7 @@
         a#1.fr[a#1.idx].display=display.hidden;%
         a#1.idx=0;%
         a#1.fr[0].display=display.visible;%
-		curdoc.dirty=false;%
+        curdoc.dirty=false;%
       \fi%
       \if@anim@chfps
         a#1.fpsDeflt=Math.abs(\@anim@fps);%
@@ -2555,7 +2552,7 @@
         a#1.fr[a#1.idx].display=display.hidden;%
         a#1.idx=\@anim@frames-1;%
         a#1.fr[a#1.idx].display=display.visible;%
-		curdoc.dirty=false;%
+        curdoc.dirty=false;%
       \fi%
       \if@anim@chfps %frame rate from the last fps change (\@anim@nfps)
         a#1.fpsDeflt=Math.abs(\@anim@nfps);%
@@ -2574,7 +2571,7 @@
           a#1.fr[++a#1.idx].state=true;%
         \else
           a#1.fr[++a#1.idx].display=display.visible;%
-		  curdoc.dirty=false;%
+          curdoc.dirty=false;%
         \fi%
         \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
       }catch(e){%
@@ -2588,7 +2585,7 @@
               a#1.fr[a#1.idx].state=true;%
             \else
               a#1.fr[a#1.idx].display=display.visible;%
-		      curdoc.dirty=false;%
+              curdoc.dirty=false;%
             \fi%
             \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
             if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
@@ -2629,72 +2626,74 @@
         \fi%
       \fi%
     };%
-    a#1.actnPrev=function(){%
-      \if@anim@useocg
-        a#1.fr[a#1.idx].state=false;%
-      \else
-        a#1.fr[a#1.idx].display=display.hidden;%
-      \fi
-      try{%
+    \if@anim@ctrlorplndrm
+      a#1.actnPrev=function(){%
         \if@anim@useocg
-          a#1.fr[--a#1.idx].state=true;%
+          a#1.fr[a#1.idx].state=false;%
         \else
-          a#1.fr[--a#1.idx].display=display.visible;%
-		  curdoc.dirty=false;%
-        \fi%
-        \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
-      }catch(e){%
-        ++a#1.idx;%
-        \if@anim@palindrome%
-          \if@anim@step
-            a#1.actnEndLeft();%
-            a#1.playsRight=true;%
-          \else%
-            \if@anim@useocg
-              a#1.fr[a#1.idx].state=true;%
-            \else
-              a#1.fr[a#1.idx].display=display.visible;%
-		      curdoc.dirty=false;%
-            \fi%
-            \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
-            if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
+          a#1.fr[a#1.idx].display=display.hidden;%
+        \fi
+        try{%
+          \if@anim@useocg
+            a#1.fr[--a#1.idx].state=true;%
+          \else
+            a#1.fr[--a#1.idx].display=display.visible;%
+            curdoc.dirty=false;%
           \fi%
-        \else%
-          \if@anim@step
-            a#1.actnEndLeft();%
-          \else%
-            \if@anim@loop
-              if(a#1.isPlaying){%
-                \if@anim@chfps
-                  a#1.fpsDeflt=Math.abs(\@anim@nfps);%
-                  a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-                  a#1.dt=a#1.dtDeflt;%
-                \fi
-                a#1.actnPlayLeft();%
-              }else{a#1.actnEndLeft();}%
-            \else
+          \if@anim@step\else\if@anim@meas a#1.frcnt++;\fi\fi%
+        }catch(e){%
+          ++a#1.idx;%
+          \if@anim@palindrome%
+            \if@anim@step
               a#1.actnEndLeft();%
+              a#1.playsRight=true;%
+            \else%
+              \if@anim@useocg
+                a#1.fr[a#1.idx].state=true;%
+              \else
+                a#1.fr[a#1.idx].display=display.visible;%
+                curdoc.dirty=false;%
+              \fi%
+              \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
+              if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayRight();}%
+            \fi%
+          \else%
+            \if@anim@step
+              a#1.actnEndLeft();%
+            \else%
+              \if@anim@loop
+                if(a#1.isPlaying){%
+                  \if@anim@chfps
+                    a#1.fpsDeflt=Math.abs(\@anim@nfps);%
+                    a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
+                    a#1.dt=a#1.dtDeflt;%
+                  \fi
+                  a#1.actnPlayLeft();%
+                }else{a#1.actnEndLeft();}%
+              \else
+                a#1.actnEndLeft();%
+              \fi%
             \fi%
           \fi%
+        }%
+        \if@anim@step\else%
+          \if@anim@chfps
+            if(%
+              a#1.pFpsAt[a#1.idx]>=0&&%
+              a#1.pFpsAt[a#1.idx]!=a#1.fpsDeflt%
+            ){%
+              a#1.fpsDeflt=a#1.pFpsAt[a#1.idx];%
+              a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
+              a#1.dt=a#1.dtDeflt;%
+              if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
+            }%
+          \fi%
+          \if@anim@pauseframes
+            if(a#1.isPlaying&&a#1.pauseAt[a#1.idx]){a#1.actnPause();}%
+          \fi%
         \fi%
-      }%
-      \if@anim@step\else%
-        \if@anim@chfps
-          if(%
-            a#1.pFpsAt[a#1.idx]>=0&&%
-            a#1.pFpsAt[a#1.idx]!=a#1.fpsDeflt%
-          ){%
-            a#1.fpsDeflt=a#1.pFpsAt[a#1.idx];%
-            a#1.dtDeflt=1000/(1e-6+a#1.fpsDeflt);%
-            a#1.dt=a#1.dtDeflt;%
-            if(a#1.isPlaying){a#1.isPaused=true;a#1.actnPlayLeft();}%
-          }%
-        \fi%
-        \if@anim@pauseframes
-          if(a#1.isPlaying&&a#1.pauseAt[a#1.idx]){a#1.actnPause();}%
-        \fi%
-      \fi%
-    };%
+      };%
+    \fi%
     \if@anim@step\else
       a#1.actnPause=function(){%
         \if@anim@meas if(a#1.isPlaying){a#1.stopMeas();}\fi
@@ -2723,21 +2722,23 @@
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.actnNext()',a#1.dt);%
       };%
-      a#1.actnPlayLeft=function(){%
-        try{app.clearInterval(a#1_int);}catch(e){}%
-        if(!a#1.isPaused){a#1.actnEndRight();}%
-        a#1.playsRight=false;%
-        a#1.isPlaying=true;%
-        a#1.isPaused=false;%
-        \if@anim@controls
-          a#1.btn['PauseLeft'].state=true;%
-          a#1.btn['PlayLeft'].state=false;%
-          a#1.btn['PauseRight'].state=true;%
-          a#1.btn['PlayRight'].state=false;%
-        \fi%
-        \if@anim@meas a#1.startMeas();\fi
-        a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
-      };%
+      \if@anim@ctrlorplndrm
+        a#1.actnPlayLeft=function(){%
+          try{app.clearInterval(a#1_int);}catch(e){}%
+          if(!a#1.isPaused){a#1.actnEndRight();}%
+          a#1.playsRight=false;%
+          a#1.isPlaying=true;%
+          a#1.isPaused=false;%
+          \if@anim@controls
+            a#1.btn['PauseLeft'].state=true;%
+            a#1.btn['PlayLeft'].state=false;%
+            a#1.btn['PauseRight'].state=true;%
+            a#1.btn['PlayRight'].state=false;%
+          \fi%
+          \if@anim@meas a#1.startMeas();\fi
+          a#1_int=app.setInterval('a#1.actnPrev()',a#1.dt);%
+        };%
+      \fi%
       \if@anim@controls
         a#1.actnIncr=function(){% speed up animation
           try{app.clearInterval(a#1_int);}catch(e){}%
@@ -2806,40 +2807,60 @@
         try{app.clearInterval(a#1_intd);}catch(e){}%
         a#1.actnEndRight();%
       };%
-      \if@anim@autoplayorresume
-        a#1.actnSecPlayLeft=function(){%
-          try{app.clearInterval(a#1_intd);}catch(e){}%
-          a#1.actnPlayLeft();%
-        };%
-        a#1.actnSecPlayRight=function(){%
-          try{app.clearInterval(a#1_intd);}catch(e){}%
-          a#1.actnPlayRight();%
-        };%
+      \if@anim@step\else%
+        \if@anim@autoplayorresume%
+          \if@anim@ctrlorplndrm
+            a#1.actnSecPlayLeft=function(){%
+              try{app.clearInterval(a#1_intd);}catch(e){}%
+              a#1.actnPlayLeft();%
+            };%
+          \fi
+          a#1.actnSecPlayRight=function(){%
+            try{app.clearInterval(a#1_intd);}catch(e){}%
+            a#1.actnPlayRight();%
+          };%
+        \fi%
       \fi%
     \fi%
   }%
   \if@anim@step\else%
     \if@anim@autoplay%
-      \if@anim@useocg
-        if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
-      \else
-        if(a#1.playsRight){%
-          a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
-        }else{%
-          a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
-        }%
-      \fi%
-    \fi%
-    \if@anim@autoresume
-      if(a#1.isPaused){%
-        \if@anim@useocg
+      \if@anim@useocg%
+        \if@anim@ctrlorplndrm
           if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
-        \else
+        \else%
+          a#1.actnPlayRight();%
+        \fi%
+      \else
+        \if@anim@ctrlorplndrm
           if(a#1.playsRight){%
             a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
           }else{%
             a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
           }%
+        \else%
+          a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+        \fi%
+      \fi%
+    \fi%
+    \if@anim@autoresume
+      if(a#1.isPaused){%
+        \if@anim@useocg%
+          \if@anim@ctrlorplndrm
+            if(a#1.playsRight){a#1.actnPlayRight();}else{a#1.actnPlayLeft();}%
+          \else
+            a#1.actnPlayRight();%
+          \fi%
+        \else%
+          \if@anim@ctrlorplndrm
+            if(a#1.playsRight){%
+              a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+            }else{%
+              a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
+            }%
+          \else
+            a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+          \fi%
         \fi%
       }%
     \fi%
@@ -2848,7 +2869,6 @@
 
 %other trigger events in the anim widget's AA dictionary
 \def\@anim@otherjscript#1{%
-  \def\@anim@posterframe{last}%
   \xdef\@anim@otherjscriptkey{%
     /PC <</S/JavaScript/JS (% PageClose
       \if@anim@step\else
@@ -2869,7 +2889,7 @@
           \fi%
         \fi%
       \fi%
-      \ifx\@anim@poster\@anim@posterframe%
+      \ifx\@anim@poster\@anim@posterlast%
         \if@anim@useocg
           a#1.actnEndRight();%
         \else
@@ -2908,12 +2928,16 @@
             a#1.actnNext();%
           }%
         \fi%
-      \else
-        if(a#1.playsRight){%
+      \else%
+        \if@anim@ctrlorplndrm
+          if(a#1.playsRight){%
+            a#1.actnPlayRight();%
+          }else{%
+            a#1.actnPlayLeft();%
+          }%
+        \else%
           a#1.actnPlayRight();%
-        }else{%
-          a#1.actnPlayLeft();%
-        }%
+        \fi%
       \fi%
     )>>%
   }%

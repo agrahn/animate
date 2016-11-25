@@ -8,11 +8,11 @@
 % graphics files or inline graphics (e. g. LaTeX-picture, PSTricks,
 % pgf/TikZ, ...)
 
-% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
+% Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx and pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2008/10/06}
+\def\@anim@version{2009/01/26}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -2971,7 +2971,7 @@
 %  console.show();%
 %  console.clear();%
   \if@anim@useocg\else
-    if(typeof(curdoc)=='undefined'){var curdoc=this;}% ref to the Doc object
+    if(typeof(curdoc)=='undefined'){curdoc=this;}% ref to the Doc object
   \fi
   if(typeof(a#1)=='undefined'){% initialize animation
     a#1=new Object();%
@@ -2980,7 +2980,7 @@
     a#1.fr=new Array();%
     \if@anim@controls
       a#1.btn=new Array();%takes references to control button face ocgs
-      a#1.sm=1;% speed multiplyer
+      a#1.sm=1;% speed multiplier
     \fi%
     %initialize fr & btn properties
     \if@anim@useocg
@@ -3333,33 +3333,6 @@
         };%
       \fi%
     \fi%
-    \if@anim@useocg\else%
-      %actnEndLeft()/actnEndRight() & actnPlayLeft()/actnPlayRight() versions
-      %that also work in recent Readers, to be invoked by
-      %a#1_intd=app.setInterval(...)
-      a#1.actnSecEndLeft=function(){%
-        try{app.clearInterval(a#1_intd);}catch(e){}%
-        a#1.actnEndLeft();%
-      };%
-      a#1.actnSecEndRight=function(){%
-        try{app.clearInterval(a#1_intd);}catch(e){}%
-        a#1.actnEndRight();%
-      };%
-      \if@anim@step\else%
-        \if@anim@autoplayorresume%
-          \if@anim@ctrlorplndrm
-            a#1.actnSecPlayLeft=function(){%
-              try{app.clearInterval(a#1_intd);}catch(e){}%
-              a#1.actnPlayLeft();%
-            };%
-          \fi
-          a#1.actnSecPlayRight=function(){%
-            try{app.clearInterval(a#1_intd);}catch(e){}%
-            a#1.actnPlayRight();%
-          };%
-        \fi%
-      \fi%
-    \fi%
   }%
   \if@anim@step\else%
     \if@anim@autoplay%
@@ -3372,12 +3345,12 @@
       \else
         \if@anim@ctrlorplndrm
           if(a#1.playsRight){%
-            a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+            a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
           }else{%
-            a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
+            a#1_intd=app.setTimeOut('a#1.actnPlayLeft()',1);%
           }%
         \else%
-          a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+          a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
         \fi%
       \fi%
     \fi%
@@ -3392,12 +3365,12 @@
         \else%
           \if@anim@ctrlorplndrm
             if(a#1.playsRight){%
-              a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+              a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
             }else{%
-              a#1_intd=app.setInterval('a#1.actnSecPlayLeft()',1);%
+              a#1_intd=app.setTimeOut('a#1.actnPlayLeft()',1);%
             }%
           \else
-            a#1_intd=app.setInterval('a#1.actnSecPlayRight()',1);%
+            a#1_intd=app.setTimeOut('a#1.actnPlayRight()',1);%
           \fi%
         \fi%
       }%
@@ -3431,13 +3404,13 @@
         \if@anim@useocg
           a#1.actnEndRight();%
         \else
-          a#1_intd=app.setInterval('a#1.actnSecEndRight()',1);%
+          a#1_intd=app.setTimeOut('a#1.actnEndRight()',1);%
         \fi%
       \else%
         \if@anim@useocg
           a#1.actnEndLeft();%
         \else
-          a#1_intd=app.setInterval('a#1.actnSecEndLeft()',1);%
+          a#1_intd=app.setTimeOut('a#1.actnEndLeft()',1);%
         \fi%
       \fi%
       \if@anim@step\else%

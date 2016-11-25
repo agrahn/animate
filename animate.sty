@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2013/09/24}
+\def\@anim@version{2013/12/20}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -91,35 +91,8 @@
       be embedded using pdfTeX%
     }
   }}
-  %macro for adding AcroForm entry to PDF Catalog
-  \def\@anim@acroform{%
-    \ifdefined\Acro@Form@added\else%
-      \pdfcatalog{/AcroForm<</Fields []/NeedAppearances true>>}%
-      \gdef\Acro@Form@added{}%
-    \fi%
-  }  
 \else
-  \if@anim@@dvipdfmx
-    %macro for adding AcroForm entry to PDF Catalog
-    \def\@anim@acroform{%
-      \ifdefined\Acro@Form@added\else%
-        \special{pdf:put @catalog <<%
-          /AcroForm<</Fields []/NeedAppearances true>>>>}%
-        \gdef\Acro@Form@added{}%
-      \fi%
-    }  
-  \else % dvips
-    %macro for adding AcroForm entry to PDF Catalog
-    \def\@anim@acroform{%
-      \ifdefined\Acro@Form@added\else%
-        \special{ps:
-          mark {Catalog} <<%
-            /AcroForm <</Fields []/NeedAppearances true>>%
-          >> /PUT pdfmark
-        }%
-        \gdef\Acro@Form@added{}%
-      \fi%
-    }  
+  \if@anim@@dvipdfmx\else % dvips
     %if geometry package is loaded, execute `\geometry{dvips}' right before
     %  `\begin{document}'
     \let\@anim@document\document
@@ -245,8 +218,11 @@
 \newboolean{@anim@timeline} %true if `timeline' option is set
 \newboolean{@anim@multipage} % multipage document?
 
-%add OCProperties entries to Catalog
+%add AcroForm and OCProperties entries to Catalog
 \ifpdf
+  \newcount\@anim@@fields
+  \pdfobj reserveobjnum
+  \@anim@@fields=\pdflastobj
   \newcount\@anim@@ocgs
   \pdfobj reserveobjnum
   \@anim@@ocgs=\pdflastobj
@@ -254,6 +230,7 @@
   \pdfobj reserveobjnum
   \@anim@@offocgs=\pdflastobj
   \pdfcatalog{
+    /AcroForm <</Fields \the\@anim@@fields\space 0 R /NeedAppearances true>>
     /OCProperties <<
       /OCGs \the\@anim@@ocgs\space 0 R
       /D <<
@@ -261,9 +238,13 @@
       >>
     >>
   }
+  \gdef\Acro@Form@added{}%
   \def\@anim@ocgs{}
   \def\@anim@offocgs{}
   \AtEndDocument{%
+    \immediate\pdfobj useobjnum \@anim@@fields {%
+      [\@anim@fields]%
+    }%
     \immediate\pdfobj useobjnum \@anim@@ocgs {%
       [\@anim@ocgs]%
     }%
@@ -275,26 +256,39 @@
   %counts inserted widget annots
   \newcount\@anim@fieldnum\@anim@fieldnum=\z@%
   \if@anim@@dvipdfmx
+    %array which takes refs to all widget annotations
+    \special{pdf:obj @anim@fields [ ]}
     %array which takes all ocgs (one per animation frame)
     \special{pdf:obj @anim@ocgs [ ]}
     %array which takes ocgs shown by default (the poster frames)
     \special{pdf:obj @anim@offocgs [ ]}
     \special{pdf:put @catalog <<
+      /AcroForm <</Fields @anim@fields /NeedAppearances true>>
       /OCProperties <<
         /OCGs @anim@ocgs
         /D <</BaseState/ON /OFF @anim@offocgs>>
       >>
     >>}
+    \gdef\Acro@Form@added{}%
+    \AtEndDocument{%
+      \special{pdf:put @anim@fields \@anim@fields}%
+    }
   \else
     \special{ps:
+      mark /_objdef {@anim@fields} /type/array /OBJ pdfmark
       mark /_objdef {@anim@ocgs} /type/array /OBJ pdfmark
       mark /_objdef {@anim@offocgs} /type/array /OBJ pdfmark
       mark {Catalog} <<
+        /AcroForm <</Fields {@anim@fields} /NeedAppearances true>>
         /OCProperties <<
           /OCGs {@anim@ocgs}
           /D <</BaseState/ON /OFF {@anim@offocgs}>>
         >>
       >> /PUT pdfmark
+    }
+    \gdef\Acro@Form@added{}%
+    \AtEndDocument{%
+      \special{ps: mark {@anim@fields} 0 [\@anim@fields] /PUTINTERVAL pdfmark}%
     }
   \fi
 \fi
@@ -646,9 +640,10 @@
       \fi%
       /FT/Btn/Ff 65537% non-interactive push button
       /BS <</W 0>>%
-      /AP <</N \the\pdflastxform\space 0 R>>%
+      /MK <</TP 1/I \the\pdflastxform\space 0 R/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
     }%
+    \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
   }
 \else
   \if@anim@@dvipdfmx
@@ -706,10 +701,11 @@
           \if@anim@useocg/OC @anim@ocg@#1@#2\fi%
           /FT/Btn/Ff 65537%
           /BS <</W 0>>%
-          /AP <</N @anim@anmfrm@#1@#2>>%
+          /MK <</TP 1/I @anim@anmfrm@#1@#2/IF<</S/A/FB true>>>>%
           /T (#1.#2)%
         >>%
       }%
+      \xdef\@anim@fields{\@anim@fields @annot@\the\@anim@fieldnum\space}%
       \global\advance\@anim@fieldnum by \@ne%
     }
   \else
@@ -783,10 +779,11 @@
           \if@anim@useocg/OC {@anim@ocg@#1@#2}\fi%
           /FT/Btn/Ff 65537
           /BS <</W 0>>%
-          /AP <</N {@anim@anmfrm@#1@#2}>>%
+          /MK <</TP 1/I {@anim@anmfrm@#1@#2}/IF<</S/A/FB true>>>>%
           /T (#1.#2)%
         /ANN pdfmark
       }%
+      \xdef\@anim@fields{\@anim@fields{annot@\the\@anim@fieldnum}\space}%
       \global\advance\@anim@fieldnum by \@ne%
     }
   \fi
@@ -1490,6 +1487,8 @@
   \fi
 \fi
 
+\def\@anim@fields{}
+
 %user command for embedding animation sequence
 % #1: options
 % #2: frame rate (fps)
@@ -1768,7 +1767,7 @@
         \@anim@otherjscriptkey%
       >>%
     }%
-    \@anim@acroform%
+    \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
     \hbox to \@anim@animwidth\p@ {%
       \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
       \hss%
@@ -1796,7 +1795,7 @@
           >>
         >>%
       }%
-      \@anim@acroform%
+      \xdef\@anim@fields{\@anim@fields @annot@\the\@anim@fieldnum\space}%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \@anim@animwidth\p@ {%
         \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1841,7 +1840,7 @@
           >>%
         /ANN pdfmark
       }%
-      \@anim@acroform%
+      \xdef\@anim@fields{\@anim@fields{annot@\the\@anim@fieldnum}\space}%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \@anim@animwidth\p@ {%
         \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1866,11 +1865,12 @@
         /FT/Btn/Ff 65536% push button
         /BS <</W 0>>%
         /H/I%
-        /AP <</N \@anim@getkeyval{btn#3}>>%
+        /MK <</TP 1/I \@anim@getkeyval{btn#3}/IF<</S/A/FB true>>>>%
         /T (#1.#2)%
         \@anim@tooltip%
         /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
       }%
+      \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
       \vrule width 0pt height \@anim@tmpdima depth 0pt%
       \hss%
     }%
@@ -1888,12 +1888,13 @@
             /FT/Btn/Ff 65536%
             /BS <</W 0>>%
             /H/I%
-            /AP <</N @btn#3>>%
+            /MK <</TP 1/I @btn#3/IF<</S/A/FB true>>>>%
             /T (#1.#2)%
             \@anim@tooltip%
             /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
           >>%
         }%
+        \xdef\@anim@fields{\@anim@fields @annot@\the\@anim@fieldnum\space}%
         \global\advance\@anim@fieldnum by \@ne%
         \vrule width 0pt height \@anim@tmpdima depth 0pt%
         \hss%
@@ -1926,12 +1927,13 @@
           /FT/Btn/Ff 65536
           /BS <</W 0>>
           /H/I
-          /AP <</N {btn#3}>>%
+          /MK <</TP 1/I {btn#3}/IF<</S/A/FB true>>>>%
           /T (#1.#2)%
           \@anim@tooltip%
           /A <</S/JavaScript/JS (\@anim@upjscriptstring)>>%
         /ANN pdfmark
       }%
+      \xdef\@anim@fields{\@anim@fields{annot@\the\@anim@fieldnum}\space}%
       \global\advance\@anim@fieldnum by \@ne%
       \hbox to \the\@anim@tmpdima {%
         \vrule width 0pt height \the\@anim@tmpdima\space depth 0pt%
@@ -2713,6 +2715,22 @@
 }
 
 %command options
+\define@key{anim@user}{label}{%
+  \gdef\@anim@label{#1}%
+  \ifcsname @anim@#1\endcsname%
+    \PackageWarning{animate}{Label #1 multiply defined}
+    \ifdefined\@anim@multlabel\else
+      \gdef\@anim@multlabel{}%
+      \AtEndDocument{%
+        \PackageWarningNoLine{animate}{%
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak
+        @@ There were multiply-defined labels! @@\MessageBreak
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@}%
+      }%
+    \fi%
+  \fi%
+  \expandafter\gdef\csname  @anim@#1\endcsname{}%
+}
 %setting the widget size
 \define@key{anim@user}{width}{%
   \gdef\@anim@widtharg{#1}%
@@ -2909,6 +2927,10 @@
   \if@anim@grxloaded\g@addto@macro\@anim@gropts{, trim=#1}%
   \else\@anim@missing{graphicx}\fi%
 }
+\define@key{anim@user}{angle}{%
+  \if@anim@grxloaded\g@addto@macro\@anim@gropts{, angle=#1}%
+  \else\@anim@missing{graphicx}\fi%
+}
 \newboolean{@anim@meas}
 \define@key{anim@user}{measure}[true]{%
   \setboolean{@anim@meas}{#1}%
@@ -2928,6 +2950,7 @@
 
 %macro to reset macros and booleans
 \def\@anim@reset{%
+  \gdef\@anim@label{}%
   \gdef\@anim@boxscale{1.0}%
   \global\@anim@resize\z@%
   \gdef\@anim@widtharg{\width}%

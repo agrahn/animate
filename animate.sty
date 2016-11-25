@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/04/15}
+\def\@anim@version{2016/05/30}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -34,7 +34,6 @@
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
 \RequirePackage{atenddvi}%to really get certain \specials into the dvi
-\RequirePackage{animfp}
 \RequirePackage{graphics}%\scalebox, \resizebox
 
 %driver options (the only package options we process immediately)
@@ -109,6 +108,8 @@
   }
 
   \let\@anim@pdfcatalog\pbs_pdfcatalog:n
+
+  \let\@anim@fpeval\fp_eval:n
 \ExplSyntaxOff
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -171,7 +172,11 @@
   \ifcsname pdfmdfivesum\endcsname
     \def\@anim@pdfmdfivesum#1{\pdfmdfivesum file {#1}}
   \else
-    \def\@anim@pdfmdfivesum#1{#1}
+    \ifcsname mdfivesum\endcsname
+      \let\@anim@pdfmdfivesum\mdfivesum
+    \else  
+      \def\@anim@pdfmdfivesum#1{#1}
+    \fi
   \fi
 \fi
 
@@ -1146,59 +1151,29 @@
 %draftbox
 \def\@anim@draftbox{%
   \begingroup%
-  \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
-    \hbox{%
-      \raisebox{-\@anim@animdepth}{%
-        \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
-          \put(0,0){\framebox(\@anim@animwidth,\@anim@animtotalheight){}}%
-        \end{picture}%
+    \hbox{\raisebox{-\@anim@animdepth}{%
+      \frame{%
+        \rule{0pt}{\@anim@animtotalheight}\hskip\@anim@animwidth%
       }%
-    }%
+    }}%
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth {%
         \hss%
-        \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
-        \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
-          \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
-          \put(0,\strip@pt\@anim@tmpdima){%
-            \line(1,0){\strip@pt\@anim@tmpdimb}%
-          }%
-          \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
-        \end{picture}%
-        \if@anim@step\else%
-          \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
-            \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
-            \put(0,\strip@pt\@anim@tmpdima){%
-              \line(1,0){\strip@pt\@anim@tmpdimb}%
-            }%
-          \end{picture}%
-        \fi%
-        \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
-          \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
-          \put(0,\strip@pt\@anim@tmpdima){%
-            \line(1,0){\strip@pt\@anim@tmpdimb}%
-          }%
-          \put(\strip@pt\@anim@tmpdimb,0){%
-            \line(0,1){\strip@pt\@anim@tmpdima}%
-          }%
-        \end{picture}%
+        \frame{%
+          \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
+          \rule{0pt}{\@anim@tmpdima}\hskip\@anim@tmpdimb\hskip\@anim@tmpdimb%
+          \if@anim@step\else\hskip\@anim@tmpdimb\fi%
+        }%
         \if@anim@step\else%
           \hskip 0.3\@anim@tmpdima%
-          \setlength{\@anim@tmpdimb}{3\@anim@tmpdima}%
-          \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
-            \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
-            \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
-            \put(0,\strip@pt\@anim@tmpdima){%
-              \line(1,0){\strip@pt\@anim@tmpdimb}%
-            }%
-            \put(\strip@pt\@anim@tmpdimb,0){%
-              \line(0,1){\strip@pt\@anim@tmpdima}%
-            }%
-          \end{picture}%
+          \frame{%
+            \setlength{\@anim@tmpdimb}{3\@anim@tmpdima}%
+            \rule{0pt}{\@anim@tmpdima}\hskip\@anim@tmpdimb%
+          }%
         \fi%
         \hss%
       }%
@@ -1886,7 +1861,10 @@
           }{}%
       \fi\fi%
       %draw draftbox according to dimensions of the first frame
-      \if@anim@draft\@anim@scale{\@anim@box}\@anim@draftbox\fi%
+      \if@anim@draft%
+        \@anim@scale{\@anim@box}%
+        \@anim@draftbox%
+      \fi%
     \else% remaining frames
       %deal with zero width or totalheight boxes
       \ifdim\wd\@anim@box=\z@\global\setbox\@anim@box=\hbox{\phantom{X}}\fi%
@@ -1985,13 +1963,15 @@
       \OR\equal{\@anim@vartype}{r}\OR\equal{\@anim@vartype}{R}%
     }{% real numbers, prefix n, N, r, R
       %initialize variable
-      \expandafter\@anim@add\csname#1\endcsname{#2}{0.0}%
+      \expandafter\edef\csname#1\endcsname{\@anim@fpeval{#2}}%
       %global copy that saves current variable value between loops
-      \expandafter\xdef\csname#1@old\endcsname{#2}%
+      \expandafter\xdef\csname#1@old\endcsname{\@anim@fpeval{#2}}%
       %append script for updating variable to \@anim@updatevars macro
       \g@addto@macro\@anim@updatevars{%
         %new value
-        \expandafter\@anim@add\csname#1\endcsname{\csname#1@old\endcsname}{#3}%
+        \expandafter\edef\csname#1\endcsname{%
+          \@anim@fpeval{#3+\csname#1@old\endcsname}%
+        }%
         %global copy
         \expandafter\xdef\csname#1@old\endcsname{\csname#1\endcsname}%
       }%

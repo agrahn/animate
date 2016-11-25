@@ -13,10 +13,11 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/07/04]
+\ProvidesPackage{animate}[2007/08/15]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
+\RequirePackage{ifdraft}
 \RequirePackage{calc}
 
 \DeclareOption*{}\ProcessOptions*\relax %allow anything as option
@@ -119,15 +120,13 @@
 \fi
 
 \newbox\@anim@box %stores animation frames
-\newdimen\@anim@tmpdima %length register for occasional use
+\newdimen\@anim@tmpdima %length registers for occasional use
+\newdimen\@anim@tmpdimb
 
 %creates Form XObject from graphics file
 \def\@anim@pt{pt}
 \ifpdf
   \def\@anim@ximage#1#2#3{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename
-    \IfFileExists{#3}{}{%
-      \PackageError{animate}{File `#3' cannot be opened for embedding.}{}%
-    }%
     %store file in a box
     \def\@anim@mps{.mps}%
     \ifx\@anim@ext\@anim@mps%
@@ -135,15 +134,12 @@
     \else%
       \immediate\pdfximage{#3}%
       \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
-    \fi
+    \fi%
     %delegate Form XObject creation
     \@anim@xinline{#1}{#2}{\@anim@box}%
   }
 \else
   \def\@anim@ximage#1#2#3{%
-    \IfFileExists{#3}{}{%
-      \PackageError{animate}{File `#3' cannot be opened for embedding.}{}%
-    }%
     %store file in a box
     \edef\@anim@curfile{{#3}}%
     \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
@@ -812,6 +808,100 @@
 \newboolean{@anim@buttonsmade} %true if button faces have been made
 \setboolean{@anim@buttonsmade}{false}
 
+%draftbox from file
+\ifpdf
+  \def\@anim@filedraftbox#1{% #1: filename
+    %store file in a box
+    \def\@anim@mps{.mps}%
+    \ifx\@anim@ext\@anim@mps%
+      \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
+    \else%
+      \immediate\pdfximage{#1}%
+      \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
+    \fi%
+    \@anim@draftbox{\@anim@box}% draw draft box with controls (if set)
+  }
+\else
+  \def\@anim@filedraftbox#1{%
+    \edef\@anim@curfile{{#1}}%
+    \global\setbox\@anim@box=\hbox{\expandafter\includegraphics\@anim@curfile}%
+    \@anim@draftbox{\@anim@box}%
+  }
+\fi
+
+%draftbox from savebox (lowlevel macro)
+\def\@anim@draftbox#1{% #1: box number
+  %get size
+  \xdef\@anim@animwidth{\strip@pt\wd#1}%
+  \xdef\@anim@animheight{\strip@pt\ht#1}%
+  \xdef\@anim@animdepth{\strip@pt\dp#1}%
+  \setlength{\@anim@tmpdima}{\ht#1}%
+  \addtolength{\@anim@tmpdima}{\dp#1}%
+  \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
+  \@anim@rescale% rescale box
+  \edef\@anim@oldunitlength{\the\unitlength}%
+  \setlength{\unitlength}{1pt}%
+  \vtop{% draw boxes
+    \offinterlineskip%
+	\hbox{%
+	  \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
+	    (0,-\@anim@animdepth)%
+        \put(0,-\@anim@animdepth){%
+		  \framebox(\@anim@animwidth,\@anim@animtotalheight){}%
+		}%
+	  \end{picture}%
+	}%
+    \if@anim@controls%
+      \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \vskip 0.1\@anim@tmpdima%
+      \hbox to \@anim@animwidth\@anim@pt {%
+        \hss%
+        \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
+  	    \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+          \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
+          \put(0,\strip@pt\@anim@tmpdima){%
+  		    \line(1,0){\strip@pt\@anim@tmpdimb}%
+  		  }%
+          \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
+  	    \end{picture}%
+        \if@anim@step\else%
+  	      \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+            \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
+            \put(0,\strip@pt\@anim@tmpdima){%
+  	          \line(1,0){\strip@pt\@anim@tmpdimb}%
+  	        }%
+  	      \end{picture}%
+        \fi%
+  	    \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+          \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
+          \put(0,\strip@pt\@anim@tmpdima){%
+  	        \line(1,0){\strip@pt\@anim@tmpdimb}%
+  	      }%
+          \put(\strip@pt\@anim@tmpdimb,0){%
+  	        \line(0,1){\strip@pt\@anim@tmpdima}%
+  	      }%
+  	    \end{picture}%
+        \if@anim@step\else%
+          \hskip 0.3\@anim@tmpdima%
+          \setlength{\@anim@tmpdimb}{3\@anim@tmpdima}%
+  	      \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+            \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
+            \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
+            \put(0,\strip@pt\@anim@tmpdima){%
+  	          \line(1,0){\strip@pt\@anim@tmpdimb}%
+  	        }%
+            \put(\strip@pt\@anim@tmpdimb,0){%
+  	          \line(0,1){\strip@pt\@anim@tmpdima}%
+  	        }%
+  	      \end{picture}%
+        \fi%
+        \hss%
+      }%
+    \fi%
+    \setlength{\unitlength}{\@anim@oldunitlength}%
+  }%
+}
+
 %user command for embedding animation sequence
 % #1: options
 % #2: frame rate (fps)
@@ -829,45 +919,59 @@
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
   %
-  \if@anim@controls%
-    %create button faces if necessary
-    \if@anim@buttonsmade\else%
-      \@anim@makebuttons%
-      \setboolean{@anim@buttonsmade}{true}%
-    \fi%
-    \if@anim@step\else%
-      %combine Pause & Play button faces into one XObject
-      \@anim@makeppcontainer{\the\@anim@num}{Right}%
-      \@anim@makeppcontainer{\the\@anim@num}{Left}%
-    \fi%
-  \fi%
-  \xdef\@anim@fps{#2}% current frame rate
-  \xdef\@anim@nfps{#2}%
-  \xdef\@anim@pauseat{}%
-  \xdef\@anim@nfpsat{}%
-  \xdef\@anim@pfpsat{}%
-  %
-  %read all frames of the sequence
   \@anim@curframe=\@anim@first%
   \@anim@curframe@zb=0%
-  \loop\ifnum\@anim@curframe>\@anim@last\else%
-    %get file name extension of current file
-    \@anim@getext{%
-      \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
-    }%
-    %embed graphics
-    \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
-      \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
-    }%
-    \advance\@anim@curframe by 1%
-    \advance\@anim@curframe@zb by 1%
-  \repeat%
-  \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
-  %build timeline from optional timeline file
-  \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
-  \@anim@makecontainer{\the\@anim@num}% create container XObject
-  %insert animation widget & controls
-  \@anim@insertwidgets{\the\@anim@num}%
+  \if@anim@draft%
+    %test for existence of all files of the sequence
+    \loop\ifnum\@anim@curframe>\@anim@last\else%
+      %get file name extension of current file (also tests for existence)
+      \@anim@getext{%
+        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
+      }%
+      \advance\@anim@curframe by 1%
+      \advance\@anim@curframe@zb by 1%
+    \repeat%
+	%draw draftbox according to dimensions of the first frame
+	\@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
+  \else%
+    \if@anim@controls%
+      %create button faces if necessary
+      \if@anim@buttonsmade\else%
+        \@anim@makebuttons%
+        \setboolean{@anim@buttonsmade}{true}%
+      \fi%
+      \if@anim@step\else%
+        %combine Pause & Play button faces into one XObject
+        \@anim@makeppcontainer{\the\@anim@num}{Right}%
+        \@anim@makeppcontainer{\the\@anim@num}{Left}%
+      \fi%
+    \fi%
+    \xdef\@anim@fps{#2}% current frame rate
+    \xdef\@anim@nfps{#2}%
+    \xdef\@anim@pauseat{}%
+    \xdef\@anim@nfpsat{}%
+    \xdef\@anim@pfpsat{}%
+    %
+    %read all frames of the sequence
+    \loop\ifnum\@anim@curframe>\@anim@last\else%
+      %get file name extension of current file
+      \@anim@getext{%
+        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}%
+      }%
+      %embed graphics
+      \@anim@ximage{\the\@anim@num}{\the\@anim@curframe@zb}{%
+        \@anim@base\@anim@pad{\@anim@first}{\the\@anim@curframe}\@anim@ext%
+      }%
+      \advance\@anim@curframe by 1%
+      \advance\@anim@curframe@zb by 1%
+    \repeat%
+    \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+    %build timeline from optional timeline file
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
+    \@anim@makecontainer{\the\@anim@num}% create container XObject
+    %insert animation widget & controls
+    \@anim@insertwidgets{\the\@anim@num}%
+  \fi%
   \global\advance\@anim@num by 1%
 }%
 
@@ -878,8 +982,7 @@
     \hbox{\@anim@animwidget{#1}}%
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-      \setlength{\@anim@tmpdima}{0.1\@anim@tmpdima}%
-      \vskip \@anim@tmpdima%
+      \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth\@anim@pt {%
         \hss%
         \@anim@buttonwidget{#1}{EndLeft}{EndLeft}%
@@ -891,9 +994,7 @@
         \@anim@buttonwidget{#1}{StepRight}{StepRight}%
         \@anim@buttonwidget{#1}{EndRight}{EndRight}%
         \if@anim@step\else%
-          \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-          \setlength{\@anim@tmpdima}{0.3\@anim@tmpdima}%
-          \hskip \@anim@tmpdima%
+          \hskip 0.3\@anim@tmpdima%
           \@anim@buttonwidget{#1}{Minus}{Minus}%
           \@anim@buttonwidget{#1}{Reset}{Reset}%
           \@anim@buttonwidget{#1}{Plus}{Plus}%
@@ -963,6 +1064,9 @@
   \setlength{\@anim@tmpdima}{\@anim@animdepth\@anim@pt}%
   \setlength{\@anim@tmpdima}{\@anim@boxscale\@anim@tmpdima}%
   \xdef\@anim@animdepth{\strip@pt\@anim@tmpdima}%
+  \setlength{\@anim@tmpdima}{\@anim@animheight\@anim@pt}%
+  \addtolength{\@anim@tmpdima}{\@anim@animdepth\@anim@pt}%
+  \xdef\@anim@animtotalheight{\strip@pt\@anim@tmpdima}%
 }
 
 %creates animation widget
@@ -1325,7 +1429,7 @@
   \edef\@anim@endlinechar{\the\endlinechar}%
   \endlinechar=-1% suppress trailing space at input line end
   \global\@anim@curframe@zb=0%
-  %read timeline file a first time to get number lines (= number of frames)
+  %read timeline file a first time to get number of lines (= number of frames)
   \openin\@anim@@tmlnfile=\@anim@tmlnfile%
   \read\@anim@@tmlnfile to \@anim@inputline%
   \edef\@anim@inputline{\@anim@inputline\space}%
@@ -1541,6 +1645,18 @@
 \define@key{anim@user}{step}[true]{%
   \setboolean{@anim@step}{#1}%
 }
+\newboolean{@anim@draft}
+\setboolean{@anim@draft}{false}
+\define@key{anim@user}{draft}[true]{%
+  \setboolean{@anim@draft}{#1}%
+}
+\define@key{anim@user}{final}[true]{%
+  \ifthenelse{\equal{#1}{true}}{%
+    \setboolean{@anim@draft}{false}%
+  }{%
+    \setboolean{@anim@draft}{true}%
+  }%
+}
 \define@key{anim@user}{timeline}{%
   \IfFileExists{#1}{%
     \gdef\@anim@tmlnfile{#1}%
@@ -1578,6 +1694,7 @@
   \let\if@anim@autopause=\if@anim@@autopause%
   \let\if@anim@palindrome=\if@anim@@palindrome%
   \let\if@anim@step=\if@anim@@step%
+  \let\if@anim@draft=\if@anim@@draft%
   \gdef\@anim@posterocg{}%
   \gdef\@anim@properties{}%
   \gdef\@anim@xobject{}%
@@ -1653,6 +1770,22 @@
 \setboolean{@anim@@step}{false}
 \define@key{anim@pkg}{step}[true]{%
   \setboolean{@anim@@step}{#1}%
+}
+\newboolean{@anim@@draft}
+\ifdraft{%globally set by document class
+  \setboolean{@anim@@draft}{true}%
+}{%
+  \setboolean{@anim@@draft}{false}%
+}%
+\define@key{anim@pkg}{draft}[true]{%
+  \setboolean{@anim@@draft}{#1}%
+}
+\define@key{anim@pkg}{final}[true]{%
+  \ifthenelse{\equal{#1}{true}}{%
+    \setboolean{@anim@@draft}{false}%
+  }{%
+    \setboolean{@anim@@draft}{true}%
+  }%
 }
 
 %process package options

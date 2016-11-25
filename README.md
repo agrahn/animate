@@ -15,21 +15,22 @@ Note, this file only gives a summary of usage and available package and command 
 *Keywords:* include portable PDF animated PDF animation animating embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost LaTeX-picture inline graphics vector graphics animated GIF LaTeX dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange Foxit Reader
 
 **Usage:**
-
-    \usepackage[<package options>]{animate}
-
+````latex
+\usepackage[<package options>]{animate}
+````
 - Package options:
-
-    width=<h-size>, height=<v-size>, totalheight=<v-size>,
-    keepaspectratio, scale=<factor>, nomouse,
-    autopause, autoplay, autoresume, controls, final, draft,
-    buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
-    loop, palindrome, step,
-    poster[=first | <num> | last | none],
-    method=icon | widget | ocg, dvipdfmx, xetex
+````
+width=<h-size>, height=<v-size>, totalheight=<v-size>,
+keepaspectratio, scale=<factor>, nomouse,
+autopause, autoplay, autoresume, controls, final, draft,
+buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
+loop, palindrome, step,
+poster[=first | <num> | last | none],
+method=icon | widget | ocg, dvipdfmx, xetex
+````
 
 - User interface:
-
+````latex
     \animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
 
     \begin{animateinline}[<options>]{<frame rate>}
@@ -43,21 +44,23 @@ Note, this file only gives a summary of usage and available package and command 
         ... repeated (parameterized) material ...
     }
     \end{animateinline}
+````
 
 - Command options:
-
-    width=<h-size>, height=<v-size>, totalheight=<v-size>,
-    keepaspectratio, scale=<factor>, nomouse,
-    autopause, autoplay, autoresume, final,
-    draft, controls, buttonsize=<size>, buttonbg=<colour>,
-    buttonfg=<colour>, loop, palindrome, step, measure,
-    poster[=first | <num> | last | none],
-    begin={<begin text>}, end={<end text>},
-    timeline=<timeline file>,
-    method=icon | widget | ocg,
-    every=<number>, bb=<llx> <lly> <urx> <ury>,
-    viewport=<llx> <lly> <urx> <ury>,
-    trim=<left> <bottom> <right> <top>
+````
+width=<h-size>, height=<v-size>, totalheight=<v-size>,
+keepaspectratio, scale=<factor>, nomouse,
+autopause, autoplay, autoresume, final,
+draft, controls, buttonsize=<size>, buttonbg=<colour>,
+buttonfg=<colour>, loop, palindrome, step, measure,
+poster[=first | <num> | last | none],
+begin={<begin text>}, end={<end text>},
+timeline=<timeline file>,
+method=icon | widget | ocg,
+every=<number>, bb=<llx> <lly> <urx> <ury>,
+viewport=<llx> <lly> <urx> <ury>,
+trim=<left> <bottom> <right> <top>
+````
 
 **Requirements:**
 
@@ -70,9 +73,9 @@ Note, this file only gives a summary of usage and available package and command 
 **Installation:**
 
 Unzip the file [`animate.tds.zip`](http://mirrors.ctan.org/install/macros/latex/contrib/animate.tds.zip) into the local TDS root directory which can be found by running
-
+````bash
     kpsewhich -var-value TEXMFLOCAL
-
+````
 on the command line.
 
 After installation, update the filename database by running `texhash` on the command line.

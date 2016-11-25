@@ -11,7 +11,7 @@
 % Supports LaTeX->dvips->ps2pdf, (Xe)LaTeX->(x)dvipdfmx or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2008/06/16]
+\ProvidesPackage{animate}[2008/06/17]
 
 %test for e-TeX
 \ifx\eTeXversion\@undefined%
@@ -261,8 +261,8 @@
   \@anim@newkey{file:\pdfmdfivesum file {#1}.#2}{#3}%   #3 Form XObj ID
 }
 
+%helper macro that typesets graphics file into savebox
 \ifpdf
-  %helper macro that typesets graphics file into savebox
   \def\@anim@filebox#1#2{% #1 filename, #2 page No. for multipage files
     \ifx\@anim@gropts\@empty%
       \def\@anim@mps{.mps}%
@@ -290,7 +290,7 @@
 \fi
 
 %create Form XObject from graphics file
-\ifthenelse{\boolean{pdf}}{
+\ifpdf
   \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
     %#4: page number of multipage file
     \ifthenelse{\equal{\@anim@fileknown{#3}{#4}}{!}}{% new file to be embedded
@@ -311,7 +311,7 @@
       \@anim@xinline{#1}{#2}{}{\@anim@fileknown{#3}{#4}}%
     }%
   }
-}{
+\else
   \if@anim@@dvipdfmx
     \def\@anim@ximage#1#2#3#4{% #4: not used
       \ifthenelse{\equal{\@anim@fileknown{#3}{1}}{!}}{% new file to be embedded
@@ -351,7 +351,7 @@
       }%
     }
   \fi
-}
+\fi
 
 %creates Form XObject from box contents
 \ifpdf%
@@ -1708,7 +1708,7 @@
 }
 
 %interactive Widget annotation that is overlayed on the non-interactive
-%frame Windgets
+%frame Widgets
 \ifpdf
   \def\@anim@animwidget#1{%
     %create JavaScript objects

@@ -13,7 +13,7 @@
 % Supports LaTeX->dvips->ps2pdf or pdfLaTeX workflows.
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{animate}[2007/08/15]
+\ProvidesPackage{animate}[2007/08/21]
 \RequirePackage{keyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
@@ -288,11 +288,7 @@
     \setlength{\unitlength}{1pt}%
     \global\setbox\@anim@box=\hbox{%
       \pdfliteral{q}%
-      \begin{picture}(%
-        \@anim@animwidth,\@anim@animtotalheight%
-      )(%
-        0,-\@anim@animdepth%
-      )%
+      \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
       \end{picture}%
       \pdfliteral{Q\@anim@content}%
     }%
@@ -843,57 +839,56 @@
   \setlength{\unitlength}{1pt}%
   \vtop{% draw boxes
     \offinterlineskip%
-	\hbox{%
-	  \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
-	    (0,-\@anim@animdepth)%
-        \put(0,-\@anim@animdepth){%
-		  \framebox(\@anim@animwidth,\@anim@animtotalheight){}%
-		}%
-	  \end{picture}%
-	}%
+    \hbox{%
+      \raisebox{-\@anim@animdepth\@anim@pt}{%
+        \begin{picture}(\@anim@animwidth,\@anim@animtotalheight)%
+          \put(0,0){\framebox(\@anim@animwidth,\@anim@animtotalheight){}}%
+        \end{picture}%
+      }%
+    }%
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
       \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth\@anim@pt {%
         \hss%
         \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
-  	    \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+        \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
           \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
           \put(0,\strip@pt\@anim@tmpdima){%
-  		    \line(1,0){\strip@pt\@anim@tmpdimb}%
-  		  }%
+            \line(1,0){\strip@pt\@anim@tmpdimb}%
+          }%
           \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
-  	    \end{picture}%
+        \end{picture}%
         \if@anim@step\else%
-  	      \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+          \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
             \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
             \put(0,\strip@pt\@anim@tmpdima){%
-  	          \line(1,0){\strip@pt\@anim@tmpdimb}%
-  	        }%
-  	      \end{picture}%
+              \line(1,0){\strip@pt\@anim@tmpdimb}%
+            }%
+          \end{picture}%
         \fi%
-  	    \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+        \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
           \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
           \put(0,\strip@pt\@anim@tmpdima){%
-  	        \line(1,0){\strip@pt\@anim@tmpdimb}%
-  	      }%
+            \line(1,0){\strip@pt\@anim@tmpdimb}%
+          }%
           \put(\strip@pt\@anim@tmpdimb,0){%
-  	        \line(0,1){\strip@pt\@anim@tmpdima}%
-  	      }%
-  	    \end{picture}%
+            \line(0,1){\strip@pt\@anim@tmpdima}%
+          }%
+        \end{picture}%
         \if@anim@step\else%
           \hskip 0.3\@anim@tmpdima%
           \setlength{\@anim@tmpdimb}{3\@anim@tmpdima}%
-  	      \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
+          \begin{picture}(\strip@pt\@anim@tmpdimb,\strip@pt\@anim@tmpdima)%
             \put(0,0){\line(0,1){\strip@pt\@anim@tmpdima}}%
             \put(0,0){\line(1,0){\strip@pt\@anim@tmpdimb}}%
             \put(0,\strip@pt\@anim@tmpdima){%
-  	          \line(1,0){\strip@pt\@anim@tmpdimb}%
-  	        }%
+              \line(1,0){\strip@pt\@anim@tmpdimb}%
+            }%
             \put(\strip@pt\@anim@tmpdimb,0){%
-  	          \line(0,1){\strip@pt\@anim@tmpdima}%
-  	        }%
-  	      \end{picture}%
+              \line(0,1){\strip@pt\@anim@tmpdima}%
+            }%
+          \end{picture}%
         \fi%
         \hss%
       }%
@@ -931,8 +926,8 @@
       \advance\@anim@curframe by 1%
       \advance\@anim@curframe@zb by 1%
     \repeat%
-	%draw draftbox according to dimensions of the first frame
-	\@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
+    %draw draftbox according to dimensions of the first frame
+    \@anim@filedraftbox{\@anim@base\@anim@first\@anim@ext}%
   \else%
     \if@anim@controls%
       %create button faces if necessary
@@ -948,9 +943,6 @@
     \fi%
     \xdef\@anim@fps{#2}% current frame rate
     \xdef\@anim@nfps{#2}%
-    \xdef\@anim@pauseat{}%
-    \xdef\@anim@nfpsat{}%
-    \xdef\@anim@pfpsat{}%
     %
     %read all frames of the sequence
     \loop\ifnum\@anim@curframe>\@anim@last\else%
@@ -975,7 +967,7 @@
   \global\advance\@anim@num by 1%
 }%
 
-%insert the animation and control button widgets
+%inserts animation and control button widgets
 \def\@anim@insertwidgets#1{%#1:@anim@num
   \vtop{%
     \offinterlineskip%
@@ -1095,7 +1087,6 @@
       /T (anm@#1)%
       /MK <<%
         /TP 1% icon, no caption
-        /BG [\@anim@bg]%
         /IF <</SW/A/S/A>>% scale icon freely within widget
       >>%
       /AA <<% bind JavaScripts to trigger events
@@ -1148,7 +1139,6 @@
         /T (anm@#1)%
         /MK <<%
           /TP 1
-          /BG [\@anim@bg]%
           /IF <</SW/A/S/A>>%
         >>%
         /AA <<%
@@ -1251,20 +1241,22 @@
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
   \setkeys{anim@user}{#1}%
-  %create button faces if necessary
-  \if@anim@controls%
-    \if@anim@buttonsmade\else%
-      \@anim@makebuttons%
-      \setboolean{@anim@buttonsmade}{true}%
+  \if@anim@draft\else%
+    %create button faces if necessary
+    \if@anim@controls%
+      \if@anim@buttonsmade\else%
+        \@anim@makebuttons%
+        \setboolean{@anim@buttonsmade}{true}%
+      \fi%
+      \if@anim@step\else%
+        %combine Pause & Play button faces into one XObject
+        \@anim@makeppcontainer{\the\@anim@num}{Right}%
+        \@anim@makeppcontainer{\the\@anim@num}{Left}%
+      \fi%
     \fi%
-    \if@anim@step\else%
-      %combine Pause & Play button faces into one XObject
-      \@anim@makeppcontainer{\the\@anim@num}{Right}%
-      \@anim@makeppcontainer{\the\@anim@num}{Left}%
-    \fi%
+    \xdef\@anim@fps{#2}%
+    \xdef\@anim@nfps{#2}% current frame rate (for use in \newframe)
   \fi%
-  \xdef\@anim@fps{#2}%
-  \xdef\@anim@nfps{#2}% current frame rate (for use in \newframe)
   \global\@anim@curframe@zb=0%
   \@anim@beginframe%
   \ignorespaces%
@@ -1272,12 +1264,14 @@
   \unskip%
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
   \global\advance\@anim@curframe@zb by 1%
-  \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
-  %build timeline from optional timeline file
-  \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
-  \@anim@makecontainer{\the\@anim@num}% create container XObject
-  %insert animation widget & controls
-  \@anim@insertwidgets{\the\@anim@num}%
+  \if@anim@draft\else%
+    \xdef\@anim@frames{\the\@anim@curframe@zb}% total number
+    %build timeline from optional timeline file
+    \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
+    \@anim@makecontainer{\the\@anim@num}% create container XObject
+    %insert animation widget & controls
+    \@anim@insertwidgets{\the\@anim@num}%
+  \fi%
   \global\advance\@anim@num by 1%
   \setboolean{@anim@inside}{false}%
 }
@@ -1295,33 +1289,30 @@
   \@anim@endframe{\the\@anim@num}{\the\@anim@curframe@zb}%
   \@ifstar\@anim@newframestar\@anim@newframe%
 }
-\newcommand{\@anim@newframestar}[1][]{% starred variant to pause animation
-  \if@anim@step\else%                 % #1: new frame rate
-    \if@anim@timeline\else%
-      %build JavaScript commands to fill the `pauseAt' array
-      \xdef\@anim@pauseat{%
-        \@anim@pauseat%
-        a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
-      }%
-      \setboolean{@anim@pauseframes}{true}%
-      \xdef\@anim@pfps{\@anim@nfps}%
-      \xdef\@anim@nfps{#1}%
-      \ifx\@anim@nfps\@empty%
-        \xdef\@anim@nfps{\@anim@pfps}%
-      \else%
-        \ifnum\@anim@curframe@zb=0%
-          \xdef\@anim@fps{#1}%
+\newcommand{\@anim@newframe}[1][]{% #1: new frame rate
+  \if@anim@draft\else%
+    \if@anim@step\else%
+      \if@anim@timeline\else%
+        \edef\@anim@pfps{\@anim@nfps}%
+        \edef\@anim@nfps{#1}%
+        \ifx\@anim@nfps\@empty%
+          \edef\@anim@nfps{\@anim@pfps}%
+        \else%
+          \ifnum\@anim@curframe@zb=0%
+            \xdef\@anim@fps{#1}%
+          \fi%
+          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+          \xdef\@anim@nfpsat{%
+            \@anim@nfpsat%
+            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+          }%
+          \xdef\@anim@pfpsat{%
+            \@anim@pfpsat%
+            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+              Math.abs(\@anim@pfps);%
+          }%
+          \setboolean{@anim@chfps}{true}% change fps
         \fi%
-        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-        \xdef\@anim@nfpsat{%
-          \@anim@nfpsat%
-          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-        }%
-        \xdef\@anim@pfpsat{%
-          \@anim@pfpsat%
-          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-        }%
-        \setboolean{@anim@chfps}{true}% change fps
       \fi%
     \fi%
   \fi%
@@ -1329,27 +1320,36 @@
   \@anim@beginframe%
   \ignorespaces%
 }
-\newcommand{\@anim@newframe}[1][]{% #1: new frame rate
-  \if@anim@step\else%
-    \if@anim@timeline\else%
-      \edef\@anim@pfps{\@anim@nfps}%
-      \edef\@anim@nfps{#1}%
-      \ifx\@anim@nfps\@empty%
-        \edef\@anim@nfps{\@anim@pfps}%
-      \else%
-        \ifnum\@anim@curframe@zb=0%
-          \xdef\@anim@fps{#1}%
+\newcommand{\@anim@newframestar}[1][]{% starred variant for pauseing animation
+  \if@anim@draft\else%                  #1: new frame rate
+    \if@anim@step\else%
+      \if@anim@timeline\else%
+        %build JavaScript commands to fill the `pauseAt' array
+        \xdef\@anim@pauseat{%
+          \@anim@pauseat%
+          a\the\@anim@num.pauseAt[\the\@anim@curframe@zb]=1;%
+        }%
+        \setboolean{@anim@pauseframes}{true}%
+        \xdef\@anim@pfps{\@anim@nfps}%
+        \xdef\@anim@nfps{#1}%
+        \ifx\@anim@nfps\@empty%
+          \xdef\@anim@nfps{\@anim@pfps}%
+        \else%
+          \ifnum\@anim@curframe@zb=0%
+            \xdef\@anim@fps{#1}%
+          \fi%
+          %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
+          \xdef\@anim@nfpsat{%
+            \@anim@nfpsat%
+            a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
+          }%
+          \xdef\@anim@pfpsat{%
+            \@anim@pfpsat%
+            a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=%
+              Math.abs(\@anim@pfps);%
+          }%
+          \setboolean{@anim@chfps}{true}% change fps
         \fi%
-        %build JavaScript commands to fill the `nFpsAt' & `pFpsAt' arrays
-        \xdef\@anim@nfpsat{%
-          \@anim@nfpsat%
-          a\the\@anim@num.nFpsAt[\the\@anim@curframe@zb]=Math.abs(#1);%
-        }%
-        \xdef\@anim@pfpsat{%
-          \@anim@pfpsat%
-          a\the\@anim@num.pFpsAt[\the\@anim@curframe@zb]=Math.abs(\@anim@pfps);%
-        }%
-        \setboolean{@anim@chfps}{true}% change fps
       \fi%
     \fi%
   \fi%
@@ -1358,9 +1358,9 @@
   \ignorespaces%
 }
 
-%starts a new frame
+%starts new frame
 \def\@anim@beginframe{%
-  \begin{lrbox}{\@anim@box}% store the graphics in a box
+  \begin{lrbox}{\@anim@box}% store graphics in a box
   \the\@anim@begin%
 }
 
@@ -1368,7 +1368,7 @@
 \def\@anim@endframe#1#2{%
   \the\@anim@end%
   \end{lrbox}%
-  \message{< a#1, fr#2}%
+  \if@anim@draft\else\message{< a#1, fr#2}\fi%
   %determine size of graphics
   \ifnum #2=0%
     \xdef\@anim@animwidth{\strip@pt\wd\@anim@box}%
@@ -1389,10 +1389,11 @@
         }{}%
       \fi%
     \fi%
+    %draw draftbox according to dimensions of the first frame
+    \if@anim@draft\@anim@draftbox{\@anim@box}\fi%
   \fi%
   %now create Form XObject of box contents
-  \@anim@xinline{#1}{#2}{\@anim@box}%
-  \message{>}%
+  \if@anim@draft\else\@anim@xinline{#1}{#2}{\@anim@box}\message{>}\fi%
 }
 
 %prints zero padded integers
@@ -1450,7 +1451,7 @@
       \setboolean{@anim@eof}{false}\fi%
   }%
   \closein\@anim@@tmlnfile%
-  \xdef\@anim@images{\@anim@frames}% total number of images
+  \xdef\@anim@transp{\@anim@frames}% total number of transp
   \xdef\@anim@frames{\the\@anim@curframe@zb}% total number of anim positions
   \global\@anim@curframe@zb=0%
   %reopen timeline file and build timeline
@@ -1517,11 +1518,11 @@
   \@anim@parsethird#3,:;%
 }
 
-%parses 3rd column of timeline file (comma separated list of image specs)
+%parses 3rd column of timeline file (comma separated list of transp. specs)
 \def\@anim@parsethird#1,#2;{%
   \def\@anim@firstarg{#1}%
   \ifx\@anim@firstarg\@empty\else%
-    \@anim@process#1x:;% process one image spec
+    \@anim@process#1x:;% process one transparency spec
   \fi%
   \ifx #2:\else%
     \@anim@parsethird#2;%
@@ -1529,9 +1530,9 @@
 }
 
 \newcount\@anim@tmpcnt %scratch counter for different uses
-%process image spec, such as 123 or 456x78 or 9x0
+%process transparency spec, such as 123 or 456x78 or 9x0
 \def\@anim@process#1x#2;{%
-  %determine number of repetitions of current image
+  %determine number of repetitions of current transparency
   \ifx #2:%
     \gdef\@anim@repeats{1}%
   \else%
@@ -1548,9 +1549,9 @@
       \edef\@anim@repeatuntil{\the\@anim@tmpcnt}%
     \fi%
   \fi%
-  %build contents of animation frames according to image specifications
-  \ifnum\@anim@images<#1\else% ignore image specifications which do not exist
-    \ifnum\@anim@images=#1\else%
+  %build contents of animation frames according to transparency specifications
+  \ifnum\@anim@transp<#1\else% ignore non-existing transparency specifications
+    \ifnum\@anim@transp=#1\else%
       \@anim@tmpcnt=\@anim@curframe@zb%
       \loop\ifnum\@anim@repeatuntil>\@anim@tmpcnt%
         \@anim@newkey{@anim@content@\the\@anim@tmpcnt}{%
@@ -1609,9 +1610,7 @@
 \setboolean{@anim@autoplay}{false}
 \define@key{anim@user}{autoplay}[true]{%
   \setboolean{@anim@autoplay}{#1}%
-  \if@anim@autoplay
-  \setboolean{@anim@autoresume}{false}
-  \fi%
+  \if@anim@autoplay\setboolean{@anim@autoresume}{false}\fi%
 }
 \newboolean{@anim@autoresume}
 \setboolean{@anim@autoresume}{false}
@@ -1797,21 +1796,18 @@
 %animation widget's PageOpen event
 \ifpdf
   \def\@anim@pojscript#1{%
-    \gdef\@anim@posterlast{last}%
-    \gdef\@anim@posternone{none}%
     \immediate\pdfobj stream {\@anim@@pojscript{#1}}%
     \xdef\@anim@pojscriptobj{\the\pdflastobj\space 0 R}%
   }
 \else
   \def\@anim@pojscript#1{%
-    \gdef\@anim@posterlast{last}%
-    \gdef\@anim@posternone{none}%
     \special{ps:
       mark /_objdef {a#1@pojscript} /type/stream /OBJ pdfmark
       mark {a#1@pojscript} (\@anim@@pojscript{#1}) /PUT pdfmark
     }%
   }
 \fi
+\def\@anim@posterlast{last}% helper macro
 \def\@anim@@pojscript#1{% #1: @anim@num
 %  console.show();%
 %  console.clear();%

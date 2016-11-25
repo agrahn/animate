@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/01/20}
+\def\@anim@version{2010/01/22}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -395,8 +395,7 @@
       \global\setbox\@anim@box=\hbox{%
         \raisebox{-\dp#3}[\@anim@frameheight\p@][\@anim@framedepth\p@]{\box#3}%
       }%
-      \immediate\pdfxform\ifdefined\pgf@sys@pdf@possible@resources resources {%
-        \pgf@sys@pdf@possible@resources}\fi\@anim@box%
+      \immediate\pdfxform resources {\the\pdfpageresources}\@anim@box%
       \xdef\@anim@lastxform{\the\pdflastxform}%
       %keep a record of XObject number
       \@anim@newkey{img@#2}{\@anim@lastxform\space 0 R}%

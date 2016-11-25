@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2015/01/21}
+\def\@anim@version{2015/06/19}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -76,12 +76,14 @@
 
 \ifpdf
   %test for correct pdfTeX version
-  \ifnum\pdftexversion<120\relax%
-    \PackageError{animate}{%
-      pdfTeX, version >= 1.20, required%
-    }{%
-      Install a newer version!%
-    }%
+  \ifluatex\else
+    \ifnum\pdftexversion<120\relax
+      \PackageError{animate}{%
+        pdfTeX, version >= 1.20, required%
+      }{%
+        Install a newer version!%
+      }
+    \fi
   \fi
   %load MP to PDF converter
   \InputIfFileExists{supp-pdf.mkii}{}{%
@@ -318,16 +320,26 @@
         \ifx\empty\@ocgbase@ocgs\empty\else%
           \special{pdf:obj @ocgbase@ocgs []}%
           \special{pdf:put @ocgbase@ocgs \@ocgbase@ocgs}%
-          \special{pdf:obj @ocgbase@offocgs []}%
-          \special{pdf:put @ocgbase@offocgs \@ocgbase@offocgs}%
-          \special{pdf:obj @ocgbase@ocgorder []}%
-          \special{pdf:put @ocgbase@ocgorder \@ocgbase@ocgorder}%
+          \ifx\empty\@ocgbase@offocgs\empty
+            \gdef\@anim@offocgentry{}
+          \else%
+            \special{pdf:obj @ocgbase@offocgs []}%
+            \special{pdf:put @ocgbase@offocgs \@ocgbase@offocgs}%
+            \gdef\@anim@offocgentry{/OFF @ocgbase@offocgs}
+          \fi%
+          \ifx\empty\@ocgbase@ocgorder\empty
+            \gdef\@anim@ocgorderentry{}
+          \else%
+            \special{pdf:obj @ocgbase@ocgorder []}%
+            \special{pdf:put @ocgbase@ocgorder \@ocgbase@ocgorder}%
+            \gdef\@anim@ocgorderentry{/Order @ocgbase@ocgorder}
+          \fi%
           \special{pdf:put @catalog <<%
             /OCProperties <<%
               /OCGs @ocgbase@ocgs%
               /D <<%
-                /BaseState/ON /OFF @ocgbase@offocgs%
-                /Order @ocgbase@ocgorder /ListMode/VisiblePages%
+                /BaseState/ON \@anim@offocgentry%
+                \@anim@ocgorderentry/ListMode/VisiblePages%
                 /AS[%
                   <</Event/View  /Category[/View]  /OCGs @ocgbase@ocgs>>%
                   <</Event/Print /Category[/Print] /OCGs @ocgbase@ocgs>>%
@@ -534,7 +546,9 @@
   }
 
   \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
-    \pdfannot width #1\p@ height #2\p@ depth #3\p@ {#4}%
+    \pdfannot width #1\p@ height #2\p@ depth #3\p@ {%
+      #4%
+    }%
     %since all annots are Widgets
     \xdef\@anim@fields{\@anim@fields\the\pdflastannot\space 0 R\space}%
   }
@@ -610,7 +624,9 @@
     \def\@anim@pdfannot#1#2#3#4{%width, height, depth, dict
       \special{pdf:annot @anm@obj\the\@anim@objnum\space
         width #1pt height #2pt
-        depth #3pt <<#4>>}%
+        depth #3pt <<%
+          #4%
+        >>}%
       \xdef\@anim@fields{\@anim@fields @anm@obj\the\@anim@objnum\space}%
       \global\advance\@anim@objnum by \@ne%
     }
@@ -867,7 +883,7 @@
     \ifnum\@anim@poster>\@anim@mtwo% insert poster frame
       \ifnum#2=\@anim@poster%
         \edef\@anim@posterap{\@anim@lastxform}%
-      \else%  
+      \else%
         \ifnum\@anim@poster=\@anim@mone% use last frame as poster
           \edef\@anim@posterap{\@anim@lastxform}%
         \fi%
@@ -885,7 +901,7 @@
     \ifnum\@anim@poster>\@anim@mtwo% insert poster frame
       \ifnum#2=\@anim@poster%
         \def\@anim@annotflag{/F 4}% not hidden + print (4)
-      \else%  
+      \else%
         \ifnum\@anim@poster=\@anim@mone% use last frame as poster
           \@anim@keytoaux{a#1.poster}{#2}%
           \ifthenelse{\equal{\@anim@getkeyval{a#1.poster}}{#2}}{%
@@ -904,6 +920,7 @@
       /AP <</N \@anim@refobj{\@anim@lastxform}>>%
       /MK <</TP 1/I \@anim@refobj{\@anim@lastxform}/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
+      \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
     }%
   \or% ocg based
     \@anim@newocg{#1}{#2}%
@@ -1344,7 +1361,7 @@
           Wrong file type? Mis-spelled file name?%
         }{}%
       }}}}}}}}}}%
-    \else%  
+    \else%
       \gdef\@anim@ext{.#2}%
       \IfFileExists{#1\@anim@ext}{}{%
         \PackageError{animate}{%
@@ -1389,7 +1406,7 @@
             Wrong file type? Mis-spelled file name?%
           }{}%
         }}}}}}}}%
-      \else%  
+      \else%
         \gdef\@anim@ext{.#2}%
         \IfFileExists{#1\@anim@ext}{}{%
           \PackageError{animate}{%
@@ -1418,7 +1435,7 @@
             Wrong file type? Mis-spelled file name?%
           }{}%
         }}}%
-      \else%  
+      \else%
         \gdef\@anim@ext{.#2}%
         \IfFileExists{#1\@anim@ext}{}{%
           \PackageError{animate}{%
@@ -1521,7 +1538,7 @@
           }{}%
         }%
       }%
-    \else%  
+    \else%
       \IfFileExists{#1.#2}{%
         \setboolean{@anim@multipage}{true}%
         \gdef\@anim@ext{.#2}%
@@ -1565,7 +1582,7 @@
           \setboolean{@anim@multipage}{true}%
           \gdef\@anim@ext{.pdf}%
         }{}%
-      \else%  
+      \else%
         \IfFileExists{#1.#2}{%
           \setboolean{@anim@multipage}{true}%
           \gdef\@anim@ext{.#2}%
@@ -1897,6 +1914,18 @@
     \fi%
     \def\@anim@apmk{\@anim@refobj{\@anim@apdummy}}%
   \fi%
+  %With icon and ocg method, we put one dummy widget below; this seems to be
+  %necessary for the OCG visibility referenced by the /OC entry to work
+  %as expected (if we place the animation on a PDF layer using fixocgx.sty).
+  \ifnum\@anim@method=\@ne\else%
+    \ifdefined\fxocg@insert@OC%
+      \ifthenelse{\equal{\fxocg@insert@OC}{}}{}{%
+        \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+          /Subtype/Widget/F 2%
+        }%
+      }%
+    \fi%
+  \fi%
   \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
     /Subtype/Widget%
     /FT/Btn/Ff \@anim@btnflag%
@@ -1913,6 +1942,7 @@
     >>%
     /AP <</N \@anim@apmk>>%
     /MK <</TP 1/I \@anim@apmk/IF<</S/A/FB true>>>>%
+    \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
   }%
   \hbox to \@anim@animwidth\p@ {%
     \vrule width 0pt height \@anim@animheight\p@ depth \@anim@animdepth\p@%
@@ -1947,6 +1977,13 @@
   \fi%
   \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+  \ifdefined\fxocg@insert@OC% put dummy widget below (for fixocgx compatibility)
+    \ifthenelse{\equal{\fxocg@insert@OC}{}}{}{%
+      \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
+        /Subtype/Widget/F 2%
+      }%
+    }%
+  \fi%
   \@anim@pdfannot{\strip@pt\@anim@tmpdima}{\strip@pt\@anim@tmpdima}{0}{%
     /Subtype/Widget%
     \@anim@annotflag%
@@ -1963,6 +2000,7 @@
     /T (#1.#2)%
     \@anim@tooltip%
     \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
+    \ifdefined\fxocg@insert@OC\fxocg@insert@OC\fi%
   }%
   \if@anim@js%
     \hbox to \@anim@tmpdima {%
@@ -3364,7 +3402,7 @@
           \fi
           a#1.idx=-1;%
         }%
-      \fi  
+      \fi
       if(f>\@anim@maxframe||f<0){return -1;}%
       a#1.idx=f;%
       \if@anim@usrjs
@@ -3666,7 +3704,7 @@
         if(a#1.playing){
           \if@anim@autopause
             a#1.pause();%
-          \else   
+          \else
             a#1.pause(true);% stop
           \fi%
         }%
@@ -3731,7 +3769,7 @@
           \else%
             \if@anim@loop\else
               if(a#1.idx==\@anim@maxframe){a#1.stopFirst();}%
-            \fi 
+            \fi
             a#1.playRight();%
           \fi%
         \fi%

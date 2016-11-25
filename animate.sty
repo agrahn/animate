@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/07/25}
+\def\@anim@version{2016/07/27}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -103,7 +103,10 @@
 
   \def\@anim@pdfannot#1#2#3#4{
     \pbs_pdfannot:nnnn{#1}{#2}{#3}{#4}
-    %since all annots are Widgets
+  }
+
+  \def\@anim@pdfwid#1#2#3#4{
+    \pbs_pdfannot:nnnn{#1}{#2}{#3}{#4}
     \pbs_appendtofields:n{\pbs_pdflastann:}
   }
 
@@ -235,35 +238,6 @@
 \AtBeginDocument{%
   \@ifpackageloaded{graphicx}{\setboolean{@anim@grxloaded}{true}}{}%
 }
-
-%add Appearances name tree to /Names dict of the PDF Catalog
-\def\@anim@appearances{}
-\ifpdf
-  \AtEndDvi{%
-    \ifx\empty\@anim@appearances\empty\else%
-      \@anim@arrayobj{\@anim@appearances}%
-      \pdfnames{/AP<</Names \@anim@lastobj>>}%
-    \fi%
-  }%
-\else
-  \if@anim@dvipdfmx
-    \AtEndDvi{%
-      \ifx\empty\@anim@appearances\empty\else%
-        \@anim@arrayobj{\@anim@appearances}%
-        \special{pdf:put @names <</AP<</Names \@anim@lastobj>>>>}%
-      \fi%
-    }%
-  \else
-    \AtEndDvi{%
-      \ifx\empty\@anim@appearances\empty\else%
-        \@anim@arrayobj{\@anim@appearances}%
-        \PackageWarningNoLine{animate}{\@anim@icondvipswarning}%
-        %this deletes hyperref-inserted Dests!
-        \@anim@pdfcatalog{/Names<</AP<</Names \@anim@lastobj>>>>}%
-      \fi%
-    }%
-  \fi
-\fi
 
 % true if any of `autoplay' or `autoresume' options is set
 \newboolean{@anim@autoplayorresume}
@@ -471,10 +445,15 @@
         \fi%
       \fi%
     \fi%
-    %build appearance name tree
-    \xdef\@anim@appearances{%
-      \@anim@appearances
-      (\@anim@pad{1234}{#1}.\@anim@pad{1234}{#2}) \@anim@lastxform%
+    %insert (invisible) widget with current frame as appearance
+    \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+      /Subtype/Widget%
+      /F 2%
+      /FT/Btn/Ff 65537%
+      /BS <</W 0>>%
+      /AP <</N \@anim@lastxform>>%
+      /MK <</TP 1/I \@anim@lastxform/IF<</S/A/FB true>>>>%
+      /T (#1.#2)%
     }%
   \or% widget based
     %initial visibility
@@ -495,7 +474,7 @@
     \fi%
     %frame insertion
     \@anim@xform{0}{1}{\@anim@box}%
-    \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+    \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
       /Subtype/Widget%
       \@anim@annotflag%
       /FT/Btn/Ff 65537%
@@ -1552,13 +1531,18 @@
   \ifnum\@anim@method=\z@\relax%
     \def\@anim@annotflag{/F 4}% 4=allow printing
     \ifnum\@anim@poster=\@anim@mtwo\relax%
-      \ifdefined\@anim@apdummy\else% empty appearance dummy
+      \ifdefined\@anim@apdummy\else% empty appearance widget
         \setbox\@anim@box=\hbox{\phantom{x}}%
         \@anim@xform{0}{0}{\@anim@box}%
         \xdef\@anim@apdummy{\@anim@lastxform}%
-        \xdef\@anim@appearances{%
-          (0000) \@anim@lastxform
-          \@anim@appearances%
+        \@anim@pdfwid{1ex}{1ex}{\z@}{%
+          /Subtype/Widget%
+          /F 2%
+          /FT/Btn/Ff 65537%
+          /BS <</W 0>>%
+          /AP <</N \@anim@lastxform>>%
+          /MK <</TP 1/I \@anim@lastxform/IF<</S/A/FB true>>>>%
+          /T (0000)%
         }%
       \fi%
       \def\@anim@apmk{\@anim@apdummy}%
@@ -1573,19 +1557,31 @@
     \fi%
     \def\@anim@apmk{\@anim@apdummy}%
   \fi%
+  %non-interactive /Screen annotation for initializing the animation
+  %upon PageOpen/PageVisible events and for clean-up upon PageClose/
+  %PageInvisible events
+  \@anim@pdfannot{1ex}{1ex}{\z@}{%
+    /Subtype/Screen/F 2%
+    /AA <<%
+      /PV <</S/JavaScript/JS \@anim@pojscriptobj>>% PageVisible
+      /PO <</S/JavaScript/JS \@anim@pojscriptobj>>% PageOpen
+      /PI <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageInvisible
+      /PC <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageClose
+    >>%
+  }%
   %With icon and ocg method, we put one dummy widget below; this seems to be
   %necessary for the OCG visibility referenced by the /OC entry to work as
   %expected (if we place the animation on a PDF layer using ocgx2.sty).
   \ifnum\@anim@method=\@ne\relax\else%
     \ifdefined\ocgxii@insert@OC%
       \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
-        \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+        \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
           /Subtype/Widget/F 2%
         }%
       }%
     \fi%
   \fi%
-  \@anim@pdfannot{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
+  \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
     /Subtype/Widget%
     /FT/Btn/Ff \@anim@btnflag%
     \@anim@annotflag%
@@ -1594,10 +1590,6 @@
     /T (anm#1)%
     /Contents (animation by animate[\@anim@version])%
     /AA <<%
-      /PV <</S/JavaScript/JS \@anim@pojscriptobj>>% PageVisible
-      /PO <</S/JavaScript/JS \@anim@pojscriptobj>>% PageOpen
-      /PI <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageInvisible
-      /PC <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageClose
       \@anim@otherjscriptkey%
     >>%
     /AP <</N \@anim@apmk>>%
@@ -1639,12 +1631,12 @@
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
   \ifdefined\ocgxii@insert@OC% put dummy widget below (for ocgx2 compatibility)
     \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
-      \@anim@pdfannot{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
+      \@anim@pdfwid{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
         /Subtype/Widget/F 2%
       }%
     }%
   \fi%
-  \@anim@pdfannot{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
+  \@anim@pdfwid{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
     /Subtype/Widget%
     \@anim@annotflag%
     /FT/Btn/Ff \if@anim@js 65536\else 65537\fi%
@@ -2920,11 +2912,8 @@
   }{}%
 }
 
-%default animation method is Icon based, except for dvips
+%default animation method is Icon based
 \def\@anim@@method{\z@}
-\ifpdf\else\if@anim@dvipdfmx\else % dvips, by default, uses Widget based method
-  \def\@anim@@method{\@ne}
-\fi\fi
 
 %process package options
 \def\@anim@setpkgkeys#1{\setkeys{anim@pkg}{#1}}
@@ -2949,20 +2938,13 @@
     a#1.fr=new Array();%
     %initialize fr properties
     \ifcase\@anim@method %icon based
-      var spc=String.fromCharCode(32);%
-      if(typeof this.getIcon==='undefined'){%
-        app.alert('Icon-based'+spc+'animation'+spc+'is'+spc+'not'+spc+%
-          'supported'+spc+'by'+spc+'this'+spc+'Reader.'+spc+'Try'+spc+%
-          'one'+spc+'of'+spc+'"method=widget"'+spc+'or'+spc+%
-          '"method=ocg"'+spc+'options.');%
-      }%
       a#1.wid=this.getField('anm#1');%reference to interactive widget
       for(i=0;i<=\@anim@maxframe;i++){%
-        a#1.fr[i]=this.getIcon(util.printf('\@anim@pad{1234}{#1}.\%04d',i));%
+        a#1.fr[i]=this.getField('#1.'+i).buttonGetIcon();%
       }%
       \ifnum\@anim@poster=\@anim@mtwo
         if(typeof blnk==='undefined'){% blank poster
-          blnk=this.getIcon('0000');%
+          blnk=this.getField('0000').buttonGetIcon();%
         }%
       \fi%
     \or %widget based
@@ -3168,7 +3150,11 @@
         \fi%
       };%
       a#1.playRight=function(){%
+        \if@anim@meas a#1.startMeas();\fi
+        try{var tmp_int=app.setInterval('a#1.gotoNext()',%
+          1000/a#1.fps/a#1.sm);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
+        a#1_int=tmp_int;%
         a#1.playsRight=true;%
         a#1.playing=true;%
         a#1.isPaused=false;%
@@ -3179,12 +3165,13 @@
           a#1.btnPlayRight.display=display.hidden;%
           curdoc.dirty=false;%
         \fi%
-        \if@anim@meas a#1.startMeas();\fi
-        a#1_int=app.setInterval('a#1.gotoNext()',%
-          1000/a#1.fps/a#1.sm);%
       };%
       a#1.playLeft=function(){%
+        \if@anim@meas a#1.startMeas();\fi
+        try{var tmp_int=app.setInterval('a#1.gotoPrev()',%
+          1000/a#1.fps/a#1.sm);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
+        a#1_int=tmp_int;%
         a#1.playsRight=false;%
         a#1.playing=true;%
         a#1.isPaused=false;%
@@ -3195,9 +3182,6 @@
           a#1.btnPlayRight.display=display.hidden;%
           curdoc.dirty=false;%
         \fi%
-        \if@anim@meas a#1.startMeas();\fi
-        a#1_int=app.setInterval('a#1.gotoPrev()',%
-        1000/a#1.fps/a#1.sm);%
       };%
       \if@anim@controls
         a#1.fpsIncr=function(){% speed up animation
@@ -3300,7 +3284,7 @@
     \fi%
     \ifnum\@anim@method>\z@ a#1.on=0;\fi% just initialize a#1.on
     \ifnum\@anim@poster=\@anim@mtwo %poster=none
-      var ret=app.setTimeOut('a#1.seekFrame(-2)',1);
+      var ret=app.setTimeOut('a#1.seekFrame(-2)',1);%
     \fi%
     \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
       var ret=app.setTimeOut('a#1.seekFrame(\@anim@poster)',1);%

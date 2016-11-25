@@ -12,7 +12,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2010/09/16}
+\def\@anim@version{2010/09/28}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -1473,6 +1473,11 @@
     \fi%
   \fi%
   \@anim@reset% to default settings
+  \begingroup% make use of graphic[xs] search path
+  \ifcsname Ginput@path\endcsname%
+    \let\input@path\Ginput@path%
+  \fi%
+  %
   \setkeys{anim@user}{#1}%
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
@@ -1486,11 +1491,6 @@
   \def\@anim@base{#3}%
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
-  %
-  \begingroup% make use of graphic[xs] search path
-  \ifcsname Ginput@path\endcsname%
-    \let\input@path\Ginput@path%
-  \fi%
   %
   \@anim@checkmultipage{\@anim@base}%test for multipage file
   \if@anim@multipage\else% cope with wrong user input
@@ -1937,6 +1937,10 @@
   \leavevmode%
   \setboolean{@anim@inside}{true}%
   \@anim@reset% to default settings
+  \begingroup% make use of graphic[xs] search path
+  \ifcsname Ginput@path\endcsname%
+    \let\input@path\Ginput@path%
+  \fi%
   \setkeys{anim@user}{#1}%
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
@@ -1987,6 +1991,7 @@
     \@anim@insertwidgets{\the\@anim@num}{%
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
   \fi%
+  \endgroup%
   \global\advance\@anim@num by \@ne%
   \catcode`\:=\@anim@colon\catcode`\;=\@anim@semicolon%
   \catcode`\*=\@anim@star\catcode`\,=\@anim@comma%
@@ -2231,13 +2236,13 @@
       \ifthenelse{\equal{\@anim@vartype}{i}\OR\equal{\@anim@vartype}{I}}{%
         % integers, prefix i, I
         %initialize variable
-        \setcounter{@anim@tmpcnt}{#2}%
-        \expandafter\edef\csname#1\endcsname{\the@anim@tmpcnt}%
+        \setcounter{@anim@ltxcnt}{#2}%
+        \expandafter\edef\csname#1\endcsname{\the@anim@ltxcnt}%
         %global copy that saves current variable value between loops
-        \expandafter\xdef\csname#1@old\endcsname{\the@anim@tmpcnt}%
-        \setcounter{@anim@tmpcnt}{#3}%
+        \expandafter\xdef\csname#1@old\endcsname{\the@anim@ltxcnt}%
+        \setcounter{@anim@ltxcnt}{#3}%
         %global copy of increment
-        \expandafter\xdef\csname#1@inc\endcsname{\the@anim@tmpcnt}%
+        \expandafter\xdef\csname#1@inc\endcsname{\the@anim@ltxcnt}%
         %append script for updating variable to \@anim@updatevars macro
         \g@addto@macro\@anim@updatevars{%
           %new value
@@ -2306,7 +2311,7 @@
 \newread\@anim@@tmlnfile
 \newboolean{@anim@eof}
 \newcount\@anim@tmpcnt %scratch counter for different uses
-\newcounter{@anim@tmpcnt} %scratch LaTeX counter for different uses
+\newcounter{@anim@ltxcnt} %scratch LaTeX counter for different uses
 \newcount\@anim@curlayer %takes the number of the current layer being processed
 \newcount\@anim@lineno %current input line No.
 
@@ -2351,7 +2356,7 @@
   \edef\@anim@inputline{\expandafter\zap@space\@anim@inputline\@empty}%
   \ifeof\@anim@@tmlnfile\setboolean{@anim@eof}{true}\else%
     \setboolean{@anim@eof}{false}\fi%
-  \message{<building timeline a#1:}%
+  \message{<building timeline a#1 from file `\@anim@tmlnfile':}%
   \whiledo{\NOT\boolean{@anim@eof}}{%
     \global\advance\@anim@lineno by \@ne%
     \ifthenelse{\equal{\@anim@inputline}{}}{}{%
@@ -2771,7 +2776,8 @@
 }
 \define@key{anim@user}{timeline}{%
   \IfFileExists{#1}{%
-    \gdef\@anim@tmlnfile{#1}%
+    \edef\@filef@und{\@filef@und\space}%
+    \xdef\@anim@tmlnfile{\expandafter\zap@space\@filef@und\@empty}%
     \setboolean{@anim@timeline}{true}%
   }{%
     \PackageError{animate}{timeline file `#1' cannot be opened for reading%

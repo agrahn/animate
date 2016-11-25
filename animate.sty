@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2016/06/08}
+\def\@anim@version{2016/07/25}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -3007,9 +3007,9 @@
         %arrays that take frame numbers (array index) and fps values
         a#1.nFpsAt=new Array(\@anim@nfpsat);%
       \fi
-      a#1.fps=\@anim@fps;a#1.sm=1;%
+      a#1.fps=\@anim@fps==0?1e-6:\@anim@fps;a#1.sm=1;%
       a#1.setFps=function(f){%
-        a#1.fps=f;%
+        a#1.fps=f==0?1e-6:f;%
         if(a#1.playing){%
           if(a#1.playsRight){a#1.playRight();}else{a#1.playLeft();}%
         }%
@@ -3181,7 +3181,7 @@
         \fi%
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.gotoNext()',%
-          1000/(1e-6+a#1.fps)/a#1.sm);%
+          1000/a#1.fps/a#1.sm);%
       };%
       a#1.playLeft=function(){%
         try{app.clearInterval(a#1_int);}catch(e){}%
@@ -3197,7 +3197,7 @@
         \fi%
         \if@anim@meas a#1.startMeas();\fi
         a#1_int=app.setInterval('a#1.gotoPrev()',%
-        1000/(1e-6+a#1.fps)/a#1.sm);%
+        1000/a#1.fps/a#1.sm);%
       };%
       \if@anim@controls
         a#1.fpsIncr=function(){% speed up animation
@@ -3274,7 +3274,7 @@
                 throw new RangeError('Frame_rate_not_in_allowed_range');%
               }else{a#1.setFps(f);}%
             },%
-            get dt(){return 1000/(1e-6+a#1.fps)/a#1.sm;},%
+            get dt(){return 1000/a#1.fps/a#1.sm;},%
             get playsFwd(){return a#1.playsRight;},%
           \fi
           get numFrames(){return \@anim@frames;},%
@@ -3298,14 +3298,15 @@
         };%
       }%
     \fi%
+    \ifnum\@anim@method>\z@ a#1.on=0;\fi% just initialize a#1.on
     \ifnum\@anim@poster=\@anim@mtwo %poster=none
-      a#1.idx=-1;\ifnum\@anim@method>\z@ a#1.on=0;\fi%
+      var ret=app.setTimeOut('a#1.seekFrame(-2)',1);
     \fi%
     \ifnum\@anim@poster>\@anim@mone %poster=<num>|first
-      a#1.idx=\ifnum\@anim@method>\z@ a#1.on=\fi\@anim@poster;%
+      var ret=app.setTimeOut('a#1.seekFrame(\@anim@poster)',1);%
     \fi%
     \ifnum\@anim@poster=\@anim@mone %poster=last
-      a#1.idx=\ifnum\@anim@method>\z@ a#1.on=\fi\@anim@maxframe;%
+      var ret=app.setTimeOut('a#1.seekFrame(\@anim@maxframe)',1);%
     \fi%
   }%
   \if@anim@step\else%

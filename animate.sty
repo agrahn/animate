@@ -34,7 +34,7 @@
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
 \RequirePackage{atenddvi}%to really get certain \specials into the dvi
-\RequirePackage{graphics}%\scalebox, \resizebox
+\RequirePackage{graphics}%\scalebox, \resizebox, \rotatebox
 
 %driver options (the only package options we process immediately)
 \newboolean{@anim@dvips}
@@ -237,6 +237,12 @@
 \setboolean{@anim@grxloaded}{false}
 \AtBeginDocument{%
   \@ifpackageloaded{graphicx}{\setboolean{@anim@grxloaded}{true}}{}%
+  \gdef\@anim@lscape{}%
+  \gdef\@anim@@lscape{:ls}%
+  \ifdefined\landscape%
+    \g@addto@macro{\landscape}{\gdef\@anim@lscape{:ls}}%
+    \g@addto@macro{\endlandscape}{\gdef\@anim@lscape{}}%
+  \fi%
 }
 
 % true if any of `autoplay' or `autoresume' options is set
@@ -433,6 +439,13 @@
     \expandafter\@anim@insertfrmcontent\@anim@tmpvar\@nil%
     \hss%
   }%
+  %inside a `landscape' environment together with the icon and widget methods,
+  %the frame content needs to be rotated counter-clockwise by 90 deg
+  \ifnum\@anim@method>\@ne\else%
+    \ifx\@anim@lscape\@anim@@lscape%
+      \global\setbox\@anim@box=\hbox{\rotatebox{90}{\box\@anim@box}}%
+    \fi%
+  \fi%
   \ifcase\@anim@method% icon based
     \@anim@xform{0}{1}{\@anim@box}%
     %initial visibility
@@ -722,17 +735,41 @@
     stroke
   }
   \def\@anim@makebuttons#1{% #1: @anim@num
-    \@anim@xbutton{EndLeft}{[-1 0 0 1 15 0] concat \@anim@btnend}{#1}%
-    \@anim@xbutton{EndRight}{\@anim@btnend}{#1}%
-    \@anim@xbutton{Minus}{\@anim@btnminus}{#1}%
-    \@anim@xbutton{PauseLeft}{[-1 0 0 1 15 0] concat \@anim@btnpause}{#1}%
-    \@anim@xbutton{PauseRight}{\@anim@btnpause}{#1}%
-    \@anim@xbutton{PlayLeft}{[-1 0 0 1 15 0] concat \@anim@btnplay}{#1}%
-    \@anim@xbutton{PlayRight}{\@anim@btnplay}{#1}%
+    \@anim@xbutton{EndLeft}{%
+      [-1 0 0 1 15 0] concat
+      \ifx\@anim@lscape\@anim@@lscape [0 -1 -1 0 15 15] concat \fi%
+    \@anim@btnend}{#1}%
+    \@anim@xbutton{EndRight}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnend}{#1}%
+    \@anim@xbutton{Minus}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnminus}{#1}%
+    \@anim@xbutton{PauseLeft}{%
+      [-1 0 0 1 15 0] concat
+      \ifx\@anim@lscape\@anim@@lscape [0 -1 -1 0 15 15] concat \fi%
+      \@anim@btnpause}{#1}%
+    \@anim@xbutton{PauseRight}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnpause}{#1}%
+    \@anim@xbutton{PlayLeft}{%
+      [-1 0 0 1 15 0] concat
+      \ifx\@anim@lscape\@anim@@lscape [0 -1 -1 0 15 15] concat \fi%
+      \@anim@btnplay}{#1}%
+    \@anim@xbutton{PlayRight}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnplay}{#1}%
     \@anim@xbutton{Plus}{\@anim@btnplus}{#1}%
-    \@anim@xbutton{Reset}{\@anim@btnreset}{#1}%
-    \@anim@xbutton{StepLeft}{[-1 0 0 1 15 0] concat \@anim@btnstep}{#1}%
-    \@anim@xbutton{StepRight}{\@anim@btnstep}{#1}%
+    \@anim@xbutton{Reset}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnreset}{#1}%
+    \@anim@xbutton{StepLeft}{%
+      [-1 0 0 1 15 0] concat
+      \ifx\@anim@lscape\@anim@@lscape [0 -1 -1 0 15 15] concat \fi%
+      \@anim@btnstep}{#1}%
+    \@anim@xbutton{StepRight}{%
+      \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
+      \@anim@btnstep}{#1}%
   }
   \newcount\@anim@objnum
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
@@ -940,30 +977,37 @@
   \def\@anim@makebuttons#1{%
     \@anim@xbutton{EndLeft}{%
       q -0.1 0 0 0.1 15 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 -1 -1 0 150 150 cm \fi%
       \@anim@btnend\space Q%
     }{#1}%
     \@anim@xbutton{EndRight}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnend\space Q%
     }{#1}%
     \@anim@xbutton{Minus}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnminus\space Q%
     }{#1}%
     \@anim@xbutton{PauseLeft}{%
       q -0.1 0 0 0.1 15 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 -1 -1 0 150 150 cm \fi%
       \@anim@btnpause\space Q%
     }{#1}%
     \@anim@xbutton{PauseRight}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnpause\space Q%
     }{#1}%
     \@anim@xbutton{PlayLeft}{%
       q -0.1 0 0 0.1 15 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 -1 -1 0 150 150 cm \fi%
       \@anim@btnplay\space Q%
     }{#1}%
     \@anim@xbutton{PlayRight}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnplay\space Q%
     }{#1}%
     \@anim@xbutton{Plus}{%
@@ -972,14 +1016,17 @@
     }{#1}%
     \@anim@xbutton{Reset}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnreset\space Q%
     }{#1}%
     \@anim@xbutton{StepLeft}{%
       q -0.1 0 0 0.1 15 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 -1 -1 0 150 150 cm \fi%
       \@anim@btnstep\space Q%
     }{#1}%
     \@anim@xbutton{StepRight}{%
       q 0.1 0 0 0.1 0 0 cm
+      \ifx\@anim@lscape\@anim@@lscape 0 1 -1 0 150 0 cm \fi%
       \@anim@btnstep\space Q%
     }{#1}%
   }
@@ -1345,9 +1392,10 @@
     \if@anim@controls%
       %create button faces only once in the current colour combination
       \ifcsname
-        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\else%
+        btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape\endcsname\else%
         \@anim@makebuttons{\the\@anim@num}%
-        \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
+        \@anim@newkey{%
+          btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape}{\the\@anim@num}%
       \fi%
     \fi%
     \xdef\@anim@nfps{#2\space}% current frame rate
@@ -1390,7 +1438,7 @@
     \fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
-      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape}}%
     \@anim@endsanitize%
   \fi%
   \endgroup%
@@ -1700,9 +1748,10 @@
     %create button faces if necessary
     \if@anim@controls%
       \ifcsname
-        btncol:\@anim@bgcolour:\@anim@fgcolour\endcsname\else%
+        btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape\endcsname\else%
         \@anim@makebuttons{\the\@anim@num}%
-        \@anim@newkey{btncol:\@anim@bgcolour:\@anim@fgcolour}{\the\@anim@num}%
+        \@anim@newkey{%
+          btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape}{\the\@anim@num}%
       \fi%
     \fi%
     \if@anim@step\else%
@@ -1730,7 +1779,7 @@
     \if@anim@timeline\@anim@buildtmln{\the\@anim@num}\fi%
     %insert animation widget & controls
     \@anim@insertwidgets{\the\@anim@num}{%
-      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour}}%
+      \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape}}%
     \@anim@endsanitize%
     % if last frame used as poster, write frame num to aux file
     \ifnum\@anim@poster=\@anim@mone\relax%

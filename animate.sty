@@ -177,7 +177,7 @@
   \else
     \ifcsname mdfivesum\endcsname
       \def\@anim@pdfmdfivesum#1{\mdfivesum file {#1}}
-    \else  
+    \else
       \def\@anim@pdfmdfivesum#1{#1}
     \fi
   \fi
@@ -371,7 +371,7 @@
       \vrule width \z@ height \ht#3 depth \dp#3\hss}%
     \@anim@scale{\@anim@measbox}%
   \else%
-    \def\@anim@needresize{0}% 
+    \def\@anim@needresize{0}%
     %test if natural dimensions of the current frame differ from those
     %of the 0th frame
     \ifdim\wd#3=\@anim@zframewd\else\def\@anim@needresize{1}\fi%
@@ -3417,13 +3417,13 @@
               }else{%
                 a#1_gotoPrev();%
               }%
-            }else{%  
+            }else{%
               if(a#1_idx==\@anim@maxframe){%
                 a#1_stopFirst();%
               }else{%
                 a#1_gotoNext();%
               }%
-            }%  
+            }%
           \fi
           a#1_isPaused=true;%
         \else

@@ -1,3 +1,6 @@
+2017-01-24
+	* fix: minor documentation update
+
 2017-01-09
 	* fix: wrong orientation of animated content on landscape pages
 	(pkgs `lscape'/`pdflascape')

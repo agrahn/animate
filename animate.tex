@@ -1277,15 +1277,15 @@ dt dt Tm nT mul { % pop
 
   \item Animations do not work if the PDF was produced with Ghostscript versions older than 9.15.
 
-  \item If the \LaTeX{} $\rightarrow$ \verb+dvips+ $\rightarrow$ \verb+ps2pdf+/Distiller route is being taken, make sure that the original graphics size (i.\,e. not scaled by any of the `{\tt scale}', `{\tt width}', `{\tt height}' or `{\tt totalheight}' options) does not exceed the page size of the final document. During PS to PDF conversion every graphic of the animation is temporarily moved to the upper left page corner. Those parts of the graphics that do not fit onto the document page will be clipped in the resulting PDF. Fortunately, graphics files for building animations may be resized easily to fit into a given bounding box by means of the `{\tt epsffit}' command line tool:
-
-\quad{\tt epsffit -c <llx> <lly> <urx> <ury> infile.eps outfile.eps}
-
-{\tt <llx> <lly> <urx> <ury>} are the bounding box coordinates of the target document. They can be determined using Ghostscript. For a document named `document.ps' the command line is
-
-\quad{\tt gs -dNOPAUSE -q -dBATCH -sDEVICE=bbox document.ps}
-
-Note that the name of the Ghostscript executable may vary between operating systems (e.\,g. `{\tt gswin32c.exe}' on Win/DOS).
+%  \item If the \LaTeX{} $\rightarrow$ \verb+dvips+ $\rightarrow$ \verb+ps2pdf+/Distiller route is being taken, make sure that the original graphics size (i.\,e. not scaled by any of the `{\tt scale}', `{\tt width}', `{\tt height}' or `{\tt totalheight}' options) does not exceed the page size of the final document. During PS to PDF conversion every graphic of the animation is temporarily moved to the upper left page corner. Those parts of the graphics that do not fit onto the document page will be clipped in the resulting PDF. Fortunately, graphics files for building animations may be resized easily to fit into a given bounding box by means of the `{\tt epsffit}' command line tool:
+%
+%\quad{\tt epsffit -c <llx> <lly> <urx> <ury> infile.eps outfile.eps}
+%
+%{\tt <llx> <lly> <urx> <ury>} are the bounding box coordinates of the target document. They can be determined using Ghostscript. For a document named `document.ps' the command line is
+%
+%\quad{\tt gs -dNOPAUSE -q -dBATCH -sDEVICE=bbox document.ps}
+%
+%Note that the name of the Ghostscript executable may vary between operating systems (e.\,g. `{\tt gswin32c.exe}' on Win/DOS).
 
   \item\hypertarget{dest:mem}{} Animations with complex graphics and/or many frames may cause \LaTeX{} to fail with a `\verb+TeX capacity exceeded+' error. The following steps should fix most of the memory related problems.
 

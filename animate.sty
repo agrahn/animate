@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/01/24}
+\def\@anim@version{2017/01/30}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -1338,6 +1338,7 @@
   \fi%
   \@anim@reset% to default settings
   \begingroup% make use of graphic[xs] search path
+  \ifnum\TeXXeTstate>\z@\beginL\fi%
   \ifcsname Ginput@path\endcsname%
     \let\input@path\Ginput@path%
   \fi%
@@ -1441,6 +1442,7 @@
       \@anim@getkeyval{btncol:\@anim@bgcolour:\@anim@fgcolour\@anim@lscape}}%
     \@anim@endsanitize%
   \fi%
+  \ifnum\TeXXeTstate>\z@\endL\fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
 }%
@@ -1731,6 +1733,7 @@
   \leavevmode%
   \@anim@reset% to default settings
   \begingroup%
+  \ifnum\TeXXeTstate>\z@\beginL\fi%
   % make use of graphic[xs] search path
   \ifcsname Ginput@path\endcsname%
     \let\input@path\Ginput@path%
@@ -1786,6 +1789,7 @@
       \@anim@keytoaux{a\the\@anim@num.poster}{\@anim@maxframe}%
     \fi%
   \fi%
+  \ifnum\TeXXeTstate>\z@\endL\fi%
   \endgroup%
   \global\advance\@anim@num by \@ne%
 }

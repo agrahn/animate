@@ -323,6 +323,7 @@ The package implements three different animation methods. The `\verb+icon+' meth
 measure
 \end{verbatim}
 Measures the frame rate during one cycle of the animation and prints the value to the JavaScript console of the Reader. (For testing purposes.)
+\hypertarget{beginend}{}%
 \begin{verbatim}
 begin={<begin text>}
 end={<end text>}
@@ -1275,6 +1276,8 @@ dt dt Tm nT mul { % pop
   \item The \verb+dvips+ option `\verb+-Ppdf+' should be avoided entirely or followed by something like `\verb+-D 1200+' on the command line in order to set a sensible DVI resolution. This does \emph{not} degrade the output quality! The configuration file `config.pdf' loaded by option `\verb+-Ppdf+' specifies an excessively high DVI resolution that will be passed on to the final PDF. Eventually, Acrobat Reader gets confused and will not display the frames within the animation widget.
 
   \item Animations do not work if the PDF was produced with Ghostscript versions older than 9.15.
+
+  \item If the `\verb+animateinline+' environment is used in a right-to-left typesetting context (RTL), every frame's content should be enclosed in a pair of \verb+\beginR+ and \verb+\endR+ commands in order to correctly typeset RTL text contained therein. This can be conveniently done by means of the `\verb+begin+' and `\verb+end+' \hyperlink{beginend}{options} of the `\verb+animateinline+' environment.
 
 %  \item If the \LaTeX{} $\rightarrow$ \verb+dvips+ $\rightarrow$ \verb+ps2pdf+/Distiller route is being taken, make sure that the original graphics size (i.\,e. not scaled by any of the `{\tt scale}', `{\tt width}', `{\tt height}' or `{\tt totalheight}' options) does not exceed the page size of the final document. During PS to PDF conversion every graphic of the animation is temporarily moved to the upper left page corner. Those parts of the graphics that do not fit onto the document page will be clipped in the resulting PDF. Fortunately, graphics files for building animations may be resized easily to fit into a given bounding box by means of the `{\tt epsffit}' command line tool:
 %

@@ -7,7 +7,10 @@ verbatimtex
 \documentclass{article}
 \usepackage[latin1]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+%\usepackage{lmodern}
+  \usepackage{libertine}
+  \usepackage[libertine]{newtxmath}
+  \usepackage[scaled=0.83]{luximono} %override beramono (doesn't look like tt font)
 \usepackage{amsmath}
 \begin{document}
 etex

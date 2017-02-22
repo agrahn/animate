@@ -20,10 +20,12 @@
 \addmediapath{files}
 \usepackage{color}
 \usepackage{textcomp}
-\usepackage{lmodern}
 \usepackage{mflogo}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+%\usepackage{lmodern}
+  \usepackage[tt=false]{libertine} %override beramono (doesn't look like tt font)
+  \usepackage[libertine]{newtxmath}
 \usepackage[protrusion]{microtype}
 %\usepackage{ifpdf}
 \usepackage{parskip}
@@ -108,7 +110,7 @@
 
 %\newpage
 \section{Introduction}
-This package provides an interface to create PDFs with animated content from sets of graphics or image files, from inline graphics, such as \LaTeX-picture, PSTricks or pgf/TikZ generated pictures, or just from typeset text. Unlike standard movie/video formats, package `animate' allows for animating vector graphics. The result is roughly similar to the SWF (Flash) format, although not as space-efficient.
+This package provides an interface for creating PDFs with animated content from sets of graphics or image files, from inline graphics, such as \LaTeX-picture, PSTricks or pgf/TikZ generated pictures, or just from typeset text. Unlike standard movie/video formats, package `animate' allows for animating vector graphics. The result is roughly similar to the SWF (Flash) format, although not as space-efficient.
 
 The user interacts with the animation through optional animation controls or using the mouse like so: Pressing the mouse button over the animation widget immediately pauses a playing animation and releasing it resumes playback. Pressing the shift-key at the same time reverses the playback direction. Keeping the mouse button pressed while moving the mouse pointer off the animation widget permanently pauses playback.
 
@@ -213,7 +215,7 @@ For example, given the sequence `frame\_5.png' through `frame\_50.png' from a po
   \animategraphics{12}{frame_}{5}{50}
 \end{verbatim}
 
-The possible file formats depend on the output driver being used. In the case of \LaTeX{}+\verb+dvips+, files with the `eps' extension are at first searched for, followed by `mps' (\MP-generated Postscript) and `ps'. With pdf\LaTeX{} and Lua\LaTeX{} the searching order is: (1)~`pdf', (2)~`mps', (3)~`png', (4)~`jpg', (5)~`jpeg', (6)~`jbig2', (7)~`jb2', (8)~`jp2'\footnotemark[1], (9)~`j2k'\footnotemark[1], (10)~`jpx'\footnotemark[1]\footnotetext[1]{Only Lua\LaTeX{} currently supports JPEG2000.} and with \XeLaTeX{} or \LaTeX{}+\verb+dvipdfmx+: (1)~`pdf', (2)~`mps', (3)~`eps', (4)~`ps', (5)~`png', (6)~`jpg', (7)~`jpeg', (8)~`bmp'. That is, files capable of storing vector graphics are found first. Make sure that all file names have \emph{lower case} extensions.
+The possible file formats depend on the output driver being used. In the case of \LaTeX{} + \verb+dvips+, files with the `eps' extension are at first searched for, followed by `mps' (\MP-generated Postscript) and `ps'. With pdf\LaTeX{} and Lua\LaTeX{} the searching order is: (1)~`pdf', (2)~`mps', (3)~`png', (4)~`jpg', (5)~`jpeg', (6)~`jbig2', (7)~`jb2', (8)~`jp2'\footnotemark[1], (9)~`j2k'\footnotemark[1], (10)~`jpx'\footnotemark[1]\footnotetext[1]{Only Lua\LaTeX{} currently supports JPEG2000.} and with \XeLaTeX{} or \LaTeX{}+\verb+dvipdfmx+: (1)~`pdf', (2)~`mps', (3)~`eps', (4)~`ps', (5)~`png', (6)~`jpg', (7)~`jpeg', (8)~`bmp'. That is, files capable of storing vector graphics are found first. Make sure that all file names have \emph{lower case} extensions.
 
 This searching procedure can be skipped thanks to the package and command option `\verb+type=<file ext>+'. It enforces the embedding of files with the given file name extension \verb+<file ext>+.
 
@@ -522,9 +524,9 @@ name & description\\\hline\hline
 \end{tabularx}
 \end{table}
 
-\clearpage
+%\clearpage
 \section{Examples}
-\subsection[Animations from sets of files, using `animategraphics' command]{Animations from sets of files, using {\tt \string\animategraphics} command}\label{sect:examples}
+\subsection{Animations from sets of files, using {\tt\textbackslash animategraphics}}\label{sect:examples}
 Animations in this section are made from graphics files that were prepared with \MP. Run `\verb+mpost --tex=latex+' on the files ending in `.mp' in the `files' directory to generate the graphics files. Both examples make use of the `\verb+timeline+' option to reduce the resulting PDF file size.
 
 The first example, Fig.~\ref{fig:taylor}, originally written by Jan Holeček~\cite{hol}, shows the exponential function $y=e^x$ and its approximation by Taylor polynomials of different degree. Below the animation, a custom button was inserted using the JavaScript programming interface and the \verb+\mediabutton+ command from the `media9' package.
@@ -679,7 +681,7 @@ The second, somewhat more complex example, Fig.~\ref{fig:scarab}, animates the g
 \end{document}
 \end{verbatim}
 \normalsize
-\subsection[Animating PSTricks graphics, using `animateinline' environment]{Animating PSTricks graphics, using `{\tt animateinline}' environment}
+\subsection{Animating PSTricks graphics, using `{\tt animateinline}' environment}
 Fig.~\ref{fig:torus} is an inline graphics example adapted from \cite{gilg05}.
 \small
 \begin{verbatim}
@@ -1277,7 +1279,7 @@ dt dt Tm nT mul { % pop
 
   \item Animations do not work if the PDF was produced with Ghostscript versions older than 9.15.
 
-  \item If the `\verb+animateinline+' environment is used in a right-to-left typesetting context (RTL), every frame's content should be enclosed in a pair of \verb+\beginR+ and \verb+\endR+ commands in order to correctly typeset RTL text contained therein. This can be conveniently done by means of the `\verb+begin+' and `\verb+end+' \hyperlink{beginend}{options} of the `\verb+animateinline+' environment.
+  \item If the `\verb+animateinline+' environment is used in a right-to-left typesetting context (RTL) and using the (pdf)\LaTeX{} and \XeLaTeX{} engines, every frame's content should be enclosed in a pair of \verb+\beginR+ and \verb+\endR+ commands in order to correctly typeset RTL text contained therein. This can be conveniently done by means of the `\verb+begin+' and `\verb+end+' \hyperlink{beginend}{options} of the `\verb+animateinline+' environment.
 
 %  \item If the \LaTeX{} $\rightarrow$ \verb+dvips+ $\rightarrow$ \verb+ps2pdf+/Distiller route is being taken, make sure that the original graphics size (i.\,e. not scaled by any of the `{\tt scale}', `{\tt width}', `{\tt height}' or `{\tt totalheight}' options) does not exceed the page size of the final document. During PS to PDF conversion every graphic of the animation is temporarily moved to the upper left page corner. Those parts of the graphics that do not fit onto the document page will be clipped in the resulting PDF. Fortunately, graphics files for building animations may be resized easily to fit into a given bounding box by means of the `{\tt epsffit}' command line tool:
 %

@@ -1,3 +1,9 @@
+2017-02-22
+	* fix: code for repeated inclusion optimized for speed
+
+2017-02-03
+	* fix: RTL related (luaTeX)
+
 2017-01-30
 	* fix: usability in RTL typesetting context
 

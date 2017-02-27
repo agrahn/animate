@@ -28,7 +28,7 @@ Description:
     embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost
     LaTeX-picture inline graphics vector graphics animated GIF LaTeX
     dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange
-	Foxit Reader
+    Foxit Reader
 
 
 Usage:
@@ -41,7 +41,8 @@ Usage:
                        buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
                        loop, palindrome, step,
                        poster[=first | <num> | last | none],
-                       method=icon | widget | ocg, dvipdfmx, xetex
+                       method=icon | widget | ocg, dvipdfmx, xetex,
+                       type=[<file ext>]
 
 
     \animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
@@ -69,13 +70,14 @@ Usage:
                        method=icon | widget | ocg,
                        every=<number>, bb=<llx> <lly> <urx> <ury>,
                        viewport=<llx> <lly> <urx> <ury>,
-                       trim=<left> <bottom> <right> <top>
+                       trim=<left> <bottom> <right> <top>,
+                       label=<label text>, type=[<file ext>]
 
 
 Requirements:
 
     e-TeX
-    pdfTeX, version >= 1.20
+    pdfTeX, version >= 1.20, or LuaLaTeX, version >= 0.95
     Ghostscript, version >= 9.15 or Adobe Distiller
     dvipdfmx, version >= 20080607
     Acrobat Reader (version >= 7), PDF-XChange, Foxit Reader

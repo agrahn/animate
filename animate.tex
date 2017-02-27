@@ -121,7 +121,7 @@ PDF files with animations can be viewed in Acrobat Reader (except on mobile devi
 \section{Requirements}
 \begin{trivlist}
 %\item $\varepsilon$-\TeX
-\item pdf\TeX{}, version $\ge1.20$ or Lua\TeX{} for direct PDF output
+\item pdf\TeX{}, version $\ge1.20$, or Lua\TeX{}, version $\ge0.95$, for direct PDF output
 \item Ghostscript, version $\ge9.15$ or Adobe Distiller for PS to PDF conversion
 \item dvipdfmx, version $\ge20080607$ for DVI to PDF conversion
 \item Acrobat Reader (version $\ge7$), PDF-XChange, Foxit Reader
@@ -168,13 +168,13 @@ poster[=first | <num> | last | none]
 \end{verbatim}
 Except for `\verb+dvipdfmx+' and `\verb+xetex+', the options above are also available (among others) as command options and will be explained shortly. However, if used as package options they have global scope, taking effect on all animations in the document. In turn, command options locally override global settings. Options without an argument are boolean options and can be negated, with the exception of package-only options `\verb+dvipdfmx+' and `\verb+xetex+', by appending `\verb+=false+'.
 
-If PDF is generated via DVI and Postscript by the command sequence \verb+latex+ $\rightarrow$ \verb+dvips+ $\rightarrow$ \verb+ps2pdf+, the `graphicx' package is required. \begin{animateinline}[autoplay,loop,nomouse]{1}\strut\emph{Important:}\newframe[3]\end{animateinline} The \verb+dvips+ option `\verb+-Ppdf+' should \emph{not} be set when converting the intermediate DVI into Postscript. If you cannot do without, put `\verb+-D 1200+' \emph{after} `\verb+-Ppdf+' on the command line. Users of \LaTeX-aware text editors with menu-driven toolchain invocation, such as \TeX{}nicCenter, should check the configuration of the \verb+dvips+ call.
+\begin{animateinline}[autoplay,loop,nomouse]{1}\strut\emph{Important:}\newframe[3]\end{animateinline} Option `\verb+-Ppdf+' should \emph{not} be used with \verb+dvips+ when converting DVI to Postscript. If you cannot do without, put `\verb+-D 1200+' \emph{after} `\verb+-Ppdf+' on the command line. Users of \LaTeX-aware text editors with menu-driven toolchain invocation, such as \TeX{}nicCenter, should check the configuration of the \verb+dvips+ call.
 
-\XeLaTeX{} and \verb+dvipdfmx+ require the `graphicx' package to be loaded. While \XeLaTeX{} will be auto-detected (package option `\verb+xetex+' is optional), `animate' and `graphicx' need the package option `\verb+dvipdfmx+' in the case of \verb+dvipdfmx+.
+All workflows require the `graphicx' package to be loaded explicitly. For \verb+dvipdfmx+, `\verb+dvipdfmx+' must be set as a document class option, \verb+\documentclass[dvipdfmx,...]{...}+, because this driver cannot be auto-detected by `animate', `graphicx' and other packages.
 
 Usually, a second \LaTeX{} run is necessary to resolve internally created object references. A warning message will be issued if appropriate.
 
-%\clearpage
+\clearpage
 \section{The user interface}
 Package `animate' provides the command
 \begin{verbatim}
@@ -286,15 +286,15 @@ Scales the animation widget by \verb+<factor>+.
 \begin{verbatim}
 bb=<llx> <lly> <urx> <ury>
 \end{verbatim}
-(\verb+\animategraphics+ only, requires package `graphicx'.) The four, space separated arguments set the bounding box of the graphics files. Units can be omitted, in which case `bp' (Postscript points) is assumed.
+(\verb+\animategraphics+ only.) The four, space separated arguments set the bounding box of the graphics files. Units can be omitted, in which case `bp' (Postscript points) is assumed.
 \begin{verbatim}
 viewport=<llx> <lly> <urx> <ury>
 \end{verbatim}
-(\verb+\animategraphics+ only, requires package `graphicx'.) This option takes four arguments, just like `\verb+bb+'. However, in this case the values are taken relative to the origin specified by the bounding box in the graphics files.
+(\verb+\animategraphics+ only.) This option takes four arguments, just like `\verb+bb+'. However, in this case the values are taken relative to the origin specified by the bounding box in the graphics files.
 \begin{verbatim}
 trim=<left> <bottom> <right> <top>
 \end{verbatim}
-(\verb+\animategraphics+ only, requires package `graphicx'.) Crops graphics at the edges. The four lengths specify the amount to be removed from or, if negative values have been provided, to be added to each side of the graphics.
+(\verb+\animategraphics+ only.) Crops graphics at the edges. The four lengths specify the amount to be removed from or, if negative values have been provided, to be added to each side of the graphics.
 \begin{verbatim}
 controls
 \end{verbatim}

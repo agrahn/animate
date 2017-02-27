@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/02/22}
+\def\@anim@version{2017/02/24}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -122,21 +122,7 @@
   \xdef\@anim@curocg{\ocgbase@last@ocg}%
 }
 
-\ifpdf
-  %load MP to PDF converter
-  \InputIfFileExists{supp-pdf.mkii}{}{%
-  \InputIfFileExists{supp-pdf}{}{%
-    \PackageWarningNoLine{animate}{%
-      Neither of the files `supp-pdf.mkii' and `supp-pdf.tex',%
-      \MessageBreak%
-      which are part of ConTeXt, could be found.%
-      \MessageBreak%
-      Therefore, MetaPost generated PS files cannot%
-      \MessageBreak%
-      be embedded using pdfTeX%
-    }
-  }}
-\else
+\ifpdf\else
   \if@anim@dvipdfmx\else % dvips
     %if geometry package is loaded, execute `\geometry{dvips}' right before
     %  `\begin{document}'; not sure whether needed at all any more
@@ -226,7 +212,7 @@
     \def\@anim@pkgopt{[#1]}%
   }%
   \PackageError{animate}{%
-    Package `#2' has not been loaded yet.\MessageBreak%
+    Package `#2' required.
     Put the line\MessageBreak%
     `\protect\usepackage\@anim@pkgopt{#2}'\MessageBreak%
     to the preamble of your document%
@@ -256,18 +242,6 @@
 \newdimen\@anim@tmpdima %length registers for occasional use
 \newdimen\@anim@tmpdimb
 
-%tests whether file is already known (and embedded), if so it returns identifier
-%of xobj, otherwise returns `!'
-\def\@anim@fileknown#1#2{%#1 file name, #2 page No. (multipage files)
-  %identify file by md5sum
-  \ifcsname file:\@anim@pdfmdfivesum{#1}.#2\endcsname%
-    \@anim@getkeyval{file:\@anim@pdfmdfivesum{#1}.#2}\else!\fi%
-}
-\def\@anim@makefileknown#1#2#3{%
-  %#1 file name, #2 page No. (multipage files), #3 Form XObj ID
-  \@anim@newkey{file:\@anim@pdfmdfivesum{#1}.#2}{#3}%
-}
-
 \def\@anim@firstofthree#1#2#3{#1}
 \def\@anim@secndofthree#1#2#3{#2}
 \def\@anim@thirdofthree#1#2#3{#3}
@@ -277,36 +251,18 @@
 \def\@anim@xformnatdp#1{\expandafter\@anim@thirdofthree#1}
 
 %helper macro that typesets graphics file into savebox
-\ifpdf
-  \def\@anim@filebox#1#2{% #1 filename, #2 page No. for multipage files
-    \ifx\@anim@gropts\@empty%
-      \def\@anim@mps{.mps}%
-      \ifx\@anim@ext\@anim@mps%
-        \global\setbox\@anim@box=\hbox{\convertMPtoPDF{#1}{1}{1}}%
-      \else%
-        \pdfximage page #2 {#1}%
-        \global\setbox\@anim@box=\hbox{\pdfrefximage\pdflastximage}%
-      \fi%
-    \else%
-      \edef\@anim@curfile{[clip\@anim@gropts,page=#2]{#1}}%
-      \global\setbox\@anim@box=\hbox{%
-        \expandafter\includegraphics\@anim@curfile}%
-    \fi%
+\if@anim@dvips % dvips: no multi-page support
+  \def\@anim@filebox#1#2{% pdftex, xetex
+    \edef\@anim@curfile{[clip\@anim@gropts]{#1}}%
+    \global\setbox\@anim@box=\hbox{%
+      \expandafter\includegraphics\@anim@curfile}%
   }
-\else
-  \if@anim@xetex
-    \def\@anim@filebox#1#2{%
-      \edef\@anim@curfile{[clip\@anim@gropts,page=#2]{#1}}%
-      \global\setbox\@anim@box=\hbox{%
-        \expandafter\includegraphics\@anim@curfile}%
-    }
-  \else
-    \def\@anim@filebox#1#2{% #2 ignored
-      \edef\@anim@curfile{[clip\@anim@gropts]{#1}}%
-      \global\setbox\@anim@box=\hbox{%
-        \expandafter\includegraphics\@anim@curfile}%
-    }
-  \fi
+\else %pdfTeX, LuaTeX, dvipdfmx, xetex (multi-page)
+  \def\@anim@filebox#1#2{%
+    \edef\@anim@curfile{[clip\@anim@gropts,page=#2]{#1}}%
+    \global\setbox\@anim@box=\hbox{%
+      \expandafter\includegraphics\@anim@curfile}%
+  }
 \fi
 
 \def\@anim@checkboxsize#1#2{% #1: box number, #2: file
@@ -331,13 +287,14 @@
 %create Form XObject from graphics file
 \def\@anim@ximage#1#2#3#4{%#1:@anim@num, #2:@anim@curframe@zb, #3:filename,
   %#4: page number of multipage file
-  \ifthenelse{\equal{\@anim@fileknown{#3}{#4.\@anim@gropts}}{!}}{%
+  \edef\@anim@fingerprint{file:\@anim@pdfmdfivesum{#3}.#4.\@anim@gropts}%
+  \edef\@anim@curxform{\@anim@getkeyval{\@anim@fingerprint}}%
+  \ifthenelse{\equal{\@anim@curxform}{}}{%
+    % new file.page.graphicx_options
     \@anim@filebox{#3}{#4}% store file in a box
     \@anim@xinline{#1}{#2}{\@anim@box}{!}% delegate Form XObject creation
-    \ifx\@anim@gropts\@empty\if@anim@multipage\message{<#4>}\fi\fi%
-    \@anim@makefileknown{#3}{#4.\@anim@gropts}{\@anim@@lastxform}%
-  }{% file known, re-use existing form xobject
-    \edef\@anim@curxform{\@anim@fileknown{#3}{#4.\@anim@gropts}}%
+    \@anim@newkey{\@anim@fingerprint}{\@anim@@lastxform}%
+  }{% file known, re-using existing form xobject
     \edef\@anim@curndims{\@anim@getkeyval{natdims:\@anim@curxform}}% nat. dims
     \setbox\@anim@box=\hbox to \@anim@xformnatwd{\@anim@curndims}{%
       \vrule width \z@
@@ -346,6 +303,7 @@
     }%
     \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@curxform}%
   }%
+  \message{<a#1,fr#2>}%
 }
 
 %creates Form XObject from box contents
@@ -1298,7 +1256,9 @@
       \fi%
     }%
   \else
-    %no multipage support in dvips and dvipdfmx
+    %no multi-page support in dvips
+    %although dvipdfmx actually has multi-page support, it lacks a way to
+    %determine the total page count which is needed here
     \def\@anim@checkmultipage#1{\setboolean{@anim@multipage}{false}}%
   \fi
 \fi
@@ -1330,21 +1290,12 @@
 \newcommand{\animategraphics}[5][]{%
   \@anim@endsanitize%
   \leavevmode%
-  \ifpdf\else%
-    \if@anim@grxloaded%
-      \if@anim@xetex%
-        \DeclareGraphicsRule{.mps}{eps}{*}{}%
-      \fi%
+  \if@anim@grxloaded\else%
+    \if@anim@dvipdfmx\if@anim@xetex%
+      \@anim@missing{graphicx}\else%
+      \@anim@missing[dvipdfmx]{graphicx}\fi%
     \else%
-      \if@anim@xetex%
-        \@anim@missing[xetex]{graphicx}%
-      \else%
-        \if@anim@dvipdfmx%
-          \@anim@missing[dvipdfmx]{graphicx}%
-        \else%
-          \@anim@missing{graphicx}%
-        \fi%
-      \fi%
+      \@anim@missing{graphicx}%
     \fi%
   \fi%
   \@anim@reset% to default settings
@@ -2647,20 +2598,16 @@
   \ifnum#1<\@ne\relax\gdef\@anim@every{1}\else\gdef\@anim@every{#1}\fi%
 }
 \define@key{anim@user}{bb}{%
-  \if@anim@grxloaded\g@addto@macro\@anim@gropts{, bb=#1}%
-  \else\@anim@missing{graphicx}\fi%
+  \g@addto@macro\@anim@gropts{, bb=#1}%
 }
 \define@key{anim@user}{viewport}{%
-  \if@anim@grxloaded\g@addto@macro\@anim@gropts{, viewport=#1}%
-  \else\@anim@missing{graphicx}\fi%
+  \g@addto@macro\@anim@gropts{, viewport=#1}%
 }
 \define@key{anim@user}{trim}{%
-  \if@anim@grxloaded\g@addto@macro\@anim@gropts{, trim=#1}%
-  \else\@anim@missing{graphicx}\fi%
+  \g@addto@macro\@anim@gropts{, trim=#1}%
 }
 \define@key{anim@user}{angle}{%
-  \if@anim@grxloaded\g@addto@macro\@anim@gropts{, angle=#1}%
-  \else\@anim@missing{graphicx}\fi%
+  \g@addto@macro\@anim@gropts{, angle=#1}%
 }
 \newboolean{@anim@meas}
 \define@key{anim@user}{measure}[true]{%

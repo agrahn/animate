@@ -1,5 +1,5 @@
 % Maxime Chupin, Alexander Grahn
-% 2013/10/15
+% 2017/02/27
 
 filenametemplate "%j_%c.mps";
 
@@ -8,9 +8,8 @@ verbatimtex
 \usepackage[latin1]{inputenc}
 \usepackage[T1]{fontenc}
 %\usepackage{lmodern}
-  \usepackage{libertine}
+  \usepackage[tt=false]{libertine}
   \usepackage[libertine]{newtxmath}
-  \usepackage[scaled=0.83]{luximono} %override beramono (doesn't look like tt font)
 \usepackage{amsmath}
 \begin{document}
 etex

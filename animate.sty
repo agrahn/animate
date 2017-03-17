@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/02/24}
+\def\@anim@version{2017/03/16}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -94,8 +94,8 @@
     \xdef\@anim@lastobj{\pbs_pdflastobj:}
   }
 
-  \def\@anim@xform#1#2#3{
-    \pbs_pdfxform:nnn{#1}{#2}{#3}
+  \def\@anim@xform#1#2#3#4{
+    \pbs_pdfxform:nnnnn{#1}{#2}{}{#3}{#4}
     \xdef\@anim@lastxform{\pbs_pdflastxform:}
   }
 
@@ -185,9 +185,7 @@
 
 %macro for writing global defs to external *.aux file
 \def\@anim@keytoaux#1#2{%
-  \@bsphack\protected@write\@mainaux{}{%
-    \string\@anim@newkey{#1}{#2}%
-  }\@esphack%
+  \immediate\write\@mainaux{\string\@anim@newkey{#1}{#2}}%
   \ifthenelse{\equal{\@anim@getkeyval{#1}}{#2}}{}{%
     \AtEndDocument{\@animate@rerunwarn}}%
 }
@@ -303,7 +301,6 @@
     }%
     \@anim@xinline{#1}{#2}{\@anim@box}{\@anim@curxform}%
   }%
-  \message{<a#1,fr#2>}%
 }
 
 %creates Form XObject from box contents
@@ -331,7 +328,7 @@
   %create form xobject from box argument
   \ifthenelse{\equal{#4}{!}}{% %%%% new graphics %%%%
     %put graphics into XObject
-    \@anim@xform{1}{0}{#3}%
+    \@anim@xform{1}{0}{}{#3}%
     \xdef\@anim@@lastxform{\@anim@lastxform}%
     \@anim@newkey{natdims:\@anim@lastxform}{%
       {\@anim@curwd}{\@anim@curht}{\@anim@curdp}%
@@ -354,7 +351,7 @@
           }{\raisebox{\depth}{\box#3}}%
         }%
       }%
-      \@anim@xform{0}{0}{#3}%
+      \@anim@xform{0}{0}{}{#3}%
     \fi%
   \fi%
   %keep a record of XObject number
@@ -363,6 +360,7 @@
     \@anim@newkey{frmcontent@#2}{\@anim@getkeyval{img@#2},}%
     \@anim@makeframe{#1}{#2}%
   \fi%
+  \message{<a#1,fr#2>}%
 }
 
 \def\@anim@insertfrmcontent#1,#2\@nil{%
@@ -378,9 +376,8 @@
 
 %inserts one animation frame into the output acc. to
 % \ifcase\@anim@method as
-% 0: Form XObject (not referenced in the page content stream)
-% 1: non-interactive Widget annotation
-% 2: referenced Form XObject in the page content, tagged as OC
+% 0 & 1: non-interactive Widget annotation
+% 2: Form XObject referenced in the page content, tagged as OC
 % animation
 \def\@anim@makeframe#1#2{%
   %container box
@@ -398,7 +395,7 @@
     \fi%
   \fi%
   \ifcase\@anim@method% icon based
-    \@anim@xform{0}{1}{\@anim@box}%
+    \@anim@xform{0}{1}{}{\@anim@box}%
     %initial visibility
     \ifnum\@anim@poster>\@anim@mtwo\relax% insert poster frame
       \ifnum#2=\@anim@poster\relax%
@@ -437,7 +434,7 @@
       \fi%
     \fi%
     %frame insertion
-    \@anim@xform{0}{1}{\@anim@box}%
+    \@anim@xform{0}{1}{}{\@anim@box}%
     \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
       /Subtype/Widget%
       \@anim@annotflag%
@@ -446,7 +443,6 @@
       /AP <</N \@anim@lastxform>>%
       /MK <</TP 1/I \@anim@lastxform/IF<</S/A/FB true>>>>%
       /T (#1.#2)%
-      \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
     }%
   \or% ocg based
     \@anim@newocg{#1}{#2}%
@@ -480,10 +476,14 @@
       }%
     \fi%
     %frame insertion
-    \@anim@xform{0}{0}{\@anim@box}%
-    \ocgbase@oc@bdc{\@anim@curocg}%
+%    % marked content method
+%    \@anim@xform{0}{0}{}{\@anim@box}%
+%    \ocgbase@oc@bdc{\@anim@curocg}%
+%    \@anim@refxform{\@anim@lastxform}%
+%    \ocgbase@oc@emc%
+    % /OC  method
+    \@anim@xform{0}{0}{/OC \@anim@curocg}{\@anim@box}%
     \@anim@refxform{\@anim@lastxform}%
-    \ocgbase@oc@emc%
   \fi%
 }
 
@@ -1545,7 +1545,7 @@
     \ifnum\@anim@poster=\@anim@mtwo\relax%
       \ifdefined\@anim@apdummy\else% empty appearance widget
         \setbox\@anim@box=\hbox{\phantom{x}}%
-        \@anim@xform{0}{0}{\@anim@box}%
+        \@anim@xform{0}{0}{}{\@anim@box}%
         \xdef\@anim@apdummy{\@anim@lastxform}%
         \@anim@pdfwid{1ex}{1ex}{\z@}{%
           /Subtype/Widget%
@@ -1564,7 +1564,7 @@
   \else%
     \ifdefined\@anim@apdummy\else% empty appearance dummy
       \setbox\@anim@box=\hbox{\phantom{x}}%
-      \@anim@xform{0}{0}{\@anim@box}%
+      \@anim@xform{0}{0}{}{\@anim@box}%
       \xdef\@anim@apdummy{\@anim@lastxform}%
     \fi%
     \def\@anim@apmk{\@anim@apdummy}%
@@ -1583,18 +1583,6 @@
       /PC <</S/JavaScript/JS \@anim@pcjscriptobj>>% PageClose
     >>%
   }%
-  %With icon and ocg method, we put one dummy widget below; this seems to be
-  %necessary for the OCG visibility referenced by the /OC entry to work as
-  %expected (if we place the animation on a PDF layer using ocgx2.sty).
-  \ifnum\@anim@method=\@ne\relax\else%
-    \ifdefined\ocgxii@insert@OC%
-      \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
-        \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
-          /Subtype/Widget/F 2%
-        }%
-      }%
-    \fi%
-  \fi%
   \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
     /Subtype/Widget%
     /FT/Btn/Ff \@anim@btnflag%
@@ -1612,7 +1600,6 @@
     >>%
     /AP <</N \@anim@apmk>>%
     /MK <</TP 1/I \@anim@apmk/IF<</S/A/FB true>>>>%
-    \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
   }%
   \hbox to \@anim@animwidth {%
     \vrule width 0pt height \@anim@animheight depth \@anim@animdepth%
@@ -1641,19 +1628,12 @@
   \if@anim@mk\else%
     \ifdefined\@anim@apdummy\else% empty appearance dummy
       \setbox\@anim@box=\hbox{\phantom{x}}%
-      \@anim@xform{0}{0}{\@anim@box}%
+      \@anim@xform{0}{0}{}{\@anim@box}%
       \xdef\@anim@apdummy{\@anim@lastxform}%
     \fi%
   \fi%
   \if@anim@js\@anim@upjscript{#1}{#2}\fi% JavaScript actions for ButtonUp events
   \setlength{\@anim@tmpdima}{\@anim@btnsize}%
-  \ifdefined\ocgxii@insert@OC% put dummy widget below (for ocgx2 compatibility)
-    \ifthenelse{\equal{\ocgxii@insert@OC}{}}{}{%
-      \@anim@pdfwid{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
-        /Subtype/Widget/F 2%
-      }%
-    }%
-  \fi%
   \@anim@pdfwid{\@anim@tmpdima}{\@anim@tmpdima}{\z@}{%
     /Subtype/Widget%
     \@anim@annotflag%
@@ -1670,7 +1650,6 @@
     /T (#1.#2)%
     \@anim@tooltip%
     \if@anim@js/A <</S/JavaScript/JS (\@anim@upjscriptstring)>>\fi%
-    \ifdefined\ocgxii@insert@OC\ocgxii@insert@OC\fi%
   }%
   \if@anim@js%
     \hbox to \@anim@tmpdima {%
@@ -1875,7 +1854,7 @@
     \fi%
     %now create Form XObject of box contents
     \if@anim@draft\else%
-      \@anim@xinline{#1}{#2}{\@anim@box}{!}{}\message{<a#1,fr#2>}%
+      \@anim@xinline{#1}{#2}{\@anim@box}{!}%
     \fi%
   \fi%
   \global\advance\@anim@skipfram by \@ne%

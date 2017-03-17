@@ -441,7 +441,7 @@ The backslash `\verb+\+' and percent `\verb+%+' characters retain their special 
 \end{verbatim}
 would have to look like
 \begin{verbatim}
-  console.println('{}\%\}\{\\n'); 
+  console.println('{}\%\}\{\\n');
 \end{verbatim}
 in the timeline file. The first pair of braces are balancing themselves and do not need to be escaped.
 
@@ -470,7 +470,7 @@ Also, `animate' finds and warns about transparencies that have never been used i
 The package provides a simple JavaScript programming interface which gives access to the animation objects in a PDF file. A particular animation property or method can be accessed by
 \begin{verbatim}
   anim['<anim label>'].<property or method>
-\end{verbatim} 
+\end{verbatim}
 or
 \begin{verbatim}
   anim.<anim label>.<property or method>
@@ -563,7 +563,7 @@ The first example, Fig.~\ref{fig:taylor}, originally written by Jan Holeček~\ci
     jsaction={
       if(anim['taylor'].isPlaying)
         anim['taylor'].pause();
-      else  
+      else
         anim['taylor'].playFwd();
     }
   ]{\fbox{Play/Pause}}
@@ -595,7 +595,7 @@ The first example, Fig.~\ref{fig:taylor}, originally written by Jan Holeček~\ci
   jsaction={
     if(anim['taylor'].isPlaying)
       anim['taylor'].pause();
-    else  
+    else
       anim['taylor'].playFwd();
   }
 ]{\fbox{Play/Pause}}
@@ -1319,7 +1319,7 @@ dt dt Tm nT mul { % pop
   \end{enumerate}
 
   \item If a PDF containing animations is postprocessed using tools like PDFtk to split the document into separate files, then animations in the output documents may not work.
-    
+
   \item PDFs with animations cannot be embedded (via {\tt \string\includegraphics, \string\includepdf}) into other documents as the animation capability gets lost.
 
   \item Animations should not be placed on \emph{multilayered} slides, also known as overlays, created with presentation making classes such as Beamer or Powerdot. Although possible (on the last overlay of a slide, at best), the result might be disappointing. Put animations on flat slides only. (Of course, slides without animations may still have overlays.)
@@ -1331,7 +1331,8 @@ I would like to thank François Lafont who discovered quite a few bugs and made 
 \begin{thebibliography}{8}
 \bibitem{chupin} Chupin, M.: \emph{Syracuse MetaPost/Animations.} URL: \url{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}
 \bibitem{gilg05} Gilg, J.: PDF-Animationen. In: \emph{Die \TeX nische Kom\"odie}, Issue 4, 2005, pp.~30--37
-\bibitem{hol} Holeček, J.: \emph{Animations in a pdf\TeX-generated PDF}. URL: \url{http://www.fi.muni.cz/~xholecek/tex/pdfanim.xhtml}
+%\bibitem{hol} Holeček, J.: \emph{Animations in a pdf\TeX-generated PDF}. URL: \url{http://www.fi.muni.cz/~xholecek/tex/pdfanim.xhtml}
+\bibitem{hol} Holeček, J.; Sojka, P.: Animations in pdf\TeX-generated PDF. In: \emph{\TeX, XML, and Digital Typography}, Springer, 2004, pp.~179--191. doi:10.1007/978-3-540-27773-6\textunderscore14
 \bibitem{luque12} Luque, M.: \emph{PSTricks : applications.} URL: \url{http://pstricks.blogspot.com}
 \bibitem{media9} \emph{The media9 Package}. URL: \url{http://www.ctan.org/pkg/media9}
 \end{thebibliography}

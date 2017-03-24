@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/03/16}
+\def\@anim@version{2017/03/23}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -33,7 +33,6 @@
 \RequirePackage{ifluatex}
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
-\RequirePackage{atenddvi}%to really get certain \specials into the dvi
 \RequirePackage{graphics}%\scalebox, \resizebox, \rotatebox
 
 %driver options (the only package options we process immediately)
@@ -72,7 +71,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \RequirePackage{pdfbase}%low level PDF operations
-\@ifpackagelater{pdfbase}{2016/03/11}{}{
+\@ifpackagelater{pdfbase}{2017/03/23}{}{
   \PackageError{animate}{%
     Support package `pdfbase.sty' too old.%
   }{%
@@ -190,16 +189,8 @@
     \AtEndDocument{\@animate@rerunwarn}}%
 }
 
-\let\AtEndDvi@CheckImpl@Orig\AtEndDvi@CheckImpl%
-\def\AtEndDvi@CheckImpl{%
-  \AtEndDvi@CheckImpl@Orig%
-  \@ifundefined{AtEndDvi@LastPage}{%
-    \@animate@rerunwarn%
-  }{%
-    \ifnum\AtEndDvi@LastPage=\value{abspage}\else%
-      \@animate@rerunwarn%
-    \fi%
-  }%
+\AtBeginDocument{%
+  \immediate\write\@mainaux{\string\providecommand\string\@anim@newkey[2]{}}%
 }
 
 %missing package error message

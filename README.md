@@ -17,8 +17,8 @@ Note, this file only gives a summary of usage and available package and command 
 
 *Keywords:* include portable PDF animated PDF animation animating embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost LaTeX-picture inline graphics vector graphics animated GIF LaTeX dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange Foxit Reader
 
-## Usage
 
+## Usage
 ````latex
 \usepackage[<package options>]{animate}
 ````
@@ -78,6 +78,7 @@ label=<label text>, type=[<file ext>]
 - dvipdfmx, version >= 20080607
 - Acrobat Reader (version >= 7), PDF-XChange, Foxit Reader
 
+
 ## Installation
 
 Unzip the file [`animate.tds.zip`](http://mirrors.ctan.org/install/macros/latex/contrib/animate.tds.zip) into the local TDS root directory which can be found by running
@@ -89,6 +90,7 @@ on the command line.
 After installation, update the filename database by running `texhash` on the command line.
 
 TeXLive and MiKTeX users should run the package manager for installation.
+
 
 ## License
 

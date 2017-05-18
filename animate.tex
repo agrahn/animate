@@ -292,8 +292,8 @@ trim=<left> <bottom> <right> <top>
 \end{verbatim}
 (\verb+\animategraphics+ only.) Crops graphics at the edges. The four lengths specify the amount to be removed from or, if negative values have been provided, to be added to each side of the graphics.
 \begin{verbatim}
-controls[=(all|true|on)]
-controls=(none|false|off) | {[play][,step][,stop][,speed]}
+controls[=all | true | on]
+controls=(none | false | off) | {[play][,step][,stop][,speed]}
 \end{verbatim}
 Inserts control buttons below the animation widget. Visibility of buttons can be fine-tuned through optional keys. By default, if setting `\verb+controls+' alone, all available buttons are shown, while any of `\verb+none+', `\verb+false+' or `\verb+off+' suppresses them altogether. A comma-separated selection from `\verb+play+', `\verb+step+', `\verb+stop+' and `\verb+speed+' enables corresponding pairs or groups of buttons. Such a comma list must be enclosed in braces, i.\,e. \verb+controls={..., ..., ...}+. If all buttons are shown, their meaning is as follows, from left to right: stop \& first frame, step backwards, play backwards, play forwards, step forwards, stop \& last frame, decrease speed, default speed, increase speed. Both `play' buttons are replaced by a large `pause' button while the animation is playing.
 \begin{verbatim}

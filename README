@@ -1,107 +1,113 @@
-                             =====================
-                              The animate Package
-                             =====================
+===================================
+ The animate Package
 
-Author:
+ https://github.com/agrahn/animate
 
-    Alexander Grahn
-
-
-Description:
-
-    This package provides an interface to create portable, JavaScript driven PDF
-    animations from sets of (vector) graphics or rasterized image files or from
-    inline (vector) graphics, such as LaTeX-picture, PSTricks or pgf/TikZ
-    generated pictures, or just from typeset text.
-
-    It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX -> dvips
-    -> ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX -> (x)dvipdfmx, LuaLaTeX.
-
-    The resulting PDF with animations can be viewed in Acrobat Reader (except on
-    mobile devices), in PDF-XChange and in Foxit Reader.
-
-    Note, this file only gives a summary of usage and available package and
-    command options. Please refer to the documentation `animate.pdf' for details
-    and examples.
-
-    Keywords: include portable PDF animated PDF animation animating
-    embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost
-    LaTeX-picture inline graphics vector graphics animated GIF LaTeX
-    dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange
-    Foxit Reader
+ (C) 2007--\today Alexander Grahn
+===================================
 
 
-Usage:
+1. Description
+==============
 
-    \usepackage[<package options>]{animate}
+This package provides an interface to create portable, JavaScript driven PDF
+animations from sets of (vector) graphics or rasterized image files or from
+inline (vector) graphics, such as LaTeX-picture, PSTricks or pgf/TikZ
+generated pictures, or just from typeset text.
 
-    * Package options: width=<h-size>, height=<v-size>, totalheight=<v-size>,
-                       keepaspectratio, scale=<factor>, nomouse,
-                       autopause, autoplay, autoresume, controls, final, draft,
-                       buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
-                       loop, palindrome, step,
-                       poster[=first | <num> | last | none],
-                       method=icon | widget | ocg, dvipdfmx, xetex,
-                       type=[<file ext>]
+It supports the usual PDF making workflows, i. e.  pdfLaTeX, LaTeX -> dvips
+-> ps2pdf (Ghostscript)/Distiller and (Xe)LaTeX -> (x)dvipdfmx, LuaLaTeX.
 
+The resulting PDF with animations can be viewed in Acrobat Reader (except on
+mobile devices), in PDF-XChange and in Foxit Reader.
 
-    \animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
+Note, this file only gives a summary of usage and available package and
+command options. Please refer to the documentation `animate.pdf' for details
+and examples.
 
-    \begin{animateinline}[<options>]{<frame rate>}
-        ... typeset material ...
-    \newframe[<frame rate>]
-        ... typeset material ...
-    \newframe*[<frame rate>]
-        ... typeset material ...
-    \newframe
-    \multiframe{<number of frames>}{[<variables>]}{
-        ... repeated (parameterized) material ...
-    }
-    \end{animateinline}
-
-    * Command options: width=<h-size>, height=<v-size>, totalheight=<v-size>,
-                       keepaspectratio, scale=<factor>, nomouse,
-                       autopause, autoplay, autoresume, final,
-                       draft, controls, buttonsize=<size>, buttonbg=<colour>,
-                       buttonfg=<colour>, loop, palindrome, step, measure,
-                       poster[=first | <num> | last | none],
-                       begin={<begin text>}, end={<end text>},
-                       timeline=<timeline file>,
-                       method=icon | widget | ocg,
-                       every=<number>, bb=<llx> <lly> <urx> <ury>,
-                       viewport=<llx> <lly> <urx> <ury>,
-                       trim=<left> <bottom> <right> <top>,
-                       label=<label text>, type=[<file ext>]
+ * Keywords: include portable PDF animated PDF animation animating
+             embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost
+             LaTeX-picture inline graphics vector graphics animated GIF LaTeX
+             dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange
+             Foxit Reader
 
 
-Requirements:
+2. Usage
+========
 
-    e-TeX
-    pdfTeX, version >= 1.20, or LuaLaTeX, version >= 0.95
-    Ghostscript, version >= 9.15 or Adobe Distiller
-    dvipdfmx, version >= 20080607
-    Acrobat Reader (version >= 7), PDF-XChange, Foxit Reader
+\usepackage[<package options>]{animate}
 
-
-Installation:
-
-    Unzip the file `animate.tds.zip' into the local TDS root directory which can
-    be found by running
-
-      kpsewhich -var-value TEXMFLOCAL
-
-    on the command line.
-
-    After installation, update the filename database by running `texhash' on the
-    command line.
-
-    TeXLive and MiKTeX users should run the package manager for installation.
+ * Package options: width=<h-size>, height=<v-size>, totalheight=<v-size>,
+                    keepaspectratio, scale=<factor>, nomouse,
+                    autopause, autoplay, autoresume, controls[=all | none | ...],
+                    final, draft,
+                    buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
+                    loop, palindrome, step,
+                    poster[=first | <num> | last | none],
+                    method=icon | widget | ocg, dvipdfmx, xetex,
+                    type=[<file ext>]
 
 
-License:
+\animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
 
-    This material is subject to the LaTeX Project Public License. See
+\begin{animateinline}[<options>]{<frame rate>}
+    ... typeset material ...
+\newframe[<frame rate>]
+    ... typeset material ...
+\newframe*[<frame rate>]
+    ... typeset material ...
+\newframe
+\multiframe{<number of frames>}{[<variables>]}{
+    ... repeated (parameterized) material ...
+}
+\end{animateinline}
 
-      http://mirrors.ctan.org/help/Catalogue/licenses.lppl.html
+ * Command options: width=<h-size>, height=<v-size>, totalheight=<v-size>,
+                    keepaspectratio, scale=<factor>, nomouse,
+                    autopause, autoplay, autoresume, final, draft,
+                    controls[=all | none | ...],
+                    buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
+                    loop, palindrome, step, measure,
+                    poster[=first | <num> | last | none],
+                    begin={<begin text>}, end={<end text>},
+                    timeline=<timeline file>,
+                    method=icon | widget | ocg,
+                    every=<number>, bb=<llx> <lly> <urx> <ury>,
+                    viewport=<llx> <lly> <urx> <ury>,
+                    trim=<left> <bottom> <right> <top>,
+                    label=<label text>, type=[<file ext>]
 
-    for the details of that license.
+
+3. Requirements
+===============
+
+ * e-TeX
+ * pdfTeX, version >= 1.20, or LuaLaTeX, version >= 0.95
+ * Ghostscript, version >= 9.15 or Adobe Distiller
+ * dvipdfmx, version >= 20080607
+ * Acrobat Reader (version >= 7), PDF-XChange, Foxit Reader
+
+
+4. Installation
+===============
+
+Unzip the file `animate.tds.zip' into the local TDS root directory which can
+be found by running
+
+  kpsewhich -var-value TEXMFLOCAL
+
+on the command line.
+
+After installation, update the filename database by running `texhash' on the
+command line.
+
+TeXLive and MiKTeX users should run the package manager for installation.
+
+
+                         * * *
+
+This material is subject to the LaTeX Project Public License. See
+
+  http://mirrors.ctan.org/help/Catalogue/licenses.lppl.html
+
+for the details of that license.

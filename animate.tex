@@ -9,11 +9,11 @@
 %
 \documentclass[a4paper]{article}
 \frenchspacing
+\usepackage[buttonbg=0.9]{animate}
 \usepackage[UKenglish]{babel}
 \usepackage{pst-3dplot}
 \usepackage{pst-node,pst-plot,pst-tools,pst-text,pst-ode}
 \usepackage{media9}
-\usepackage[buttonbg=0.9]{animate}
 \usepackage{intcalc}
 \usepackage{graphicx}
 \graphicspath{{files/}}
@@ -32,6 +32,7 @@
 \usepackage{tabls}
 \usepackage{multirow}
 \usepackage[bookmarksnumbered,linktocpage]{hyperref}
+\usepackage[ocgcolorlinks]{ocgx2}
 \usepackage{breakurl}
 \usepackage{amsmath}
 \usepackage{fancyvrb}
@@ -64,13 +65,7 @@
   pdfsubject={Documentation},
   pdfauthor={Alexander Grahn},
   pdfkeywords={\keywords},
-  citebordercolor={0 0 1},
-  filebordercolor={0 0 1},
-  linkbordercolor={0 0 1},
-  menubordercolor={0 0 1},
-  pagebordercolor={0 0 1},
-  urlbordercolor={0 0 1},
-%  pdfpagelayout=SinglePage
+  allcolors=blue
 }
 
 %\usepackage[scaled=0.85]{luximono}
@@ -94,7 +89,7 @@
 \def\@anim@sanitizeColon{}\def\@anim@sanitizeJS{}\def\@anim@endsanitize{}
 \expandafter\parsedate\@anim@version\relax %set current date to package date
 \makeatother
-\author{Alexander Grahn \animategraphics[autoplay,loop,height=1.8ex,nomouse]{8}{bye_}{0}{3}\protect\footnote{Animated GIF taken from \href{http://www.phpBB.com}{phpBB} forum software and burst into a set of EPS files using \href{http://www.imagemagick.org}{ImageMagick} before embedding.} \protect\footnote{Animations may run slowly if viewed in the Acrobat Reader browser plugin.}\\[1ex]\includegraphics[height=2.7ex]{mailto}}
+\author{Alexander Grahn \animategraphics[autoplay,loop,height=1.8ex,nomouse]{8}{bye_}{0}{3}\protect\footnote{Animated GIF taken from \href{http://www.phpBB.com}{phpBB} forum software and burst into a set of EPS files using \href{http://www.imagemagick.org}{ImageMagick} before embedding.} \protect\footnote{Animations may run slowly if viewed in the Acrobat Reader browser plugin.}\\[1ex]\includegraphics[height=2.7ex]{mailto}\\[1ex]\url{https://github.com/agrahn/animate}}
 \maketitle
 \endgroup
 \begin{abstract}
@@ -139,7 +134,7 @@ First of all, read Section~\ref{sect:bugs} on problems related to this package. 
 \begin{verbatim}
 \usepackage[<package options>]{animate}
 \end{verbatim}
-to the preamble of your document, i.\,e. somewhere between \verb+\documentclass+ and \verb+\begin{document}+.
+to the preamble of the document source, i.\,e. somewhere between \verb+\documentclass+ and \verb+\begin{document}+.
 
 `animate' honours the package options:
 \begin{verbatim}
@@ -152,7 +147,8 @@ loop
 palindrome
 draft
 final
-controls
+controls[=(all|true|on) |
+          (none|false|off) | {[play][,step][,stop][,speed]}]
 width=<h-size>
 height=<v-size> | totalheight=<v-size>
 keepaspectratio
@@ -174,7 +170,7 @@ All workflows require the `graphicx' package to be loaded explicitly. For \verb+
 
 Usually, a second \LaTeX{} run is necessary to resolve internally created object references. A warning message will be issued if appropriate.
 
-\clearpage
+%\clearpage
 \section{The user interface}
 Package `animate' provides the command
 \begin{verbatim}
@@ -296,9 +292,10 @@ trim=<left> <bottom> <right> <top>
 \end{verbatim}
 (\verb+\animategraphics+ only.) Crops graphics at the edges. The four lengths specify the amount to be removed from or, if negative values have been provided, to be added to each side of the graphics.
 \begin{verbatim}
-controls
+controls[=(all|true|on)]
+controls=(none|false|off) | {[play][,step][,stop][,speed]}
 \end{verbatim}
-Inserts control buttons below the animation widget. The meaning of the buttons is as follows, from left to right: stop \& first frame, step backward, play backward, play forward, step forward, stop \& last frame, decrease speed, default speed, increase speed. Both `play' buttons are replaced by a large `pause' button while the animation is playing.
+Inserts control buttons below the animation widget. Visibility of buttons can be fine-tuned through optional keys. By default, if setting `\verb+controls+' alone, all available buttons are shown, while any of `\verb+none+', `\verb+false+' or `\verb+off+' suppresses them altogether. A comma-separated selection from `\verb+play+', `\verb+step+', `\verb+stop+' and `\verb+speed+' enables corresponding pairs or groups of buttons. Such a comma list must be enclosed in braces, i.\,e. \verb+controls={..., ..., ...}+. If all buttons are shown, their meaning is as follows, from left to right: stop \& first frame, step backwards, play backwards, play forwards, step forwards, stop \& last frame, decrease speed, default speed, increase speed. Both `play' buttons are replaced by a large `pause' button while the animation is playing.
 \begin{verbatim}
 buttonsize=<size>
 \end{verbatim}
@@ -433,7 +430,7 @@ frame No. & timeline file & transparency stack\\\hline\hline
 See the second animation, Fig.~\ref{fig:scarab}, in Section~\ref{sect:examples} for a working example that makes use of the timeline and the layer concept.
 
 \myparagraph*{Associate JavaScript actions with animation frames}\label{sect:jsfield}
-The optional fourth field \verb+<JavaScript>+ in a frame specification takes JavaScript code to be executed upon display of that frame. This could be used, for instance, to play a sound that was embedded using the `media9' \LaTeX{} package \cite{media9} or to execute JavaScript methods of the animation object. A non-trivial example is looping over a sub-range of frames which can be programmed by setting the `\verb+pageNum+' property of the animation object. See Sect.~\ref{sect:api} for details of the animation programming interface.
+The optional fourth field \verb+<JavaScript>+ in a frame specification takes JavaScript code to be executed upon display of that frame. This could be used, for instance, to play a sound that was embedded using the `media9' \LaTeX{} package \cite{media9} or to execute JavaScript methods of the animation object. A non-trivial example is looping over a sub-range of frames which can be programmed by setting the `\verb+frameNum+' property of the animation object. See Sect.~\ref{sect:api} for details of the animation programming interface.
 
 The backslash `\verb+\+' and percent `\verb+%+' characters retain their special meaning from \LaTeX{} and must be escaped by a backslash `\verb+\+' in the JavaScript code. The same applies to unbalanced braces `\verb+{+' and `\verb+}+'. Thus, a code line such as
 \begin{verbatim}
@@ -495,7 +492,7 @@ Also, the programming interface can be used to create custom buttons for playbac
   ]{\fbox{Goto 6th frame}}
 \end{verbatim}
 
-\begin{table}[hbp]
+\begin{table}[p]%[hbp]
 \centering
 \caption{Animation object properties}\label{tab:props}
 \begin{tabularx}{\linewidth}[t]{lllX}\hline
@@ -510,7 +507,7 @@ name & type & access & description\\\hline\hline
 \end{tabularx}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[p]%[htbp]
 \centering
 \caption{Animation object methods}\label{tab:methods}
 \begin{tabularx}{\linewidth}[t]{lX}\hline
@@ -524,7 +521,7 @@ name & description\\\hline\hline
 \end{tabularx}
 \end{table}
 
-%\clearpage
+\clearpage
 \section{Examples}
 \subsection{Animations from sets of files, using {\tt\textbackslash animategraphics}}\label{sect:examples}
 Animations in this section are made from graphics files that were prepared with \MP. Run `\verb+mpost --tex=latex+' on the files ending in `.mp' in the `files' directory to generate the graphics files. Both examples make use of the `\verb+timeline+' option to reduce the resulting PDF file size.
@@ -1329,7 +1326,7 @@ dt dt Tm nT mul { % pop
 I would like to thank François Lafont who discovered quite a few bugs and made many suggestions that helped to improve the functionality of the package. Many thanks to Jin-Hwan Cho, the developer of `\verb+dvipdfmx+', for contributing the `\verb+dvipdfmx+' specific code, and to Walter Scott for proof-reading the documentation.
 
 \begin{thebibliography}{8}
-\bibitem{chupin} Chupin, M.: \emph{Syracuse MetaPost/Animations.} URL: \url{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}
+  \bibitem{chupin} Chupin, M.: \emph{Syracuse MetaPost/Animations.} URL: \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{http://melusine.eu.org/syracuse/}} \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{metapost/animations/chupin/?idsec=scara}}
 \bibitem{gilg05} Gilg, J.: PDF-Animationen. In: \emph{Die \TeX nische Kom\"odie}, Issue 4, 2005, pp.~30--37
 %\bibitem{hol} Holeček, J.: \emph{Animations in a pdf\TeX-generated PDF}. URL: \url{http://www.fi.muni.cz/~xholecek/tex/pdfanim.xhtml}
 \bibitem{hol} Holeček, J.; Sojka, P.: Animations in pdf\TeX-generated PDF. In: \emph{\TeX, XML, and Digital Typography}, Springer, 2004, pp.~179--191. doi:10.1007/978-3-540-27773-6\textunderscore14

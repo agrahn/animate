@@ -1,6 +1,9 @@
 # The `animate` LaTeX Package
 
-© 2016 Alexander Grahn
+© 2007--`\today` Alexander Grahn
+
+https://github.com/agrahn/animate
+
 
 **Description:**
 
@@ -22,11 +25,13 @@ Note, this file only gives a summary of usage and available package and command 
 ````
 width=<h-size>, height=<v-size>, totalheight=<v-size>,
 keepaspectratio, scale=<factor>, nomouse,
-autopause, autoplay, autoresume, controls, final, draft,
+autopause, autoplay, autoresume, controls[=all | none | ...],
+final, draft,
 buttonsize=<size>, buttonbg=<colour>, buttonfg=<colour>,
 loop, palindrome, step,
 poster[=first | <num> | last | none],
-method=icon | widget | ocg, dvipdfmx, xetex
+method=icon | widget | ocg, dvipdfmx, xetex,
+type=[<file ext>]
 ````
 
 - User interface:
@@ -50,8 +55,9 @@ method=icon | widget | ocg, dvipdfmx, xetex
 ````
 width=<h-size>, height=<v-size>, totalheight=<v-size>,
 keepaspectratio, scale=<factor>, nomouse,
-autopause, autoplay, autoresume, final,
-draft, controls, buttonsize=<size>, buttonbg=<colour>,
+autopause, autoplay, autoresume, final, draft,
+controls[=all | none | ...],
+buttonsize=<size>, buttonbg=<colour>,
 buttonfg=<colour>, loop, palindrome, step, measure,
 poster[=first | <num> | last | none],
 begin={<begin text>}, end={<end text>},
@@ -59,7 +65,8 @@ timeline=<timeline file>,
 method=icon | widget | ocg,
 every=<number>, bb=<llx> <lly> <urx> <ury>,
 viewport=<llx> <lly> <urx> <ury>,
-trim=<left> <bottom> <right> <top>
+trim=<left> <bottom> <right> <top>,
+label=<label text>, type=[<file ext>]
 ````
 
 **Requirements:**

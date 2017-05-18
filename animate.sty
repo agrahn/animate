@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/03/23}
+\def\@anim@version{2017/05/18}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -27,7 +27,7 @@
   }
 \fi
 
-\RequirePackage{keyval}
+\RequirePackage{xkeyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
 \RequirePackage{ifluatex}
@@ -43,16 +43,16 @@
 \ifpdf\else
   \setboolean{@anim@dvips}{true}% default dvi mode
   \setboolean{@anim@dvipdfmx}{false}
-  \DeclareOption{dvips}{%
+  \DeclareOptionX{dvips}{%
     \setboolean{@anim@dvips}{true}
     \setboolean{@anim@dvipdfmx}{false}
   }
-  \DeclareOption{dvipdfmx}{%
+  \DeclareOptionX{dvipdfmx}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
     \PassOptionsToPackage{dvipdfmx}{pdfbase}
   }
-  \DeclareOption{xetex}{%
+  \DeclareOptionX{xetex}{%
     \setboolean{@anim@dvipdfmx}{true}
     \setboolean{@anim@dvips}{false}
     \PassOptionsToPackage{xetex}{pdfbase}
@@ -66,7 +66,7 @@
   \setboolean{@anim@dvips}{false}
 \fi
 
-\DeclareOption*{}\ProcessOptions*\relax %allow anything as an option
+\DeclareOptionX*{}\ProcessOptionsX*\relax %allow anything as an option
 %(remaining package options will be processed near end of this file)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1127,20 +1127,29 @@
     }}%
     \if@anim@controls%
       \setlength{\@anim@tmpdima}{\@anim@btnsize}%
+      \setlength{\@anim@tmpdimb}{\z@}%
       \vskip 0.1\@anim@tmpdima%
       \hbox to \@anim@animwidth {%
         \hss%
-        \frame{%
-          \setlength{\@anim@tmpdimb}{2\@anim@tmpdima}%
-          \rule{0pt}{\@anim@tmpdima}\hskip\@anim@tmpdimb\hskip\@anim@tmpdimb%
-          \if@anim@step\else\hskip\@anim@tmpdimb\fi%
-        }%
-        \if@anim@step\else%
-          \hskip 0.3\@anim@tmpdima%
-          \frame{%
-            \setlength{\@anim@tmpdimb}{3\@anim@tmpdima}%
-            \rule{0pt}{\@anim@tmpdima}\hskip\@anim@tmpdimb%
-          }%
+        \setboolean{@anim@controls@firstgrp}{false}%
+        \if@anim@controls@stop%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \addtolength{\@anim@tmpdimb}{2\@anim@tmpdima}%
+        \fi%
+        \if@anim@controls@step%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \addtolength{\@anim@tmpdimb}{2\@anim@tmpdima}%
+        \fi%
+        \if@anim@controls@play%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \addtolength{\@anim@tmpdimb}{2\@anim@tmpdima}%
+        \fi%
+        \if@anim@controls@firstgrp%
+          \frame{\phantom{\rule{\@anim@tmpdimb}{\@anim@tmpdima}}}%
+        \fi%
+        \if@anim@controls@speed%
+          \if@anim@controls@firstgrp\hskip 0.3\@anim@tmpdima\fi%
+          \frame{\phantom{\rule{3\@anim@tmpdima}{\@anim@tmpdima}}}%
         \fi%
         \hss%
       }%
@@ -1290,12 +1299,11 @@
     \fi%
   \fi%
   \@anim@reset% to default settings
-  \begingroup% make use of graphic[xs] search path
+  \begingroup%
   \@anim@beginLTR%
-  \ifcsname Ginput@path\endcsname%
+  \ifcsname Ginput@path\endcsname% make use of graphic[xs] search path
     \let\input@path\Ginput@path%
   \fi%
-  %
   \setkeys{anim@user}{#1}%
   \ifthenelse{\boolean{@anim@autoplay}\OR\boolean{@anim@autoresume}}{%
     \setboolean{@anim@autoplayorresume}{true}%
@@ -1303,10 +1311,17 @@
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
+  \if@anim@step%
+    %for stepping animations, ignore any `controls' settings except
+    \setboolean{@anim@controls@play}{false}%        `step' and `stop'
+    \setboolean{@anim@controls@speed}{false}%
+    \setboolean{@anim@controls}{false}%
+    \if@anim@controls@stop\setboolean{@anim@controls}{true}\fi%
+    \if@anim@controls@step\setboolean{@anim@controls}{true}\fi%
+  \fi%
   \def\@anim@base{#3}%
   \def\@anim@first{#4}%
   \def\@anim@last{#5}%
-  %
   \@anim@checkmultipage{\@anim@base}{\@anim@ftype}%test for multipage file
   \if@anim@multipage\else% cope with wrong user input
     \ifthenelse{\equal{#4}{}\OR\equal{#5}{}}{%
@@ -1404,6 +1419,7 @@
 \def\animategraphics{\@anim@sanitizeColon\@anim@animategraphics}
 
 %inserts animation and control button widgets
+\newboolean{@anim@controls@firstgrp}
 \def\@anim@insertwidgets#1#2{%#1:@anim@num, #2 existing btn colour combination
   \vtop{%
     \offinterlineskip%
@@ -1414,9 +1430,17 @@
       \hbox to \@anim@animwidth {%
         \hss%
         \def\@anim@tooltip{}%
-        \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
-        \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
-        \if@anim@step\else%
+        \setboolean{@anim@controls@firstgrp}{false}%
+        \if@anim@controls@stop%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \@anim@buttonwidget{#1}{EndLeft}{EndLeft:#2}%
+        \fi%
+        \if@anim@controls@step%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \@anim@buttonwidget{#1}{StepLeft}{StepLeft:#2}%
+        \fi%
+        \if@anim@controls@play%
+          \setboolean{@anim@controls@firstgrp}{true}%
           \@anim@buttonwidget{#1}{PauseLeft}{PauseLeft:#2}%
           \@anim@buttonwidget{#1}{PlayLeft}{PlayLeft:#2}%
           \@anim@buttonwidget{#1}{PlayPauseLeft}{}%
@@ -1424,10 +1448,16 @@
           \@anim@buttonwidget{#1}{PlayRight}{PlayRight:#2}%
           \@anim@buttonwidget{#1}{PlayPauseRight}{}%
         \fi%
-        \@anim@buttonwidget{#1}{StepRight}{StepRight:#2}%
-        \@anim@buttonwidget{#1}{EndRight}{EndRight:#2}%
-        \if@anim@step\else%
-          \hskip 0.3\@anim@tmpdima%
+        \if@anim@controls@step%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \@anim@buttonwidget{#1}{StepRight}{StepRight:#2}%
+        \fi%
+        \if@anim@controls@stop%
+          \setboolean{@anim@controls@firstgrp}{true}%
+          \@anim@buttonwidget{#1}{EndRight}{EndRight:#2}%
+        \fi%
+        \if@anim@controls@speed%
+          \if@anim@controls@firstgrp\hskip 0.3\@anim@tmpdima\fi%
           \def\@anim@tooltip{/TU (slower)}%
           \@anim@buttonwidget{#1}{Minus}{Minus:#2}%
           \def\@anim@tooltip{/TU (default speed)}%
@@ -1666,8 +1696,7 @@
   \@anim@reset% to default settings
   \begingroup%
   \@anim@beginLTR%
-  % make use of graphic[xs] search path
-  \ifcsname Ginput@path\endcsname%
+  \ifcsname Ginput@path\endcsname% make use of graphic[xs] search path
     \let\input@path\Ginput@path%
   \fi%
   \setkeys{anim@user}{#1}%
@@ -1677,6 +1706,14 @@
   \ifthenelse{\NOT\boolean{@anim@controls}\AND\boolean{@anim@step}}{%
     \setboolean{@anim@loop}{true}%
   }{}%
+  \if@anim@step%
+    %for stepping animations, ignore any `controls' settings except
+    \setboolean{@anim@controls@play}{false}%        `step' and `stop'
+    \setboolean{@anim@controls@speed}{false}%
+    \setboolean{@anim@controls}{false}%
+    \if@anim@controls@stop\setboolean{@anim@controls}{true}\fi%
+    \if@anim@controls@step\setboolean{@anim@controls}{true}\fi%
+  \fi%
   \global\@anim@curframe@zb=\z@%
   \global\@anim@skipfram=\z@%
   \if@anim@draft\else%
@@ -2468,10 +2505,53 @@
     \fi%
   \fi%
 }
+
 \newboolean{@anim@controls}
-\define@key{anim@user}{controls}[true]{%
-  \setboolean{@anim@controls}{#1}%
+\newboolean{@anim@controls@play}
+\newboolean{@anim@controls@step}
+\newboolean{@anim@controls@stop}
+\newboolean{@anim@controls@speed}
+\def\@anim@user@controls@all{%
+  \setboolean{@anim@controls}{true}%
+  \setboolean{@anim@controls@play}{true}%
+  \setboolean{@anim@controls@step}{true}%
+  \setboolean{@anim@controls@stop}{true}%
+  \setboolean{@anim@controls@speed}{true}%
 }
+\def\@anim@user@controls@none{%
+  \setboolean{@anim@controls}{false}%
+  \setboolean{@anim@controls@play}{false}%
+  \setboolean{@anim@controls@step}{false}%
+  \setboolean{@anim@controls@stop}{false}%
+  \setboolean{@anim@controls@speed}{false}%
+}
+\define@key{anim@user}{controls}[all]{%
+  \@anim@user@controls@none%
+  \setkeys{anim@user@controls}{#1}%
+}
+\define@key{anim@user@controls}{all}[]{\@anim@user@controls@all}
+\define@key{anim@user@controls}{true}[]{\@anim@user@controls@all}
+\define@key{anim@user@controls}{on}[]{\@anim@user@controls@all}
+\define@key{anim@user@controls}{none}[]{\@anim@user@controls@none}
+\define@key{anim@user@controls}{false}[]{\@anim@user@controls@none}
+\define@key{anim@user@controls}{off}[]{\@anim@user@controls@none}
+\define@key{anim@user@controls}{play}[]{%
+  \setboolean{@anim@controls}{true}%
+  \setboolean{@anim@controls@play}{true}%
+}
+\define@key{anim@user@controls}{step}[]{%
+  \setboolean{@anim@controls}{true}%
+  \setboolean{@anim@controls@step}{true}%
+}
+\define@key{anim@user@controls}{stop}[]{%
+  \setboolean{@anim@controls}{true}%
+  \setboolean{@anim@controls@stop}{true}%
+}
+\define@key{anim@user@controls}{speed}[]{%
+  \setboolean{@anim@controls}{true}%
+  \setboolean{@anim@controls@speed}{true}%
+}
+
 \newboolean{@anim@loop}
 \define@key{anim@user}{loop}[true]{%
   \setboolean{@anim@loop}{#1}%
@@ -2625,6 +2705,10 @@
   \xdef\@anim@btnsize{\@anim@@btnsize}%
   \xdef\@anim@poster{\@anim@@poster}%
   \global\let\if@anim@controls=\if@anim@@controls%
+  \global\let\if@anim@controls@play=\if@anim@@controls@play%
+  \global\let\if@anim@controls@step=\if@anim@@controls@step%
+  \global\let\if@anim@controls@stop=\if@anim@@controls@stop%
+  \global\let\if@anim@controls@speed=\if@anim@@controls@speed%
   \global\let\if@anim@loop=\if@anim@@loop%
   \global\let\if@anim@autoplay=\if@anim@@autoplay%
   \global\let\if@anim@autoresume=\if@anim@@autoresume%
@@ -2786,11 +2870,53 @@
 \define@key{anim@pkg}{buttonsize}{%
   \gdef\@anim@@btnsize{#1}%
 }
+
 \newboolean{@anim@@controls}
-\setboolean{@anim@@controls}{false}%
-\define@key{anim@pkg}{controls}[true]{%
-  \setboolean{@anim@@controls}{#1}%
+\newboolean{@anim@@controls@play}
+\newboolean{@anim@@controls@step}
+\newboolean{@anim@@controls@stop}
+\newboolean{@anim@@controls@speed}
+\def\@anim@pkg@controls@all{%
+  \setboolean{@anim@@controls}{true}%
+  \setboolean{@anim@@controls@play}{true}%
+  \setboolean{@anim@@controls@step}{true}%
+  \setboolean{@anim@@controls@stop}{true}%
+  \setboolean{@anim@@controls@speed}{true}%
 }
+\def\@anim@pkg@controls@none{%
+  \setboolean{@anim@@controls}{false}%
+  \setboolean{@anim@@controls@play}{false}%
+  \setboolean{@anim@@controls@step}{false}%
+  \setboolean{@anim@@controls@stop}{false}%
+  \setboolean{@anim@@controls@speed}{false}%
+}
+\define@key{anim@pkg}{controls}[all]{%
+  \@anim@pkg@controls@none%
+  \setkeys{anim@pkg@controls}{#1}%
+}
+\define@key{anim@pkg@controls}{all}[]{\@anim@pkg@controls@all}
+\define@key{anim@pkg@controls}{true}[]{\@anim@pkg@controls@all}
+\define@key{anim@pkg@controls}{on}[]{\@anim@pkg@controls@all}
+\define@key{anim@pkg@controls}{none}[]{\@anim@pkg@controls@none}
+\define@key{anim@pkg@controls}{false}[]{\@anim@pkg@controls@none}
+\define@key{anim@pkg@controls}{off}[]{\@anim@pkg@controls@none}
+\define@key{anim@pkg@controls}{play}[]{%
+  \setboolean{@anim@@controls}{true}%
+  \setboolean{@anim@@controls@play}{true}%
+}
+\define@key{anim@pkg@controls}{step}[]{%
+  \setboolean{@anim@@controls}{true}%
+  \setboolean{@anim@@controls@step}{true}%
+}
+\define@key{anim@pkg@controls}{stop}[]{%
+  \setboolean{@anim@@controls}{true}%
+  \setboolean{@anim@@controls@stop}{true}%
+}
+\define@key{anim@pkg@controls}{speed}[]{%
+  \setboolean{@anim@@controls}{true}%
+  \setboolean{@anim@@controls@speed}{true}%
+}
+
 \newboolean{@anim@@loop}
 \setboolean{@anim@@loop}{false}%
 \define@key{anim@pkg}{loop}[true]{%
@@ -2952,12 +3078,12 @@
         }%
       }%
     \fi%
-    \if@anim@controls\if@anim@step\else
+    \if@anim@controls@play
       var a#1_btnPauseLeft=this.getField('#1.PauseLeft');%
       var a#1_btnPlayLeft=this.getField('#1.PlayLeft');%
       var a#1_btnPauseRight=this.getField('#1.PauseRight');%
       var a#1_btnPlayRight=this.getField('#1.PlayRight');%
-    \fi\fi%
+    \fi%
     %playing state and direction
     \if@anim@step%
       \if@anim@palindrome var a#1_playsRight=true;\fi%
@@ -3035,8 +3161,8 @@
             a#1_setFps(a#1_nFpsAt[f]);%
           }%
         \fi%
+        \if@anim@meas a#1_frcnt++;\fi%
       \fi%
-      \if@anim@step\else\if@anim@meas a#1_frcnt++;\fi\fi%
       return 0;%
     };%
     var a#1_stopFirst=function(){%
@@ -3129,7 +3255,7 @@
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_playing=false;%
         a#1_isPaused=!stop;%
-        \if@anim@controls
+        \if@anim@controls@play
           a#1_btnPauseLeft.display=display.hidden;%
           a#1_btnPlayLeft.display=display.visible;%
           a#1_btnPauseRight.display=display.hidden;%
@@ -3146,7 +3272,7 @@
         a#1_playsRight=true;%
         a#1_playing=true;%
         a#1_isPaused=false;%
-        \if@anim@controls
+        \if@anim@controls@play
           a#1_btnPauseLeft.display=display.visible;%
           a#1_btnPlayLeft.display=display.hidden;%
           a#1_btnPauseRight.display=display.visible;%
@@ -3163,7 +3289,7 @@
         a#1_playsRight=false;%
         a#1_playing=true;%
         a#1_isPaused=false;%
-        \if@anim@controls
+        \if@anim@controls@play
           a#1_btnPauseLeft.display=display.visible;%
           a#1_btnPlayLeft.display=display.hidden;%
           a#1_btnPauseRight.display=display.visible;%
@@ -3171,7 +3297,7 @@
           this.dirty=false;%
         \fi%
       };%
-      \if@anim@controls
+      \if@anim@controls@speed
         var a#1_fpsIncr=function(){% speed up animation
           a#1_sm*=1.1;%
           a#1_setFps(a#1_fps);%

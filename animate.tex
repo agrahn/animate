@@ -499,7 +499,8 @@ Also, the programming interface can be used to create custom buttons for playbac
 name & type & access & description\\\hline\hline
 {\tt numFrames} & Integer & read-only & Holds the total number of animation frames.\\
 {\tt frameNum}  & Integer & read+write & Gets or sets the current frame being/to\,be displayed. Note that frame numbers are zero-based. Assigning values less than zero or greater than {\tt numFrames-1} results in an error.\\
-{\tt fps} & Number & read+write & Gets or sets the animation frame rate (frames per second). Assigning values less than zero results in an error.\\
+  {\tt fps} & Number & read+write & Gets or temporarily sets the animation frame rate (frames per second). Reset after reaching the end of a sequence, or if the frame rate is set in a timeline or by {\tt\string\newframe[<frame rate>]}. For scaling overall animation speed, consider using the \Verb+speed+ property. Assigning values less than zero results in an error.\\
+  {\tt speed} & Number & read+write & Globally scales animation speed. The value must be greater than zero. A value of {\tt 1} means `normal speed' as specified by the frame rate in the document source. Larger values mean `faster', values between zero and one mean `slower'.\\
 {\tt dt} & Number & read-only & Holds the time span (milliseconds) for display of the current frame.\\
 {\tt isPlaying} & Boolean & read-only & Holds the value {\tt true} if the animation is currently playing, {\tt false} otherwise.\\
 {\tt playsFwd} & Boolean & read-only & Holds the value {\tt true} if the animation is played forward, independently of whether the animation is currently paused or not.\\

@@ -2050,13 +2050,6 @@
   @_for_additional_information!_____________________@\MessageBreak%
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%
 }
-\xdef\@anim@icondvipswarning{%
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\MessageBreak%
-  @_Icon-based_animation_method_(`method=icon')_____@\MessageBreak%
-  @_breaks_all_hyperref-inserted_links_in_the_final_@\MessageBreak%
-  @_PDF_produced_via_the_Dvips_route!_______________@\MessageBreak%
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-}
 \endgroup
 
 %macros for sanitizing characters
@@ -3103,7 +3096,7 @@
         var a#1_nFpsAt=new Array(\@anim@nfpsat);%
       \fi
       var a#1_fps=\@anim@fps==0?1e-6:\@anim@fps;%
-      var a#1_sm=1;%
+      var a#1_spd=1;%
       var a#1_setFps=function(f){%
         a#1_fps=f==0?1e-6:f;%
         if(a#1_playing){%
@@ -3266,7 +3259,7 @@
       var a#1_playRight=function(){%
         \if@anim@meas a#1_startMeas();\fi
         try{tmp_int=app.setInterval('a#1_gotoNext()',%
-          1000/a#1_fps/a#1_sm);}catch(e){}%
+          1000/a#1_fps/a#1_spd);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_int=tmp_int;%
         a#1_playsRight=true;%
@@ -3283,7 +3276,7 @@
       var a#1_playLeft=function(){%
         \if@anim@meas a#1_startMeas();\fi
         try{tmp_int=app.setInterval('a#1_gotoPrev()',%
-          1000/a#1_fps/a#1_sm);}catch(e){}%
+          1000/a#1_fps/a#1_spd);}catch(e){}%
         try{app.clearInterval(a#1_int);}catch(e){}%
         a#1_int=tmp_int;%
         a#1_playsRight=false;%
@@ -3298,16 +3291,16 @@
         \fi%
       };%
       \if@anim@controls@speed
-        var a#1_fpsIncr=function(){% speed up animation
-          a#1_sm*=1.1;%
+        var a#1_spdIncr=function(){% speed up animation
+          a#1_spd*=1.1;%
           a#1_setFps(a#1_fps);%
         };%
-        var a#1_fpsDecr=function(){% slow down animation
-          a#1_sm/=1.1;%
+        var a#1_spdDecr=function(){% slow down animation
+          a#1_spd/=1.1;%
           a#1_setFps(a#1_fps);%
         };%
-        var a#1_fpsReset=function(){% reset to default speed
-          a#1_sm=1;%
+        var a#1_spdReset=function(){% reset to default speed
+          a#1_spd=1;%
           a#1_setFps(a#1_fps);%
         };%
       \fi%
@@ -3372,7 +3365,16 @@
                 throw new RangeError('Frame_rate_not_in_allowed_range');%
               }else{a#1_setFps(f);}%
             },%
-            get dt(){return 1000/a#1_fps/a#1_sm;},%
+            get speed(){return a#1_spd;},%
+            set speed(s){%
+              if(s<=0||isNaN(s)){%
+                throw new RangeError('Speed_factor_not_in_allowed_range');%
+              }else{%
+                a#1_spd=s;%
+                a#1_setFps(a#1_fps);%
+              }%
+            },%
+            get dt(){return 1000/a#1_fps/a#1_spd;},%
             get playsFwd(){return a#1_playsRight;},%
           \fi
           get numFrames(){return \@anim@frames;},%
@@ -3539,13 +3541,13 @@
       a#1_stopLast();%
     \else%
     \ifx\@anim@action\@anim@Minus
-      a#1_fpsDecr();%
+      a#1_spdDecr();%
     \else%
     \ifx\@anim@action\@anim@Reset
-      a#1_fpsReset();%
+      a#1_spdReset();%
     \else%
     \ifx\@anim@action\@anim@Plus
-      a#1_fpsIncr();%
+      a#1_spdIncr();%
     \fi\fi\fi\fi\fi\fi\fi\fi\fi%
   }%
 }

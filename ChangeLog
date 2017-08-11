@@ -1,6 +1,7 @@
-2017-XX-XX
+2017-08-11
 	* new: `speed' property added to the JS animation object for scaling
 	overall animation speed
+	* fix: code of L-Attractor example improved
 
 2017-05-18
 	* new: configurable animation controls

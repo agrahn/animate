@@ -25,7 +25,7 @@
 \usepackage[utf8]{inputenc}
 %\usepackage{lmodern}
   \usepackage[tt=false]{libertine} %override beramono (doesn't look like tt font)
-  \usepackage[libertine]{newtxmath}
+  \usepackage{libertinust1math}
 \usepackage[protrusion]{microtype}
 %\usepackage{ifpdf}
 \usepackage{parskip}
@@ -38,6 +38,9 @@
 \usepackage{fancyvrb}
 \usepackage{tabularx}
 \usepackage[all]{hypcap}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily,columns=fullflexible,language={[LaTeX]TeX},commentstyle=\color{gray}}
+
 \clubpenalty=10000
 \widowpenalty=10000
 \displaywidowpenalty=10000
@@ -67,8 +70,6 @@
   pdfkeywords={\keywords},
   allcolors=blue
 }
-
-%\usepackage[scaled=0.85]{luximono}
 
 \def\XeLaTeX{X\kern-.1667em\lower.5ex\hbox{\reflectbox{E}}\kern-.125em\LaTeX}
 \def\XeTeX{X\kern-.1667em\lower.5ex\hbox{\reflectbox{E}}\kern-.125em\TeX}
@@ -322,11 +323,10 @@ The package implements three different animation methods. The `\verb+icon+' meth
 measure
 \end{verbatim}
 Measures the frame rate during one cycle of the animation and prints the value to the JavaScript console of the Reader. (For testing purposes.)
-\hypertarget{beginend}{}%
 \begin{verbatim}
 begin={<begin text>}
 end={<end text>}
-\end{verbatim}
+\end{verbatim}\hypertarget{beginend}{}%
 (`\verb+animateinline+' only.) \verb+<begin text>+ and \verb+<end text>+ are inserted into the code at start and end of each frame. Mainly used for setting up some drawing environment, such as
 \begin{verbatim}
   begin={\begin{pspicture}(... , ...)(... , ...)},
@@ -450,8 +450,8 @@ In this example, the 6th frame will be displayed after half of the current frame
 
 \myparagraph*{Other things to note}
 When designing the timeline, care should be taken not to include a transparency more than once into the \emph{same} animation frame. Besides the useless redundancy, this may slow down the animation speed in the Reader because the graphical objects of a multiply included transparency have to be rendered unnecessarily often at the same time. `animate' is smart enough to detect multiple inclusion and issues a warning message along with the transparency ID and the frame number if it occurs. Here is an example of a poorly designed timeline:
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
   ::0
   ::1x0
   ::2
@@ -459,10 +459,11 @@ When designing the timeline, care should be taken not to include a transparency 
   ::4,2
   ::5,1 % bad: transparency `1' included twice
   ::6
-\end{verbatim}
+\end{lstlisting}
 \normalsize
 Also, `animate' finds and warns about transparencies that have never been used in an animation timeline. This may help to avoid dead code in the final PDF.
 
+\clearpage
 \section{Programming interface}\label{sect:api}
 The package provides a simple JavaScript programming interface which gives access to the animation objects in a PDF file. A particular animation property or method can be accessed by
 \begin{verbatim}
@@ -477,7 +478,7 @@ or
 One potential use of the JavaScript interface could be within a timeline file associated with an animation. For example, loops over a sub-range of frames can be programmed by setting the `\verb+frameNum+' property. See Section~\ref{sect:timeline}, p.~\pageref{sect:jsfield} for details.
 
 Also, the programming interface can be used to create custom buttons for playback control. The command \verb+\mediabutton+ from the `media9' package provides a convenient way for achieving this:
-\begin{verbatim}
+\begin{lstlisting}
   \usepackage{media9}
   \usepackage{animate}
   ...
@@ -490,7 +491,7 @@ Also, the programming interface can be used to create custom buttons for playbac
   \mediabutton[
     jsaction={anim['my_anim'].frameNum=5;}
   ]{\fbox{Goto 6th frame}}
-\end{verbatim}
+\end{lstlisting}
 
 \begin{table}[p]%[hbp]
 \centering
@@ -498,8 +499,8 @@ Also, the programming interface can be used to create custom buttons for playbac
 \begin{tabularx}{\linewidth}[t]{lllX}\hline
 name & type & access & description\\\hline\hline
 {\tt numFrames} & Integer & read-only & Holds the total number of animation frames.\\
-{\tt frameNum}  & Integer & read+write & Gets or sets the current frame being/to\,be displayed. Note that frame numbers are zero-based. Assigning values less than zero or greater than {\tt numFrames-1} results in an error.\\
-  {\tt fps} & Number & read+write & Gets or temporarily sets the animation frame rate (frames per second). Reset after reaching the end of a sequence, or if the frame rate is set in a timeline or by {\tt\string\newframe[<frame rate>]}. For scaling overall animation speed, consider using the \Verb+speed+ property. Assigning values less than zero results in an error.\\
+{\tt frameNum}  & Integer & read+write & Gets or sets the current frame being/to\,be displayed. Note that frame numbers are zero-based. Assigning a value less than zero or greater than {\tt numFrames-1} results in an error.\\
+  {\tt fps} & Number & read+write & Gets or temporarily sets the animation frame rate (frames per second). Reset after reaching the end of a sequence, or if the frame rate is set in a timeline or by {\tt\string\newframe[<frame rate>]}. For scaling overall animation speed, consider using the \Verb+speed+ property. Assigning a value less than zero results in an error.\\
   {\tt speed} & Number & read+write & Globally scales animation speed. The value must be greater than zero. A value of {\tt 1} means `normal speed' as specified by the frame rate in the document source. Larger values mean `faster', values between zero and one mean `slower'.\\
 {\tt dt} & Number & read-only & Holds the time span (milliseconds) for display of the current frame.\\
 {\tt isPlaying} & Boolean & read-only & Holds the value {\tt true} if the animation is currently playing, {\tt false} otherwise.\\
@@ -529,8 +530,8 @@ Animations in this section are made from graphics files that were prepared with 
 
 The first example, Fig.~\ref{fig:taylor}, originally written by Jan Holeček~\cite{hol}, shows the exponential function $y=e^x$ and its approximation by Taylor polynomials of different degree. Below the animation, a custom button was inserted using the JavaScript programming interface and the \verb+\mediabutton+ command from the `media9' package.
 
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
 \documentclass{article}
 \usepackage{animate}
 \usepackage{media9}
@@ -568,8 +569,8 @@ The first example, Fig.~\ref{fig:taylor}, originally written by Jan Holeček~\ci
 \end{center}
 
 \end{document}
-\end{verbatim}
-\normalsize
+\end{lstlisting}
+%\normalsize
 \begin{figure}\capstart
 \centering
 \begin{VerbatimOut}{timeline.txt}
@@ -634,8 +635,8 @@ The second, somewhat more complex example, Fig.~\ref{fig:scarab}, animates the g
 \caption{}\label{fig:scarab}
 \end{figure}
 
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
 \documentclass{article}
 \usepackage{intcalc} %defines \intcalcMod for Modulo computation
 \usepackage{animate}
@@ -677,12 +678,12 @@ The second, somewhat more complex example, Fig.~\ref{fig:scarab}, animates the g
 \end{center}
 
 \end{document}
-\end{verbatim}
-\normalsize
+\end{lstlisting}
+%\normalsize
 \subsection{Animating PSTricks graphics, using `{\tt animateinline}' environment}
 Fig.~\ref{fig:torus} is an inline graphics example adapted from \cite{gilg05}.
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
 \documentclass{article}
 \usepackage{pst-3dplot}
 \usepackage{animate}
@@ -723,8 +724,8 @@ Fig.~\ref{fig:torus} is an inline graphics example adapted from \cite{gilg05}.
 \end{center}
 
 \end{document}
-\end{verbatim}
-\normalsize
+\end{lstlisting}
+%\normalsize
 
 \begin{figure}
 \centering
@@ -792,7 +793,7 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
 \immediate\closeout\OutFile%
 %
 \psset{unit=0.155,linewidth=0.5pt}%
-\begin{animateinline}[
+\noindent\begin{animateinline}[
   timeline=lorenz.tln,
   controls,poster=last,
   begin={\begin{pspicture}(-39,-13)(39,60)},
@@ -802,24 +803,24 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
   \psset{Alpha=120,Beta=20}%
   \pstThreeDCoor[xMax=33,yMax=33,zMax=55,linecolor=black]%
 \newframe
-  \pstODEsetOrRestoreState{10 10 30} %initial condition
+  %attractor segments
+  \gdef\initCond{10 10 30}% initial condition
+  \pstVerb{/lorenzXYZall {} def} %takes the whole attractor
   \multiframe{100}{i=0+1,rtZero=0+0.25,rtOne=0.25+0.25}{%
-    \pstODEsaveState{savedState}%
-    %compute attractor segments, stored in `lorenzXYZseg'
-    \pstODEsolve[algebraic]{lorenzXYZseg}{0 1 2}{\rtZero}{\rtOne}{26}{savedState}%
-	                                                                      {\lorenz}%
-    %compute the whole attractor, stored in `lorenzXYZall', with the same stepping
-    \ifnum\i=0\relax%
-      \pstODEsolve[algebraic]{lorenzXYZall}{0 1 2}{\rtZero}{\rtOne}{26}{savedState}%
-	                                                                        {\lorenz}%
-    \else%
-      \pstODEsolve[algebraic,append]{lorenzXYZall}{0 1 2}{\rtZero}{\rtOne}{26}%
-	                                                       {savedState}{\lorenz}%
-    \fi%
+    %compute current attractor segment, store it in `lorenzXYZseg'
+    \pstODEsolve[algebraic]{%
+      lorenzXYZseg}{0 1 2}{\rtZero}{\rtOne}{26}{\initCond}{\lorenz}%
+    %empty initial condition --> next \pstODEsolve continues
+    \gdef\initCond{}%            from last state vector
+    %append segment to the whole attractor stored in `lorenzXYZall'
+    \pstVerb{%
+      /lorenzXYZall [lorenzXYZall lorenzXYZseg] aload astore cvx def}
+    %plot the current segment
     \listplotThreeD[plotstyle=line]{lorenzXYZseg}%
   }%
 \newframe% required between two \multiframe
-  \multiframe{90}{rAlpha=116+-4}{% fly-around
+  %fly-around (whole attractor)
+  \multiframe{90}{rAlpha=116+-4}{%
     \psset{Alpha=\rAlpha,Beta=20}%
     \pstThreeDCoor[xMax=33,yMax=33,zMax=55,linecolor=black]%
     \listplotThreeD[plotstyle=line]{lorenzXYZall}%
@@ -828,8 +829,8 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
 \caption{}\label{fig:lorenz}
 \end{figure}
 
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
 \documentclass{article}
 \usepackage{multido}
 \usepackage{pst-3dplot}
@@ -858,7 +859,7 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
 \immediate\closeout\OutFile%
 %
 \psset{unit=0.155,linewidth=0.5pt}%
-\begin{animateinline}[
+\noindent\begin{animateinline}[
   timeline=lorenz.tln,
   controls,poster=last,
   begin={\begin{pspicture}(-39,-13)(39,60)},
@@ -868,24 +869,24 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
   \psset{Alpha=120,Beta=20}%
   \pstThreeDCoor[xMax=33,yMax=33,zMax=55,linecolor=black]%
 \newframe
-  \pstODEsetOrRestoreState{10 10 30} %initial condition
+  %attractor segments
+  \gdef\initCond{10 10 30}% initial condition
+  \pstVerb{/lorenzXYZall {} def} %takes the whole attractor
   \multiframe{100}{i=0+1,rtZero=0+0.25,rtOne=0.25+0.25}{%
-    \pstODEsaveState{savedState}%
-    %compute attractor segments, stored in `lorenzXYZseg'
-    \pstODEsolve[algebraic]{lorenzXYZseg}{0 1 2}{\rtZero}{\rtOne}{26}{savedState}%
-	                                                                      {\lorenz}%
-    %compute the whole attractor, stored in `lorenzXYZall', with the same stepping
-    \ifnum\i=0\relax%
-      \pstODEsolve[algebraic]{lorenzXYZall}{0 1 2}{\rtZero}{\rtOne}{26}{savedState}%
-	                                                                        {\lorenz}%
-    \else%
-      \pstODEsolve[algebraic,append]{lorenzXYZall}{0 1 2}{\rtZero}{\rtOne}{26}%
-	                                                       {savedState}{\lorenz}%
-    \fi%
+    %compute current attractor segment, store it in `lorenzXYZseg'
+    \pstODEsolve[algebraic]{%
+      lorenzXYZseg}{0 1 2}{\rtZero}{\rtOne}{26}{\initCond}{\lorenz}%
+    %empty initial condition --> next \pstODEsolve continues
+    \gdef\initCond{}%            from last state vector
+    %append segment to the whole attractor stored in `lorenzXYZall'
+    \pstVerb{%
+      /lorenzXYZall [lorenzXYZall lorenzXYZseg] aload astore cvx def}%
+    %plot the current segment
     \listplotThreeD[plotstyle=line]{lorenzXYZseg}%
   }%
 \newframe% required between two \multiframe
-  \multiframe{90}{rAlpha=116+-4}{% fly-around
+  %fly-around (whole attractor)
+  \multiframe{90}{rAlpha=116+-4}{%
     \psset{Alpha=\rAlpha,Beta=20}%
     \pstThreeDCoor[xMax=33,yMax=33,zMax=55,linecolor=black]%
     \listplotThreeD[plotstyle=line]{lorenzXYZall}%
@@ -893,7 +894,7 @@ A timeline file, written on-the-fly, is used to assemble the curve segments fram
 \end{animateinline}
 
 \end{document}
-\end{verbatim}
+\end{lstlisting}
 \normalsize
 
 The last inline example in Fig.~\ref{fig:metronome} is a ticking metronome written by Manuel Luque~\cite{luque12}. The short clicking sound was embedded by means of the `media9' package. Whenever the pendulum reaches one of its reversal points, playback of the sound file is started using JavaScript. The JavaScript code was inserted at the corresponding frame specifications in a timeline file. Since the PSTricks macros for drawing the metronome body and the pendulum are quite long they have been moved into an external file, \verb+files/pstmetronome.tex+. Note that the sound can be heard only on Win and Mac platforms. Even then, mileage may vary. A dual core CPU may be necessary for fluent playback.
@@ -1191,8 +1192,8 @@ dt dt Tm nT mul { % pop
 \end{animateinline}
 \caption{}\label{fig:metronome}
 \end{figure}
-\small
-\begin{verbatim}
+%\small
+\begin{lstlisting}
 \documentclass[12pt]{article}
 \usepackage{pstricks,pst-node,pst-plot,pst-tools,pst-text}
 \usepackage{animate}
@@ -1263,7 +1264,7 @@ dt dt Tm nT mul { % pop
 \end{center}
 
 \end{document}
-\end{verbatim}
+\end{lstlisting}
 
 \section{Bugs}\label{sect:bugs}
 \begin{itemize}
@@ -1309,7 +1310,7 @@ dt dt Tm nT mul { % pop
     \item Find the configuration file `texmf.cnf' by means of\\
     {\tt kpsewhich texmf.cnf}\\
     at the shell prompt in a terminal.
-    \item As Root, open the file in your favourite text editor, scroll to the `{\tt main\_memory}' entry and change it to the value given above; save and quit.
+    \item As Root, open the file in your favourite text editor, scroll to the\\`{\tt main\_memory}' entry and change it to the value given above; save and quit.
     \item Rebuild the formats by\\
     {\tt fmtutil-sys -{}-byfmt latex}\\
     {\tt fmtutil-sys -{}-byfmt pdflatex}\\
@@ -1318,7 +1319,7 @@ dt dt Tm nT mul { % pop
 
   \item If a PDF containing animations is postprocessed using tools like PDFtk to split the document into separate files, then animations in the output documents may not work.
 
-  \item PDFs with animations cannot be embedded (via {\tt \string\includegraphics, \string\includepdf}) into other documents as the animation capability gets lost.
+  \item PDFs with animations cannot be embedded (via {\tt\string\includegraphics},\\ {\tt\string\includepdf}) into other documents as the animation capability gets lost.
 
   \item Animations should not be placed on \emph{multilayered} slides, also known as overlays, created with presentation making classes such as Beamer or Powerdot. Although possible (on the last overlay of a slide, at best), the result might be disappointing. Put animations on flat slides only. (Of course, slides without animations may still have overlays.)
 \end{itemize}
@@ -1327,7 +1328,7 @@ dt dt Tm nT mul { % pop
 I would like to thank François Lafont who discovered quite a few bugs and made many suggestions that helped to improve the functionality of the package. Many thanks to Jin-Hwan Cho, the developer of `\verb+dvipdfmx+', for contributing the `\verb+dvipdfmx+' specific code, and to Walter Scott for proof-reading the documentation.
 
 \begin{thebibliography}{8}
-  \bibitem{chupin} Chupin, M.: \emph{Syracuse MetaPost/Animations.} URL: \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{http://melusine.eu.org/syracuse/}} \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{metapost/animations/chupin/?idsec=scara}}
+  \bibitem{chupin} Chupin, M.: \emph{Syracuse MetaPost/Animations.} URL: \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{http://melusine.eu.org/}} \href{http://melusine.eu.org/syracuse/metapost/animations/chupin/?idsec=scara}{\url{syracuse/metapost/animations/chupin/?idsec=scara}}
 \bibitem{gilg05} Gilg, J.: PDF-Animationen. In: \emph{Die \TeX nische Kom\"odie}, Issue 4, 2005, pp.~30--37
 %\bibitem{hol} Holeček, J.: \emph{Animations in a pdf\TeX-generated PDF}. URL: \url{http://www.fi.muni.cz/~xholecek/tex/pdfanim.xhtml}
 \bibitem{hol} Holeček, J.; Sojka, P.: Animations in pdf\TeX-generated PDF. In: \emph{\TeX, XML, and Digital Typography}, Springer, 2004, pp.~179--191. doi:10.1007/978-3-540-27773-6\textunderscore14

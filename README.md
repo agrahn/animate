@@ -94,4 +94,4 @@ TeXLive and MiKTeX users should run the package manager for installation.
 
 ## License
 
-This material is subject to the [LaTeX Project Public License](LICENSE).
+This material is subject to the [LaTeX Project Public License](http://mirrors.ctan.org/macros/latex/base/lppl.txt).

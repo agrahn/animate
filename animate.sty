@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/09/21}
+\def\@anim@version{2017/09/22}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -717,10 +717,18 @@
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
       gsave [1 0 0 1 0 0] setmatrix
-      mark /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]/BP pdfmark
-      {%
+      mark
+        /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]
+        \ifx\empty\@anim@alpha\empty\else
+          product (Distiller) search {
+            pop pop pop
+            /Group <</S/Transparency>>
+          }{pop}ifelse
+        \fi
+      /BP pdfmark
+      {
         %landscape mode (powerdot, geometry /w landscape option)
-        isls{%
+        isls{
           [0 -1 1 0 0 15] concat % rotate by 270 degrees
           [-1 0 0 1 15 0] concat%  flip around vertical axis
         }if
@@ -728,9 +736,12 @@
       }?pdfmark
       mark /EP pdfmark
       \ifx\empty\@anim@alpha\empty\else
-        mark {@anm@obj\the\@anim@objnum} <<
-          /Group <</S/Transparency>>
-        >> /PUT pdfmark
+        product (Ghostscript) search {
+          pop pop pop
+          mark {@anm@obj\the\@anim@objnum} <<
+            /Group <</S/Transparency>>
+          >> /PUT pdfmark
+        }{pop}ifelse
       \fi
       grestore
     }%
@@ -742,7 +753,13 @@
         gsave [1 0 0 1 0 0] setmatrix
         mark /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]/BP pdfmark
         \@anim@alpha
-        /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
+        {product (Distiller) search {
+          pop pop pop
+          mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark
+        }{
+          pop
+          /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
+        }ifelse} ?pdfmark
         mark {@anm@obj\@anim@objnum@last} /SP pdfmark
         mark /EP pdfmark
         grestore

@@ -13,7 +13,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2017/08/11}
+\def\@anim@version{2017/09/21}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
 
@@ -717,10 +717,7 @@
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \special{ps:
       gsave [1 0 0 1 0 0] setmatrix
-      mark
-        /_objdef {@anm@obj\the\@anim@objnum}
-        /BBox [0 0 15 15]
-      /BP pdfmark
+      mark /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]/BP pdfmark
       {%
         %landscape mode (powerdot, geometry /w landscape option)
         isls{%
@@ -728,9 +725,29 @@
           [-1 0 0 1 15 0] concat%  flip around vertical axis
         }if
         #2
-      }?pdfmark mark /EP pdfmark
+      }?pdfmark
+      mark /EP pdfmark
+      \ifx\empty\@anim@alpha\empty\else
+        mark {@anm@obj\the\@anim@objnum} <<
+          /Group <</S/Transparency>>
+        >> /PUT pdfmark
+      \fi
       grestore
     }%
+    %nested XObject if transparency is added
+    \ifx\empty\@anim@alpha\empty\else%
+      \edef\@anim@objnum@last{\the\@anim@objnum}%
+      \global\advance\@anim@objnum by \@ne%
+      \special{ps:
+        gsave [1 0 0 1 0 0] setmatrix
+        mark /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]/BP pdfmark
+        \@anim@alpha
+        /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
+        mark {@anm@obj\@anim@objnum@last} /SP pdfmark
+        mark /EP pdfmark
+        grestore
+      }%
+    \fi%  
     \@anim@newkey{btn#1:#3}{{@anm@obj\the\@anim@objnum}}%
     \global\advance\@anim@objnum by \@ne%
   }
@@ -974,7 +991,25 @@
   }
   %XObject creation
   \def\@anim@xbutton#1#2#3{% #1 name, #2 stroking commands, #3 @anim@num
-    \@anim@streamobj{/Type/XObject/Subtype/Form/BBox [0 0 15 15]}{#2}%
+    \@anim@streamobj{%
+      /Type/XObject/Subtype/Form/BBox [0 0 15 15]
+      \ifx\empty\@anim@alpha\empty\else%
+        /Group <</S/Transparency>>%
+      \fi%
+    }{#2}%
+    \ifx\empty\@anim@alpha\empty\else%
+      \@anim@streamobj{%
+        /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
+        /Resources <<%
+          /XObject <</R1 \@anim@lastobj>>%
+          /ExtGState <<%
+            /R2 <<%
+              /Type/ExtGState/ca \@anim@alpha/CA \@anim@alpha/AIS false%
+            >>%
+          >>%
+        >>%
+      }{/R2 gs /R1 Do Q}%
+    \fi%
     \@anim@newkey{btn#1:#3}{\@anim@lastobj}%
   }
 \fi
@@ -2498,6 +2533,9 @@
     \fi%
   \fi%
 }
+\define@key{anim@user}{buttonalpha}{%button opacity
+  \xdef\@anim@alpha{#1}%
+}
 
 \newboolean{@anim@controls}
 \newboolean{@anim@controls@play}
@@ -2695,6 +2733,7 @@
   \xdef\@anim@@@fg{\@anim@@@@fg}%
   \xdef\@anim@bgcolour{\@anim@@bgcolour}% default button colours
   \xdef\@anim@fgcolour{\@anim@@fgcolour}%
+  \global\let\@anim@alpha\@anim@@alpha%
   \xdef\@anim@btnsize{\@anim@@btnsize}%
   \xdef\@anim@poster{\@anim@@poster}%
   \global\let\if@anim@controls=\if@anim@@controls%
@@ -2825,6 +2864,10 @@
       \fi%
     \fi%
   \fi%
+}
+\def\@anim@@alpha{}
+\define@key{anim@pkg}{buttonalpha}{%button opacity
+  \xdef\@anim@@alpha{#1}%
 }
 \newcount\@anim@@resizeflags
 \def\@anim@@widtharg{\width}%

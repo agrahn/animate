@@ -9,7 +9,7 @@
 %
 \documentclass[a4paper]{article}
 \frenchspacing
-\usepackage[buttonbg=0.9]{animate}
+\usepackage[buttonbg=0.9,buttonalpha=0.1]{animate}
 \usepackage[UKenglish]{babel}
 \usepackage{pst-3dplot}
 \usepackage{pst-node,pst-plot,pst-tools,pst-text,pst-ode}
@@ -90,7 +90,7 @@
 \def\@anim@sanitizeColon{}\def\@anim@sanitizeJS{}\def\@anim@endsanitize{}
 \expandafter\parsedate\@anim@version\relax %set current date to package date
 \makeatother
-\author{Alexander Grahn \animategraphics[autoplay,loop,height=1.8ex,nomouse]{8}{bye_}{0}{3}\protect\footnote{Animated GIF taken from \href{http://www.phpBB.com}{phpBB} forum software and burst into a set of EPS files using \href{http://www.imagemagick.org}{ImageMagick} before embedding.} \protect\footnote{Animations may run slowly if viewed in the Acrobat Reader browser plugin.}\\[1ex]\includegraphics[height=2.7ex]{mailto}\\[1ex]\url{https://github.com/agrahn/animate}}
+\author{Alexander Grahn \animategraphics[autoplay,loop,height=1.8ex,nomouse]{8}{bye_}{0}{3}\protect\footnote{Animated GIF taken from \href{http://www.phpBB.com}{phpBB} forum software and burst into a set of EPS files using \href{http://www.imagemagick.org}{ImageMagick} before embedding.} \protect\footnote{Animations may run slowly if viewed in the Acrobat Reader browser plugin.}\\[1ex]\url{https://github.com/agrahn/animate}}
 \maketitle
 \endgroup
 \begin{abstract}
@@ -157,6 +157,7 @@ scale=<factor>
 buttonsize=<size>
 buttonbg=<colour>
 buttonfg=<colour>
+buttonalpha=<opacity>
 step
 nomouse
 type=<file ext>
@@ -304,8 +305,9 @@ Changes the control button height to \verb+<size>+, which must be a valid \TeX{}
 \begin{verbatim}
 buttonbg=<colour>
 buttonfg=<colour>
+buttonalpha=<opacity>
 \end{verbatim}
-By default, control button widgets are drawn with black strokes on transparent background. The background can be turned into a solid colour by the first option, while the second option specifies the stroke colour. The parameter \verb+<colour>+ is an array of colon-(\verb+:+)-separated numbers in the range from 0.0 to 1.0. The number of array elements determines the colour model in which the colour is defined: (1) gray value, (3) RGB, (4) CMYK. For example, `\verb+1+', `\verb+1:0.5:0.2+' and `\verb+0.5:0.3:0.7:0.1+' are valid colour specifications.
+By default, control button widgets are drawn with black strokes on transparent background. The background can be turned into a solid colour by the first option, while the second option specifies the stroke colour. The parameter \verb+<colour>+ is an array of colon-(\verb+:+)-separated numbers in the range from 0.0 to 1.0. The number of array elements determines the colour model in which the colour is defined: (1) gray value, (3) RGB, (4) CMYK. For example, `\verb+1+', `\verb+1:0.5:0.2+' and `\verb+0.5:0.3:0.7:0.1+' are valid colour specifications. Option \verb+buttonalpha+ adds transparency to the control buttons. Its parameter \verb+<opacity>+ is a number between 0.0 and 1.0, where 0.0 produces fully transparent and 1.0 fully opaque buttons.
 \begin{verbatim}
 draft
 final

@@ -93,8 +93,8 @@
     \xdef\@anim@lastobj{\pbs_pdflastobj:}
   }
 
-  \def\@anim@xform#1#2#3#4{
-    \pbs_pdfxform:nnnnn{#1}{#2}{}{#3}{#4}
+  \def\@anim@xform#1#2#3#4#5{
+    \pbs_pdfxform:nnnnn{#1}{#2}{#3}{#4}{#5}
     \xdef\@anim@lastxform{\pbs_pdflastxform:}
   }
 
@@ -319,7 +319,7 @@
   %create form xobject from box argument
   \ifthenelse{\equal{#4}{!}}{% %%%% new graphics %%%%
     %put graphics into XObject
-    \@anim@xform{1}{0}{}{#3}%
+    \@anim@xform{1}{0}{}{}{#3}%
     \xdef\@anim@@lastxform{\@anim@lastxform}%
     \@anim@newkey{natdims:\@anim@lastxform}{%
       {\@anim@curwd}{\@anim@curht}{\@anim@curdp}%
@@ -342,7 +342,7 @@
           }{\raisebox{\depth}{\box#3}}%
         }%
       }%
-      \@anim@xform{0}{0}{}{#3}%
+      \@anim@xform{0}{0}{}{}{#3}%
     \fi%
   \fi%
   %keep a record of XObject number
@@ -386,7 +386,7 @@
     \fi%
   \fi%
   \ifcase\@anim@method% icon based
-    \@anim@xform{0}{1}{}{\@anim@box}%
+    \@anim@xform{0}{1}{}{}{\@anim@box}%
     %initial visibility
     \ifnum\@anim@poster>\@anim@mtwo\relax% insert poster frame
       \ifnum#2=\@anim@poster\relax%
@@ -425,7 +425,7 @@
       \fi%
     \fi%
     %frame insertion
-    \@anim@xform{0}{1}{}{\@anim@box}%
+    \@anim@xform{0}{1}{}{}{\@anim@box}%
     \@anim@pdfwid{\@anim@animwidth}{\@anim@animheight}{\@anim@animdepth}{%
       /Subtype/Widget%
       \@anim@annotflag%
@@ -468,12 +468,12 @@
     \fi%
     %frame insertion
 %    % marked content method
-%    \@anim@xform{0}{0}{}{\@anim@box}%
+%    \@anim@xform{0}{0}{}{}{\@anim@box}%
 %    \ocgbase@oc@bdc{\@anim@curocg}%
 %    \@anim@refxform{\@anim@lastxform}%
 %    \ocgbase@oc@emc%
     % /OC  method
-    \@anim@xform{0}{0}{/OC \@anim@curocg}{\@anim@box}%
+    \@anim@xform{0}{0}{}{/OC \@anim@curocg}{\@anim@box}%
     \@anim@refxform{\@anim@lastxform}%
   \fi%
 }
@@ -713,60 +713,35 @@
       \ifx\@anim@lscape\@anim@@lscape [0 1 -1 0 15 0] concat \fi%
       \@anim@btnstep}{#1}%
   }
-  \newcount\@anim@objnum
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
-    \special{ps:
-      gsave [1 0 0 1 0 0] setmatrix
-      mark
-        /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]
-        \ifx\empty\@anim@alpha\empty\else
-          product (Distiller) search {
-            pop pop pop
-            /Group <</S/Transparency>>
-          }{pop}ifelse
-        \fi
-      /BP pdfmark
-      {
-        %landscape mode (powerdot, geometry /w landscape option)
-        isls{
-          [0 -1 1 0 0 15] concat % rotate by 270 degrees
-          [-1 0 0 1 15 0] concat%  flip around vertical axis
-        }if
-        #2
-      }?pdfmark
-      mark /EP pdfmark
-      \ifx\empty\@anim@alpha\empty\else
-        product (Ghostscript) search {
-          pop pop pop
-          mark {@anm@obj\the\@anim@objnum} <<
-            /Group <</S/Transparency>>
-          >> /PUT pdfmark
-        }{pop}ifelse
-      \fi
-      grestore
-    }%
+    \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
+      \special{ps: #2}%
+    }\hss}%
+    \special{ps: gsave [1 0 0 1 0 0] setmatrix}%
+    \@anim@xform{0}{1}{}{%
+      \ifx\empty\@anim@alpha\empty\else%
+        /Group <</S/Transparency>>%
+      \fi%
+    }{\@anim@box}%
+    \special{ps: grestore}%
     %nested XObject if transparency is added
     \ifx\empty\@anim@alpha\empty\else%
-      \edef\@anim@objnum@last{\the\@anim@objnum}%
-      \global\advance\@anim@objnum by \@ne%
-      \special{ps:
-        gsave [1 0 0 1 0 0] setmatrix
-        mark /_objdef {@anm@obj\the\@anim@objnum}/BBox [0 0 15 15]/BP pdfmark
-        \@anim@alpha
-        {product (Distiller) search {
-          pop pop pop
-          mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark
-        }{
-          pop
-          /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
-        }ifelse} ?pdfmark
-        mark {@anm@obj\@anim@objnum@last} /SP pdfmark
-        mark /EP pdfmark
-        grestore
-      }%
-    \fi%  
-    \@anim@newkey{btn#1:#3}{{@anm@obj\the\@anim@objnum}}%
-    \global\advance\@anim@objnum by \@ne%
+      \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
+        \special{ps:
+          \@anim@alpha\space
+          product (Distiller) search {
+            pop pop pop
+            mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark
+          }{
+            pop
+            /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
+          }ifelse
+        }%  
+        \@anim@refxform{\@anim@lastxform}%
+      }\hss}%
+      \@anim@xform{0}{0}{}{}{\@anim@box}%
+    \fi%
+    \@anim@newkey{btn#1:#3}{\@anim@lastxform}%
   }
 \else %pdftex/dvipdfmx/xetex
   %stroking commands
@@ -1025,7 +1000,7 @@
             >>%
           >>%
         >>%
-      }{/R2 gs /R1 Do Q}%
+      }{/R2 gs /R1 Do}%
     \fi%
     \@anim@newkey{btn#1:#3}{\@anim@lastobj}%
   }
@@ -1618,7 +1593,7 @@
     \ifnum\@anim@poster=\@anim@mtwo\relax%
       \ifdefined\@anim@apdummy\else% empty appearance widget
         \setbox\@anim@box=\hbox{\phantom{x}}%
-        \@anim@xform{0}{0}{}{\@anim@box}%
+        \@anim@xform{0}{0}{}{}{\@anim@box}%
         \xdef\@anim@apdummy{\@anim@lastxform}%
         \@anim@pdfwid{1ex}{1ex}{\z@}{%
           /Subtype/Widget%
@@ -1637,7 +1612,7 @@
   \else%
     \ifdefined\@anim@apdummy\else% empty appearance dummy
       \setbox\@anim@box=\hbox{\phantom{x}}%
-      \@anim@xform{0}{0}{}{\@anim@box}%
+      \@anim@xform{0}{0}{}{}{\@anim@box}%
       \xdef\@anim@apdummy{\@anim@lastxform}%
     \fi%
     \def\@anim@apmk{\@anim@apdummy}%
@@ -1701,7 +1676,7 @@
   \if@anim@mk\else%
     \ifdefined\@anim@apdummy\else% empty appearance dummy
       \setbox\@anim@box=\hbox{\phantom{x}}%
-      \@anim@xform{0}{0}{}{\@anim@box}%
+      \@anim@xform{0}{0}{}{}{\@anim@box}%
       \xdef\@anim@apdummy{\@anim@lastxform}%
     \fi%
   \fi%

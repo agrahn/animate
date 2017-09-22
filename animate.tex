@@ -234,7 +234,7 @@ The following options to \verb+\animategraphics+ and `\verb+animateinline+' have
 \begin{verbatim}
 label=<label text>
 \end{verbatim}
-The animation is given a label, \verb+<label text>+, which must be unique. Labelling an animation enables its JavaScript programming interface by defining \verb+anim['<label text>']+, which is a JavaScript reference to the animation object. The animation object provides a number of properties and methods that can be used for controlling the animation playback from within user defined JavaScript. For details, see Sect.~\ref{sect:api}.
+The animation is given a label, \verb+<label text>+, which must be unique. Labelling an animation enables its JavaScript programming interface by defining \verb+anim['<label text>']+, which is a JavaScript reference to the animation object. The animation object provides a number of properties and methods that can be used for controlling the animation playback from within user defined JavaScript. For details, see Section~\ref{sect:api}.
 \begin{verbatim}
 type=[<file ext>]
 \end{verbatim}
@@ -392,7 +392,7 @@ frame No. & timeline file & transparency stack\\\hline\hline
 \end{tabular}
 \end{table}
 
-Figures~\ref{fig:taylor} and \ref{fig:lorenz} in Section~\ref{sect:examples} are animation examples with a single transparency stack.
+Figures~\ref{fig:taylor} and \ref{fig:lorenz} in Sect.~\ref{sect:examples} are animation examples with a single transparency stack.
 
 \myparagraph*{Grouping objects into layers (= sub-stacks) using `{\tt;}'}
 Due to the stack-like nature of the animation, the position of a transparency specification in the timeline file determines its \emph{depth} level in relation to other transparencies. The timeline file is processed line by line and from left to right. In a single-stack animation, the stack is strictly built from the bottom up, such that earlier transparencies are overprinted by more recent ones. This may turn out to be inconvenient in certain situations. For example, it might be desirable to change the background image in the middle of an animation without affecting objects that are located in the foreground. For this purpose, transparency specifications can be grouped into layers (sub-stacks) using the semicolon (\verb+;+) as a separator. New transparencies can now be put on top of the individual sub-stacks. After a line of the timeline file has been processed, the global stack is built by placing the sub-stacks on top of the other. Again, the left-to-right rule applies when determining the height of the sub-stacks in relation to each other within the global stack.
@@ -429,10 +429,10 @@ frame No. & timeline file & transparency stack\\\hline\hline
 %
 %Note that \emph{without} setting up two layers, that is, by replacing the semicolons with commas, the foreground objects (transparencies 2 through 99) which have been added during the first 49 frames would be overprinted by the new background image, transparency 1, from frame 50 onward.
 
-See the second animation, Fig.~\ref{fig:scarab}, in Section~\ref{sect:examples} for a working example that makes use of the timeline and the layer concept.
+See the second animation, Fig.~\ref{fig:scarab}, in Sect.~\ref{sect:examples} for a working example that makes use of the timeline and the layer concept.
 
 \myparagraph*{Associate JavaScript actions with animation frames}\label{sect:jsfield}
-The optional fourth field \verb+<JavaScript>+ in a frame specification takes JavaScript code to be executed upon display of that frame. This could be used, for instance, to play a sound that was embedded using the `media9' \LaTeX{} package \cite{media9} or to execute JavaScript methods of the animation object. A non-trivial example is looping over a sub-range of frames which can be programmed by setting the `\verb+frameNum+' property of the animation object. See Sect.~\ref{sect:api} for details of the animation programming interface.
+The optional fourth field \verb+<JavaScript>+ in a frame specification takes JavaScript code to be executed upon display of that frame. This could be used, for instance, to play a sound that was embedded using the `media9' \LaTeX{} package \cite{media9} or to execute JavaScript methods of the animation object. A non-trivial example is looping over a sub-range of frames which can be programmed by setting the `\verb+frameNum+' property of the animation object. See Section~\ref{sect:api} for details of the animation programming interface.
 
 The backslash `\verb+\+' and percent `\verb+%+' characters retain their special meaning from \LaTeX{} and must be escaped by a backslash `\verb+\+' in the JavaScript code. The same applies to unbalanced braces `\verb+{+' and `\verb+}+'. Thus, a code line such as
 \begin{verbatim}
@@ -1323,7 +1323,7 @@ dt dt Tm nT mul { % pop
 
   \item PDFs with animations cannot be embedded (via {\tt\string\includegraphics},\\ {\tt\string\includepdf}) into other documents as the animation capability gets lost.
 
-  \item Animations should not be placed on \emph{multilayered} slides, also known as overlays, created with presentation making classes such as Beamer or Powerdot. Although possible (on the last overlay of a slide, at best), the result might be disappointing. Put animations on flat slides only. (Of course, slides without animations may still have overlays.)
+  \item Animations should not be placed on \emph{multilayered} slides, also known as overlays, created with presentation making classes such as Beamer or Powerdot. Those document classes turn overlays into separate PDF pages and re-insert the animation on every page thus produced. The animations are independent from each other and do not share the current playing state, such as frame number, playing speed and direction. Therefore, put animations on flat slides only; slides without animations may still have overlays, of course. On \href{https://tex.stackexchange.com/a/385209}{\TeX.SE}~\cite{texsx}, a method is suggested for placing an animation on a slide with overlays. It makes use of the programming interface introduced in Sect.~\ref{sect:api}, p.~\pageref{sect:api}.
 \end{itemize}
 
 \section{Acknowledgements}
@@ -1336,6 +1336,7 @@ I would like to thank François Lafont who discovered quite a few bugs and made 
 \bibitem{hol} Holeček, J.; Sojka, P.: Animations in pdf\TeX-generated PDF. In: \emph{\TeX, XML, and Digital Typography}, Springer, 2004, pp.~179--191. doi:10.1007/978-3-540-27773-6\textunderscore14
 \bibitem{luque12} Luque, M.: \emph{PSTricks : applications.} URL: \url{http://pstricks.blogspot.com}
 \bibitem{media9} \emph{The media9 Package}. URL: \url{http://www.ctan.org/pkg/media9}
+\bibitem{texsx} \emph{Beamer: animate package and overlay}. URL: \href{https://tex.stackexchange.com/a/385209}{\url{https://tex.stackexchange.com}}\\ \href{https://tex.stackexchange.com/a/385209}{\url{/a/385209}}
 \end{thebibliography}
 
 \end{document}

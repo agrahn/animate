@@ -1,5 +1,5 @@
 2017-09-22
-	* fix: control button transparency with Distiller
+	* fix: control button transparency with Distiller; README.md
 
 2017-09-21
 	* new: option `buttonalpha' for adding transparency to control buttons

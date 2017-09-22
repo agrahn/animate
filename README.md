@@ -4,7 +4,6 @@
 
 https://github.com/agrahn/animate
 
-
 ## Description
 
 This package provides an interface to create portable, JavaScript driven PDF animations from sets of (vector) graphics or rasterized image files or from inline (vector) graphics, such as LaTeX-picture, PSTricks or pgf/TikZ generated pictures, or just from typeset text.
@@ -17,12 +16,14 @@ Note, this file only gives a summary of usage and available package and command 
 
 *Keywords:* include portable PDF animated PDF animation animating embed animated graphics LaTeX pdfLaTeX PSTricks pgf TikZ MetaPost LaTeX-picture inline graphics vector graphics animated GIF LaTeX dvips ps2pdf dvipdfmx XeLaTeX JavaScript Acrobat Reader PDF-XChange Foxit Reader
 
-
 ## Usage
+
 ````latex
 \usepackage[<package options>]{animate}
 ````
-- Package options:
+
+- **Package options:**
+
 ````
 width=<h-size>, height=<v-size>, totalheight=<v-size>,
 keepaspectratio, scale=<factor>, nomouse,
@@ -36,7 +37,8 @@ method=icon | widget | ocg, dvipdfmx, xetex,
 type=[<file ext>]
 ````
 
-- User interface:
+- **User interface:**
+
 ````latex
 \animategraphics[<options>]{<frame rate>}{<file basename>}{<first>}{<last>}
 
@@ -53,7 +55,8 @@ type=[<file ext>]
 \end{animateinline}
 ````
 
-- Command options:
+- **Command options:**
+
 ````
 width=<h-size>, height=<v-size>, totalheight=<v-size>,
 keepaspectratio, scale=<factor>, nomouse,
@@ -80,19 +83,20 @@ label=<label text>, type=[<file ext>]
 - dvipdfmx, version >= 20080607
 - Acrobat Reader (version >= 7), PDF-XChange, Foxit Reader
 
-
 ## Installation
 
-Unzip the file [`animate.tds.zip`](http://mirrors.ctan.org/install/macros/latex/contrib/animate.tds.zip) into the local TDS root directory which can be found by running
+Unzip the file
+[`animate.tds.zip`](http://mirrors.ctan.org/install/macros/latex/contrib/animate.tds.zip) into the local TDS root directory which can be found by running
+
 ````bash
-    kpsewhich -var-value TEXMFLOCAL
+kpsewhich -var-value TEXMFLOCAL
 ````
+
 on the command line.
 
 After installation, update the filename database by running `texhash` on the command line.
 
 TeXLive and MiKTeX users should run the package manager for installation.
-
 
 ## License
 

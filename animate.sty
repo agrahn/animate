@@ -723,7 +723,7 @@
       }%
     }\hss}%
     %distill box into XObject
-    \@anim@xform{0}{0}{}{%
+    \@anim@xform{0}{1}{}{%
       \ifx\empty\@anim@alpha\empty\else/Group <</S/Transparency>>\fi%
     }{\@anim@box}%
     %nested XObject if transparency is to be added
@@ -735,13 +735,12 @@
             pop \@anim@alpha\space .setopacityalpha%
           }{%
             %Distiller
-            pop
             mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark%
           } ifelse%
         }%  
         \@anim@refxform{\@anim@lastxform}%
       }\hss}%
-      \@anim@xform{0}{1}{}{}{\@anim@box}%
+      \@anim@xform{0}{0}{}{}{\@anim@box}%
     \fi%
     \@anim@newkey{btn#1:#3}{\@anim@lastxform}%
   }

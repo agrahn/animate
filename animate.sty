@@ -715,31 +715,33 @@
   }
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
-      \special{ps: #2}%
+      \special{ps:
+        currentpoint translate
+        1 72.27 div Resolution mul DVImag mul %PS to DVI coords 
+        -1 72.27 div VResolution mul DVImag mul scale
+        #2 %stroking commands
+      }%
     }\hss}%
-    \special{ps: gsave [1 0 0 1 0 0] setmatrix}%
-    \@anim@xform{0}{1}{}{%
-      \ifx\empty\@anim@alpha\empty\else%
-        /Group <</S/Transparency>>%
-      \fi%
+    %distill box into XObject
+    \@anim@xform{0}{0}{}{%
+      \ifx\empty\@anim@alpha\empty\else/Group <</S/Transparency>>\fi%
     }{\@anim@box}%
-    \special{ps: grestore}%
-    %nested XObject if transparency is added
+    %nested XObject if transparency is to be added
     \ifx\empty\@anim@alpha\empty\else%
       \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
         \special{ps:
-          \@anim@alpha\space
-          product (Distiller) search {
-            pop pop pop
-            mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark
-          }{
+          /.setopacityalpha where {%
+            %Ghostscript
+            pop \@anim@alpha\space .setopacityalpha%
+          }{%
+            %Distiller
             pop
-            /.setopacityalpha where {pop .setopacityalpha}{pop} ifelse
-          }ifelse
+            mark /CA \@anim@alpha /ca \@anim@alpha /SetTransparency pdfmark%
+          } ifelse%
         }%  
         \@anim@refxform{\@anim@lastxform}%
       }\hss}%
-      \@anim@xform{0}{0}{}{}{\@anim@box}%
+      \@anim@xform{0}{1}{}{}{\@anim@box}%
     \fi%
     \@anim@newkey{btn#1:#3}{\@anim@lastxform}%
   }

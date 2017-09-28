@@ -80,14 +80,18 @@
   }%
 }
 \ExplSyntaxOn
+  \let\@anim@literal\pbs_literal:nn
+
   \def\@anim@dictobj#1{
     \pbs_pdfobj:nnn{}{dict}{#1}
     \xdef\@anim@lastobj{\pbs_pdflastobj:}
   }
+
   \def\@anim@arrayobj#1{
     \pbs_pdfobj:nnn{}{array}{#1}
     \xdef\@anim@lastobj{\pbs_pdflastobj:}
   }
+
   \def\@anim@streamobj#1#2{
     \pbs_pdfobj:nnn{}{stream}{{#1}{#2}}
     \xdef\@anim@lastobj{\pbs_pdflastobj:}
@@ -715,12 +719,7 @@
   }
   \def\@anim@xbutton#1#2#3{% #1: name; #2: stroking commands, #3 @anim@num
     \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
-      \special{ps:
-        currentpoint translate
-        1 72.27 div Resolution mul DVImag mul %PS to DVI coords 
-        -1 72.27 div VResolution mul DVImag mul scale
-        #2 %stroking commands
-      }%
+      \@anim@literal{}{#2}%
     }\hss}%
     %distill box into XObject
     \@anim@xform{0}{1}{}{%
@@ -729,7 +728,7 @@
     %nested XObject if transparency is to be added
     \ifx\empty\@anim@alpha\empty\else%
       \global\setbox\@anim@box=\hbox to 15bp {\vbox to 15bp {\vss%
-        \special{ps:
+        \@anim@literal{direct}{%
           /.setopacityalpha where {%
             %Ghostscript
             pop \@anim@alpha\space .setopacityalpha%
@@ -994,14 +993,14 @@
       \@anim@streamobj{%
         /Type/XObject/Subtype/Form/BBox [0 0 15 15]%
         /Resources <<%
-          /XObject <</R1 \@anim@lastobj>>%
           /ExtGState <<%
-            /R2 <<%
+            /R1 <<%
               /Type/ExtGState/ca \@anim@alpha/CA \@anim@alpha/AIS false%
             >>%
           >>%
+          /XObject <</R2 \@anim@lastobj>>%
         >>%
-      }{/R2 gs /R1 Do}%
+      }{/R1 gs /R2 Do}%
     \fi%
     \@anim@newkey{btn#1:#3}{\@anim@lastobj}%
   }

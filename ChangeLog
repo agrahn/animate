@@ -1,3 +1,7 @@
+2017-09-29
+	* fix: improved button face generation (PDF XObjects) for dvips, based on
+	current pdfbase.sty (pkg media9)
+
 2017-09-22
 	* fix: control button transparency with Distiller; README.md
 

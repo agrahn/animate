@@ -13,24 +13,15 @@
 
 \NeedsTeXFormat{LaTeX2e}
 
-\def\@anim@version{2018/01/04}
+\def\@anim@version{2018/02/28}
 \ProvidesPackage{animate}
 [\@anim@version\space PDF animations from files and inline graphics]
-
-%test for e-TeX
-\expandafter\ifx\csname eTeXversion\endcsname\relax
-  \PackageError{animate}{%
-    Missing support for e-TeX; aborting...%
-  }{%
-    Use a TeX compiler that supports e-TeX and enable e-TeX %
-    in the format.%
-  }
-\fi
 
 \RequirePackage{xkeyval}
 \RequirePackage{ifthen}
 \RequirePackage{ifpdf}
 \RequirePackage{ifluatex}
+\RequirePackage{ifxetex}
 \RequirePackage{ifdraft}
 \RequirePackage{calc}
 \RequirePackage{graphics}%\scalebox, \resizebox, \rotatebox
@@ -60,7 +51,7 @@
 \fi
 \newboolean{@anim@xetex}
 \setboolean{@anim@xetex}{false}
-\expandafter\ifx\csname XeTeXrevision\endcsname\relax\else
+\ifxetex
   \setboolean{@anim@xetex}{true}
   \setboolean{@anim@dvipdfmx}{true}
   \setboolean{@anim@dvips}{false}
@@ -135,21 +126,6 @@
       \@ifpackageloaded{geometry}{\geometry{dvips}}{}%
       \begingroup%
       \@anim@document%
-    }
-    %define `?pdfmark' operator as in file hdvips.def from package `hyperref'
-    \AtBeginDvi{%
-      \expandafter\ifx\csname pdfmark\endcsname\relax%
-        \special{!
-          systemdict /pdfmark known%
-          {%
-            userdict /?pdfmark systemdict /exec get put%
-          }{%
-            userdict /?pdfmark systemdict /pop get put
-            userdict /pdfmark systemdict /cleartomark get put%
-          }%
-          ifelse%
-        }%
-      \fi%
     }
   \fi
 \fi

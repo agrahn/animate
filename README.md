@@ -2,7 +2,7 @@
 
 © 2007--`\today` Alexander Grahn
 
-https://github.com/agrahn/animate
+**Notice:** I moved to [GitLab](https://gitlab.com/agrahn/animate) recently.
 
 ## Description
 
